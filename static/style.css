@@ -1,0 +1,106 @@
+/* Allgemeine Seite */
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f0f4f8;
+    margin: 0;
+    padding: 0;
+    color: #333;
+}
+
+/* Container für das Hauptlayout */
+.container {
+    width: 100%;
+    max-width: 800px;
+    margin: 40px auto;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    padding: 30px;
+    text-align: center;
+}
+
+/* Überschrift */
+h1 {
+    font-size: 2.5rem;
+    color: #333;
+    margin-bottom: 20px;
+}
+
+/* Textarea für Eingabe */
+textarea {
+    width: 100%;
+    height: 120px;
+    padding: 15px;
+    border-radius: 8px;
+    border: 2px solid #ddd;
+    font-size: 1rem;
+    margin-bottom: 20px;
+    background-color: #f9f9f9;
+    transition: border-color 0.3s ease;
+}
+
+textarea:focus {
+    border-color: #4CAF50;
+    outline: none;
+    background-color: #fff;
+}
+
+/* Button-Styles */
+.buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.buttons button {
+    padding: 12px 24px;
+    background-color: #4CAF50;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.buttons button:hover {
+    background-color: #45a049;
+    transform: translateY(-2px);
+}
+
+.buttons button:active {
+    transform: translateY(2px);
+}
+
+/* Ausgabe Bereich */
+.output {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #eef7e4;
+    border-radius: 8px;
+    font-size: 1.2rem;
+    min-height: 50px;
+    color: #2f6a2f;
+    font-weight: 500;
+}
+
+/* Mobile Anpassungen */
+@media (max-width: 600px) {
+    .container {
+        padding: 20px;
+    }
+
+    textarea {
+        height: 100px;
+    }
+
+    .buttons {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .buttons button {
+        width: 100%;
+    }
+}

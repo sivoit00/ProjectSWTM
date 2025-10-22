@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Textspielplatz</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Text-Tool</h1>
+        <textarea id="inputText" placeholder="Gib hier deinen Text ein..."></textarea>
+        <div class="buttons">
+            <button onclick="sendText('echo')">Original anzeigen</button>
+            <button onclick="sendText('uppercase')">Großbuchstaben</button>
+            <button onclick="sendText('ai')">Pseudo-KI antworten lassen</button>
+        </div>
+        <div class="output" id="outputArea"></div>
+    </div>
+
+    <script>
+        async function sendText(action) {
+            const text = document.getElementById('inputText').value;
+
+            const response = await fetch('/api/process', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ text: text, action: action })
+            });
+
+            const data = await response.json();
+            document.getElementById('outputArea').innerText = data.result;
+        }
+    </script>
+</body>
+</html>
