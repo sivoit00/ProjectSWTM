@@ -4,10 +4,20 @@ from database import SessionLocal, engine
 import models, schemas
 from datetime import date
 from fastapi import HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Fahrzeugservice API")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # Frontend dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # Dependency für DB
@@ -55,11 +65,11 @@ def create_fahrzeug(fahrzeug: schemas.FahrzeugCreate, db: Session = Depends(get_
 
 
 # ---------------- WERKSTÄTTEN ----------------
-@app.get("/werkstaetten", response_model=list[schemas.Werkstatt])
-def get_werkstaetten(db: Session = Depends(get_db)):
+@app.get("/werkstatt", response_model=list[schemas.Werkstatt])
+def get_werkstatt(db: Session = Depends(get_db)):
     return db.query(models.Werkstatt).all()
 
-@app.post("/werkstaetten", response_model=schemas.Werkstatt)
+@app.post("/werkstatt", response_model=schemas.Werkstatt)
 def create_werkstatt(werkstatt: schemas.WerkstattCreate, db: Session = Depends(get_db)):
     neue_werkstatt = models.Werkstatt(**werkstatt.dict())
     db.add(neue_werkstatt)
