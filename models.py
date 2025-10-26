@@ -35,11 +35,11 @@ class Fahrzeug(Base):
 # --- Tabelle: Werkstatt ---
 class Werkstatt(Base):
     __tablename__ = "werkstatt"
-
+    
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100))
     adresse = Column(String(200))
-    plz = Column(String(10))
+    plz = Column(String(20))
     ort = Column(String(100))
 
     # Beziehung zu Auftrag (eine Werkstatt kann viele Aufträge haben)
@@ -64,6 +64,7 @@ class Auftrag(Base):
 
 
 # --- Tabelle: KIAktion ---
+#wird nicht mehr benötigt sobald LLM Anbindung steht
 class KIAktion(Base):
     __tablename__ = "ki_aktionen"
 
