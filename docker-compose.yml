@@ -8,10 +8,10 @@ services:
     ports:
       - "5173:5173"
     volumes:
-      - ./frontend:/app:delegated
-      - node_modules_frontend:/app/node_modules
+      - ./frontend:/app
+      - /app/node_modules  # Wichtig: node_modules nicht überschreiben
     environment:
-      - VITE_API_URL=http://backend:8000
+      - VITE_API_URL=http://localhost:8000
     depends_on:
       - backend
 
@@ -23,6 +23,7 @@ services:
       - DATABASE_URL=postgresql://postgres:Aasal22!!@db:5432/fahrzeugservice
     volumes:
       - .:/app
+      - /app/frontend  # Frontend aus Backend-Volume ausschließen
     depends_on:
       - db
 
@@ -39,4 +40,3 @@ services:
 
 volumes:
   postgres_data:
-  node_modules_frontend:
