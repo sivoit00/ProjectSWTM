@@ -144,3 +144,4 @@ def get_auftraege_von_fahrzeug(fahrzeug_id: int, db: Session = Depends(get_db)):
 @app.get("/auftraege/status/{status}", response_model=list[schemas.Auftrag])
 def get_auftraege_nach_status(status: str, db: Session = Depends(get_db)):
     return db.query(models.Auftrag).filter(models.Auftrag.status.ilike(status)).all()
+# hallo
