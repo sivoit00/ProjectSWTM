@@ -73,4 +73,4 @@ class KIAktion(Base):
     erstellt_am = Column(Date, default=datetime.date.today)
     auftrag_id = Column(Integer, ForeignKey("auftrag.id"), nullable=True)
 
-    auftrag = relationship("Auftrag")
+    auftrag = relationship("Auftrag") #hallo
