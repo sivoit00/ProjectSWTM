@@ -6,7 +6,7 @@ function App() {
   const [kunden, setKunden] = useState<Kunde[]>([]);
   const [werkstatt, setWerkstatt] = useState<Werkstatt[]>([]);
   const [fahrzeuge, setFahrzeuge] = useState<Fahrzeug[]>([]);
-  const [count, setCount] = useState(0);  // Add counter state
+  const [text, setText] = useState(''); // Add text state
 
   useEffect(() => {
     loadData();
@@ -29,16 +29,11 @@ function App() {
 
   return (
 
-  /*Einfache Datenbank abfrage zum Testen der Verbindung/Frontend*/
+  /*Simple Database query for testing Frontend/Backend*/
     <div>
       <h1>Fahrzeugservice</h1>
       
-      {/* Add counter button */}
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-      </div>
+    
 
       <h2>Kunden</h2>
       <ul>
@@ -65,6 +60,17 @@ function App() {
           
         ))}
       </ul>
+
+      {/* Add text input field */}
+      <div className="text">
+        <input
+          type="text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Type something..."
+        />
+        <p>You typed: {text}</p>
+      </div>
     </div>
   );
 }
