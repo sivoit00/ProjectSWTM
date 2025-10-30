@@ -5,6 +5,9 @@ import models, schemas
 from datetime import date
 from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+import os
+import openai
+from pydantic import BaseModel
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -134,6 +137,57 @@ def ki_create_auftrag(action: schemas.KIAktionCreate, db: Session = Depends(get_
     db.refresh(ki)
 
     return ki
+
+
+# ---------------- OPENAI CHAT ----------------
+class OpenAIRequest(BaseModel):
+    message: str
+
+
+@app.post("/openai/chat")
+def openai_chat(req: OpenAIRequest, db: Session = Depends(get_db)):
+    """Forward user message to OpenAI (uses OPENAI_API_KEY env var) and store a KIAktion.
+
+    Returns JSON: { "response": "..." }
+    """
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="OpenAI API key not configured on server")
+
+    try:
+        openai.api_key = api_key
+        model_name = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
+        # call ChatCompletion endpoint
+        resp = openai.ChatCompletion.create(
+            model=model_name,
+            messages=[{"role": "user", "content": req.message}],
+            max_tokens=600,
+            temperature=0.7,
+        )
+        answer = resp.choices[0].message.content.strip()
+
+        # persist the KIAktion (optional)
+        ki = models.KIAktion(nachricht=req.message, antwort=answer, auftrag_id=None)
+        db.add(ki)
+        db.commit()
+        db.refresh(ki)
+
+        return {"response": answer}
+    except Exception as e:
+        # Log full traceback for debugging
+        import traceback
+        tb = traceback.format_exc()
+        print("OpenAI call failed:", tb)
+        # Return the original OpenAI message if available
+        detail = str(e)
+        try:
+            if hasattr(e, 'user_message'):
+                detail = e.user_message
+            elif hasattr(e, 'error') and isinstance(e.error, dict) and 'message' in e.error:
+                detail = e.error['message']
+        except Exception:
+            pass
+        raise HTTPException(status_code=500, detail=detail)
 
 
 # --- Zusätzliche Filterfunktionen ---

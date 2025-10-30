@@ -3,3 +3,4 @@ uvicorn==0.38.0
 psycopg2-binary==2.9.11
 SQLAlchemy==2.0.44
 pydantic==2.12.3
+openai==0.27.8

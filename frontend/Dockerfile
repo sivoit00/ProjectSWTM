@@ -5,6 +5,8 @@ WORKDIR /app
 # Dependencies installieren
 COPY package*.json ./
 RUN npm ci --silent
+# Ensure optional SWC React plugin is available (fixes missing @vitejs/plugin-react-swc error)
+RUN npm install --no-audit --silent --save-dev @vitejs/plugin-react-swc
 
 # Code kopieren
 COPY . .

@@ -1,19 +1,29 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Send } from "lucide-react";
+import { api } from "../services/api";
 
 export default function App() {
-  const [messages, setMessages] = useState([
-    { sender: "Bot", text: "👋 Willkommen!" },
-    { sender: "Bot", text: "Wie kann ich dir helfen?" },
-    { sender: "User", text: "Mein Auto ist kaputt!" },
-  ]);
+  const [messages, setMessages] = useState<{ sender: "User" | "Bot"; text: string }[]>([]);
   const [input, setInput] = useState("");
 
   const handleSend = () => {
     if (!input.trim()) return;
-    setMessages((prev) => [...prev, { sender: "User", text: input }]);
+    const userMessage = input.trim();
+    setMessages((prev) => [...prev, { sender: "User", text: userMessage }]);
     setInput("");
+
+    // send to backend OpenAI endpoint
+    (async () => {
+      try {
+        const res = await api.sendToOpenAI({ message: userMessage });
+        const answer = res.data?.response ?? "Keine Antwort erhalten";
+        setMessages((prev) => [...prev, { sender: "Bot", text: answer }]);
+      } catch (err) {
+        console.error("OpenAI error:", err);
+        setMessages((prev) => [...prev, { sender: "Bot", text: "Fehler beim Abrufen der Antwort" }]);
+      }
+    })();
   };
 
   return (

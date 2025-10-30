@@ -1,4 +1,4 @@
-version: '3.8'
+
 
 services:
   frontend:
@@ -21,6 +21,7 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://postgres:Aasal22!!@db:5432/fahrzeugservice
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     volumes:
       - .:/app
       - /app/frontend  # Frontend aus Backend-Volume ausschließen
