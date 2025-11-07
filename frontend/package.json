@@ -11,13 +11,14 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.16",
-    "axios": "^1.12.2",
-    "framer-motion": "^12.23.24",
-    "lucide-react": "^0.548.0",
     "@vitejs/plugin-react": "^5.0.4",
     "@vitejs/plugin-react-swc": "^3.2.0",
+    "axios": "^1.12.2",
+    "framer-motion": "^12.23.24",
+    "keycloak-js": "^26.2.1",
+    "lucide-react": "^0.548.0",
     "react-dom": "^19.1.1",
-    "react-router-dom": "^7.9.4",
+    "react-router-dom": "^7.9.5",
     "tailwindcss": "^4.1.16"
   },
   "devDependencies": {

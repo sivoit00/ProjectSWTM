@@ -12,19 +12,23 @@ services:
       - /app/node_modules  # Wichtig: node_modules nicht überschreiben
     environment:
       - VITE_API_URL=http://localhost:8000
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+      - WDS_SOCKET_HOST=localhost
     depends_on:
       - backend
 
   backend:
-    build: .
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://postgres:Aasal22!!@db:5432/fahrzeugservice
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     volumes:
-      - .:/app
-      - /app/frontend  # Frontend aus Backend-Volume ausschließen
+      - ./backend:/app
     depends_on:
       - db
 
