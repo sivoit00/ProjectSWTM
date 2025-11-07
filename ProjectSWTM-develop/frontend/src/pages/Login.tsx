@@ -1,17 +1,43 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Login attempt with:", { email, password });
+    setError("");
+    setLoading(true);
+
+    try {
+      const response = await fetch("http://localhost:8000/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.detail || "Login fehlgeschlagen");
+        setLoading(false);
+        return;
+      }
+
+      // Token speichern und zum Dashboard navigieren
+      localStorage.setItem("token", data.access_token);
+      navigate("/dashboard");
+    } catch (err) {
+      setError("Verbindungsfehler zum Server");
+      setLoading(false);
+    }
   };
 
   return (
@@ -70,6 +96,13 @@ export default function Login() {
             </div>
           </div>
 
+          {/* Error Message */}
+          {error && (
+            <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-2 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+
           <div className="flex items-center justify-between text-sm text-gray-300">
             <a href="#" className="text-blue-400 hover:text-blue-300">
               Forgot password?
@@ -78,17 +111,18 @@ export default function Login() {
 
           <button
             type="submit"
-            className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition"
+            disabled={loading}
+            className="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold rounded-lg shadow-md transition"
           >
-            Sign in
+            {loading ? "Logging in..." : "Sign in"}
           </button>
         </form>
 
         <p className="text-center text-gray-400 text-sm mt-6">
-          Don’t have an account?{" "}
-          <a href="#" className="text-blue-400 hover:text-blue-300 font-medium">
+          Don't have an account?{" "}
+          <Link to="/register" className="text-blue-400 hover:text-blue-300 font-medium">
             Sign up
-          </a>
+          </Link>
         </p>
       </motion.div>
     </div>

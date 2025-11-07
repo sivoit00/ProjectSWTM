@@ -25,3 +25,4 @@ dist-ssr
 
 # Ignore repository .env (backend .env placed at repo root)
 ../.env
+.
