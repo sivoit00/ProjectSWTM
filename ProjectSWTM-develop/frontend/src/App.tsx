@@ -7,6 +7,12 @@ import Chat from "./pages/Chat";
 import Schadensmeldung from "./pages/Schadensmeldung";
 import Auftraege from "./pages/Auftraege";
 import Visualisierung from "./pages/Visualisierung";
+import NeuerAuftragAuswahl from "./pages/NeuerAuftragAuswahl";
+import SchadensmeldungForm from "./pages/SchadensmeldungForm";
+import FahrzeugRegistrieren from "./pages/FahrzeugRegistrieren";
+import VersicherungAktualisieren from "./pages/VersicherungAktualisieren";
+import WerkstattTermin from "./pages/WerkstattTermin";
+import SonstigerAuftrag from "./pages/SonstigerAuftrag";
 
 export default function App() {
   return (
@@ -19,6 +25,12 @@ export default function App() {
       <Route path="/schadensmeldung" element={<Schadensmeldung />} />
       <Route path="/auftraege" element={<Auftraege />} />
       <Route path="/visualisierung" element={<Visualisierung />} />
+      <Route path="/neuer-auftrag" element={<NeuerAuftragAuswahl />} />
+      <Route path="/auftrag/schadensmeldung" element={<SchadensmeldungForm />} />
+      <Route path="/auftrag/fahrzeug-registrieren" element={<FahrzeugRegistrieren />} />
+      <Route path="/auftrag/versicherung" element={<VersicherungAktualisieren />} />
+      <Route path="/auftrag/werkstatt" element={<WerkstattTermin />} />
+      <Route path="/auftrag/sonstiges" element={<SonstigerAuftrag />} />
     </Routes>
   );
 }
