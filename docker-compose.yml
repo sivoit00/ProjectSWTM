@@ -12,19 +12,23 @@ services:
       - /app/node_modules  # Wichtig: node_modules nicht überschreiben
     environment:
       - VITE_API_URL=http://localhost:8000
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+      - WDS_SOCKET_HOST=localhost
     depends_on:
       - backend
 
   backend:
-    build: .
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://postgres:Aasal22!!@db:5432/fahrzeugservice
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     volumes:
-      - .:/app
-      - /app/frontend  # Frontend aus Backend-Volume ausschließen
+      - ./backend:/app
     depends_on:
       - db
 
@@ -39,5 +43,17 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4.2
+    environment:
+      - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN}
+      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
+    command: start-dev
+    ports:
+      - "8080:8080"
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+
 volumes:
   postgres_data:
+  keycloak_data:
