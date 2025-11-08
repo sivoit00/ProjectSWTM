@@ -8,7 +8,6 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 import openai
 from pydantic import BaseModel
-from auth import verify_token
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -56,7 +55,7 @@ def create_kunde(kunde: schemas.KundeCreate, db: Session = Depends(get_db)):
 
 # ---------------- FAHRZEUGE ----------------
 @app.get("/fahrzeuge", response_model=list[schemas.Fahrzeug])
-def get_fahrzeuge(db: Session = Depends(get_db), user=Depends(verify_token)):
+def get_fahrzeuge(db: Session = Depends(get_db)):
     return db.query(models.Fahrzeug).all()
 
 @app.post("/fahrzeuge", response_model=schemas.Fahrzeug)
