@@ -48,11 +48,20 @@ services:
     environment:
       - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN}
       - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
-    command: start-dev
+      - KC_DB=postgres
+      - KC_DB_URL=jdbc:postgresql://db:5432/fahrzeugservice
+      - KC_DB_USERNAME=postgres
+      - KC_DB_PASSWORD=Aasal22!!
+      - KC_IMPORT=/opt/keycloak/data/realm.json
     ports:
       - "8080:8080"
+    command: start-dev
+    depends_on:
+      - db
     volumes:
       - keycloak_data:/opt/keycloak/data
+      - ./keycloak/realm.json:/opt/keycloak/data/realm.json
+
 
 volumes:
   postgres_data:
