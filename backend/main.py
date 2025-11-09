@@ -156,13 +156,13 @@ def openai_chat(req: OpenAIRequest, db: Session = Depends(get_db)):
 
     try:
         openai.api_key = api_key
-        model_name = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
+        model_name = os.getenv("OPENAI_MODEL", "gpt-5-nano-2025-08-07")
         # call ChatCompletion endpoint
         resp = openai.ChatCompletion.create(
             model=model_name,
             messages=[{"role": "user", "content": req.message}],
-            max_tokens=600,
-            temperature=0.7,
+            max_completion_tokens=600,
+            temperature=1,
         )
         answer = resp.choices[0].message.content.strip()
 
@@ -191,20 +191,20 @@ def openai_chat(req: OpenAIRequest, db: Session = Depends(get_db)):
 
 
 # --- Zusätzliche Filterfunktionen ---
-
+#
 # 🔹 Alle Fahrzeuge eines Kunden abrufen
-@app.get("/kunden/{kunde_id}/fahrzeuge", response_model=list[schemas.Fahrzeug])
-def get_fahrzeuge_von_kunde(kunde_id: int, db: Session = Depends(get_db)):
-    return db.query(models.Fahrzeug).filter(models.Fahrzeug.kunde_id == kunde_id).all()
+#@app.get("/kunden/{kunde_id}/fahrzeuge", response_model=list[schemas.Fahrzeug])
+#def get_fahrzeuge_von_kunde(kunde_id: int, db: Session = Depends(get_db)):
+#    return db.query(models.Fahrzeug).filter(models.Fahrzeug.kunde_id == kunde_id).all()
 
 
 # 🔹 Alle Aufträge eines Fahrzeugs abrufen
-@app.get("/fahrzeuge/{fahrzeug_id}/auftraege", response_model=list[schemas.Auftrag])
-def get_auftraege_von_fahrzeug(fahrzeug_id: int, db: Session = Depends(get_db)):
-    return db.query(models.Auftrag).filter(models.Auftrag.fahrzeug_id == fahrzeug_id).all()
+#@app.get("/fahrzeuge/{fahrzeug_id}/auftraege", response_model=list[schemas.Auftrag])
+#def get_auftraege_von_fahrzeug(fahrzeug_id: int, db: Session = Depends(get_db)):
+#   return db.query(models.Auftrag).filter(models.Auftrag.fahrzeug_id == fahrzeug_id).all()
 
 
 # 🔹 Aufträge nach Status (z. B. offen oder abgeschlossen)
-@app.get("/auftraege/status/{status}", response_model=list[schemas.Auftrag])
-def get_auftraege_nach_status(status: str, db: Session = Depends(get_db)):
-    return db.query(models.Auftrag).filter(models.Auftrag.status.ilike(status)).all()
+#@app.get("/auftraege/status/{status}", response_model=list[schemas.Auftrag])
+#def get_auftraege_nach_status(status: str, db: Session = Depends(get_db)):
+ #   return db.query(models.Auftrag).filter(models.Auftrag.status.ilike(status)).all()

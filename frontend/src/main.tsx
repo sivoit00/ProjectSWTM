@@ -6,7 +6,7 @@ import keycloak from "./keycloak";
 import "./index.css";
 
 keycloak
-  .init({ onLoad: "login-required" })
+  .init({ onLoad: "login-required", checkLoginIframe: false })
   .then((authenticated) => {
     if (!authenticated) {
       keycloak.login();
