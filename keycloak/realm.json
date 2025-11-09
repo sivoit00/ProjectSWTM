@@ -1,3 +1,4 @@
+
 {
   "id" : "407bbd94-bfd6-4a20-b093-2557f3bd6b2b",
   "realm" : "fahrzeugservice",
@@ -417,7 +418,7 @@
     "id" : "9e53762d-1ffe-4dc7-8666-84a248073d7e",
     "clientId" : "account",
     "name" : "${client_account}",
-    "rootUrl" : "${authBaseUrl}",
+    "rootUrl" : "http://localhost:8080",
     "baseUrl" : "/realms/fahrzeugservice/account/",
     "surrogateAuthRequired" : false,
     "enabled" : true,
@@ -448,7 +449,7 @@
     "id" : "dd195001-c67e-4000-9fd9-52693bdce8b2",
     "clientId" : "account-console",
     "name" : "${client_account-console}",
-    "rootUrl" : "${authBaseUrl}",
+    "rootUrl" : "http://localhost:8080",
     "baseUrl" : "/realms/fahrzeugservice/account/",
     "surrogateAuthRequired" : false,
     "enabled" : true,
@@ -611,7 +612,7 @@
     "id" : "e6387aa8-7fef-4531-880e-da9ca50a079f",
     "clientId" : "security-admin-console",
     "name" : "${client_security-admin-console}",
-    "rootUrl" : "${authAdminUrl}",
+    "rootUrl" : "http://localhost:8080",
     "baseUrl" : "/admin/fahrzeugservice/console/",
     "surrogateAuthRequired" : false,
     "enabled" : true,
@@ -2144,3 +2145,4 @@
     "policies" : [ ]
   }
 }
+  
