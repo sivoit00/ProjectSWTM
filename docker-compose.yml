@@ -1,0 +1,67 @@
+
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules  # Wichtig: node_modules nicht überschreiben
+    environment:
+      - VITE_API_URL=http://localhost:8000
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+      - WDS_SOCKET_HOST=localhost
+    depends_on:
+      - backend
+
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:Aasal22!!@db:5432/fahrzeugservice
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - db
+
+  db:
+    image: postgres:13
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=Aasal22!!
+      - POSTGRES_DB=fahrzeugservice
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4.2
+    environment:
+      - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN}
+      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
+      - KC_DB=postgres
+      - KC_DB_URL=jdbc:postgresql://db:5432/keycloak
+      - KC_DB_USERNAME=postgres
+      - KC_DB_PASSWORD=Aasal22!!
+    ports:
+      - "8080:8080"
+    command: ["start-dev", "--import-realm"]
+    depends_on:
+      - db
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+      - ./keycloak/realm.json:/opt/keycloak/data/import/realm.json
+
+
+volumes:
+  postgres_data:
+  keycloak_data:
