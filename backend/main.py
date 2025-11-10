@@ -8,6 +8,9 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 import openai
 from pydantic import BaseModel
+from services.langchain_service import generate_answer_with_langchain
+from services.werkstatt_web_agent import run_werkstatt_agent_sequential
+
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -140,31 +143,22 @@ def ki_create_auftrag(action: schemas.KIAktionCreate, db: Session = Depends(get_
 
 
 # ---------------- OPENAI CHAT ----------------
-class OpenAIRequest(BaseModel):
+
+
+
+# ---------------- LANGCHAIN CHAT ----------------
+class LangChainRequest(BaseModel):
     message: str
 
 
-@app.post("/openai/chat")
-def openai_chat(req: OpenAIRequest, db: Session = Depends(get_db)):
-    """Forward user message to OpenAI (uses OPENAI_API_KEY env var) and store a KIAktion.
+@app.post("/langchain/chat")
+def langchain_chat(req: LangChainRequest, db: Session = Depends(get_db)):
+    """Forward user message to LangChain (ChatOpenAI) and store a KIAktion.
 
-    Returns JSON: { "response": "..." }
+    This mirrors the behavior of /openai/chat but uses the LangChain wrapper.
     """
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="OpenAI API key not configured on server")
-
     try:
-        openai.api_key = api_key
-        model_name = os.getenv("OPENAI_MODEL", "gpt-5-nano-2025-08-07")
-        # call ChatCompletion endpoint
-        resp = openai.ChatCompletion.create(
-            model=model_name,
-            messages=[{"role": "user", "content": req.message}],
-            max_completion_tokens=600,
-            temperature=1,
-        )
-        answer = resp.choices[0].message.content.strip()
+        answer = run_werkstatt_agent_sequential(req.message)
 
         # persist the KIAktion (optional)
         ki = models.KIAktion(nachricht=req.message, antwort=answer, auftrag_id=None)
@@ -174,20 +168,62 @@ def openai_chat(req: OpenAIRequest, db: Session = Depends(get_db)):
 
         return {"response": answer}
     except Exception as e:
-        # Log full traceback for debugging
         import traceback
         tb = traceback.format_exc()
-        print("OpenAI call failed:", tb)
-        # Return the original OpenAI message if available
-        detail = str(e)
-        try:
-            if hasattr(e, 'user_message'):
-                detail = e.user_message
-            elif hasattr(e, 'error') and isinstance(e.error, dict) and 'message' in e.error:
-                detail = e.error['message']
-        except Exception:
-            pass
-        raise HTTPException(status_code=500, detail=detail)
+        print("LangChain call failed:", tb)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---------------- WERKSTATT-AGENT (Sequential Chain mit Web-Suche) ----------------
+class WerkstattAgentRequest(BaseModel):
+    query: str
+
+
+@app.post("/werkstatt-agent/search")
+def werkstatt_agent_search(req: WerkstattAgentRequest, db: Session = Depends(get_db)):
+    """Sequential Chain mit 2 Agenten für intelligente Werkstattsuche
+    
+    AGENT 1 (Klassifizierung):
+    - Nimmt alle Anfragen entgegen
+    - Analysiert, ob es um Werkstattsuche geht
+    - Extrahiert Parameter (PLZ, Ort, Fahrzeugtyp)
+    - Entscheidet: An Agent 2 weiterleiten oder direkt beantworten
+    
+    AGENT 2 (Werkstattsuche):
+    - Wird nur bei Werkstattsuche aktiviert
+    - Sucht im Internet (benötigt TAVILY_API_KEY in .env)
+    - Durchsucht lokale Datenbank
+    - Kombiniert beide Quellen
+    
+    Beispiele:
+    {
+        "query": "Finde mir eine gute Werkstatt in Berlin"
+    }
+    {
+        "query": "Suche Werkstatt für VW Golf in München"
+    }
+    {
+        "query": "Wie oft sollte ich Ölwechsel machen?"  # Wird von Agent 1 direkt beantwortet
+    }
+    """
+    try:
+        answer = run_werkstatt_agent_sequential(req.query)
+
+        # Log die Agent-Anfrage
+        ki = models.KIAktion(nachricht=req.query, antwort=answer, auftrag_id=None)
+        db.add(ki)
+        db.commit()
+        db.refresh(ki)
+
+        return {
+            "response": answer,
+            "agent_type": "sequential_werkstatt_agent"
+        }
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        print("Werkstatt-Agent call failed:", tb)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # --- Zusätzliche Filterfunktionen ---
