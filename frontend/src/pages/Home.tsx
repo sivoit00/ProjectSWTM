@@ -85,63 +85,103 @@ export default function App() {
       </div>
 
       {/* Rechte Seite: Visualisierung */}
-      <div className="hidden md:flex w-1/2 items-center justify-center border-l border-white/10 backdrop-blur-xl bg-white/5">
+       <div className="hidden md:flex w-1/2 items-center justify-center border-l border-white/10 backdrop-blur-xl bg-white/5">
         <div className="relative w-[600px] h-[600px] bg-white/5 rounded-xl border border-white/10">
-          <svg width="100%" height="100%" className="text-white">
-            {/* --- Knoten als Rechtecke --- */}
-            {[
-              { id: "chatbot", x: 300, y: 300, w: 100, h: 50, fill: "#3b82f6", label: "AI Chatbot" },
-              { id: "versicherung", x: 300, y: 120, w: 90, h: 45, fill: "#6366f1", label: "Versicherung" },
-              { id: "rechtsanwalt", x: 480, y: 180, w: 90, h: 45, fill: "#f97316", label: "Rechtsanwalt" },
-              { id: "server", x: 120, y: 180, w: 90, h: 45, fill: "#10b981", label: "Server" },
-              { id: "sql", x: 460, y: 420, w: 90, h: 45, fill: "#eab308", label: "SQL DB" },
-              { id: "werkstatt", x: 140, y: 420, w: 90, h: 45, fill: "#84cc16", label: "Werkstatt" },
-              { id: "guardrails", x: 300, y: 520, w: 90, h: 45, fill: "#ef4444", label: "GuardRails" },
-            ].map((node) => (
-              <g key={node.id}>
-                <rect
-                  x={node.x - node.w / 2}
-                  y={node.y - node.h / 2}
-                  width={node.w}
-                  height={node.h}
-                  rx={10}
-                  ry={10}
-                  fill={node.fill}
-                />
-                <text
-                  x={node.x}
-                  y={node.y + 4}
-                  textAnchor="middle"
-                  fill="white"
-                  fontSize="12"
-                >
-                  {node.label}
-                </text>
-              </g>
-            ))}
 
-            {/*Kanten */}
-            <line x1="300" y1="265" x2="300" y2="150" stroke="white" strokeWidth="2" />
-            <line x1="330" y1="280" x2="450" y2="190" stroke="white" strokeWidth="2" />
-            <line x1="270" y1="280" x2="150" y2="190" stroke="white" strokeWidth="2" />
-            <line x1="330" y1="320" x2="440" y2="410" stroke="white" strokeWidth="2" />
-            <line x1="270" y1="320" x2="160" y2="410" stroke="white" strokeWidth="2" />
-            <line x1="300" y1="335" x2="300" y2="495" stroke="white" strokeWidth="2" />
-            <line x1="280" y1="140" x2="150" y2="170" stroke="white" strokeWidth="1.5" />
-            <line x1="320" y1="140" x2="460" y2="170" stroke="white" strokeWidth="1.5" />
-            <line x1="310" y1="140" x2="450" y2="400" stroke="white" strokeWidth="1.5" />
-            <line x1="135" y1="200" x2="450" y2="400" stroke="white" strokeWidth="1.5" />
-            <line x1="470" y1="200" x2="160" y2="410" stroke="white" strokeWidth="1.5" />
-            <line x1="440" y1="420" x2="170" y2="420" stroke="white" strokeWidth="1.5" />
-            <line x1="460" y1="440" x2="300" y2="510" stroke="white" strokeWidth="1.5" />
-            <line x1="280" y1="510" x2="150" y2="430" stroke="white" strokeWidth="1.5" />
-          </svg>
+          {(() => {
+            type Node = {
+              x: number;
+              y: number;
+              w: number;
+              h: number;
+              color: string;
+              label: string;
+            };
+
+            const nodes = {
+              versicherung: { x: 300, y: 120, w: 140, h: 50, color: "#D46A29", label: "Versicherung" },
+              chatbot:      { x: 300, y: 300, w: 140, h: 50, color: "#D22DD8", label: "AI Chatbot" },
+              guard:        { x: 300, y: 520, w: 140, h: 50, color: "#0A4BFF", label: "GuardRails" },
+              server:       { x: 120, y: 200, w: 140, h: 50, color: "#26B6C6", label: "Server" },
+              sql:          { x: 140, y: 420, w: 140, h: 50, color: "#E6C62F", label: "SQL Datenbank" },
+              anwalt:       { x: 480, y: 200, w: 140, h: 50, color: "#3EC764", label: "Rechtsanwalt" },
+              werkstatt:    { x: 460, y: 420, w: 140, h: 50, color: "#A237E0", label: "Werkstatt" },
+            };
+
+            type NodeKey = keyof typeof nodes;
+
+            const edges: [NodeKey, NodeKey][] = [
+              ["versicherung", "chatbot"],
+              ["chatbot", "guard"],
+              ["chatbot", "server"],
+              ["chatbot", "anwalt"],
+              ["chatbot", "werkstatt"],
+              ["chatbot", "sql"],
+              ["versicherung", "server"],
+              ["versicherung", "anwalt"],
+              ["versicherung", "sql"],
+              ["server", "sql"],
+              ["sql", "werkstatt"],
+              ["sql", "guard"],
+              ["guard", "werkstatt"],
+              ["werkstatt", "anwalt"],
+            ];
+
+            function edgePoint(a: Node, b: Node) {
+              const dx = b.x - a.x;
+              const dy = b.y - a.y;
+              const w = a.w / 2;
+              const h = a.h / 2;
+              const scale = Math.max(Math.abs(dx) / w, Math.abs(dy) / h);
+              return { x: a.x + dx / scale, y: a.y + dy / scale };
+            }
+
+            return (
+              <svg width="100%" height="100%">
+                {edges.map(([a, b], i) => {
+                  const A = nodes[a];
+                  const B = nodes[b];
+                  const p1 = edgePoint(A, B);
+                  const p2 = edgePoint(B, A);
+                  return (
+                    <line
+                      key={i}
+                      x1={p1.x}
+                      y1={p1.y}
+                      x2={p2.x}
+                      y2={p2.y}
+                      stroke="#85D4E6"
+                      strokeWidth="3"
+                      strokeDasharray="6 6"
+                    />
+                  );
+                })}
+
+                {Object.values(nodes).map((n, i) => (
+                  <g key={i}>
+                    <rect
+                      x={n.x - n.w / 2}
+                      y={n.y - n.h / 2}
+                      width={n.w}
+                      height={n.h}
+                      rx="12"
+                      fill={n.color}
+                    />
+                    <text x={n.x} y={n.y + 4} textAnchor="middle" fontSize="14" fill="white">
+                      {n.label}
+                    </text>
+                  </g>
+                ))}
+              </svg>
+            );
+          })()}
 
           <div className="absolute bottom-3 w-full text-center text-sm text-gray-300">
-            <p>Platzhalter-Diagramm: KI-Agenten & Datenflüsse (Stand Sprint 1)</p>
+            KI-System-Modulübersicht (Sprint 1)
           </div>
         </div>
       </div>
+
     </div>
   );
 }
