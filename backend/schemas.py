@@ -95,3 +95,46 @@ class KIAktionSchema(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+# ------------------- RECHTSANWALT -------------------
+class RechtsanwaltBase(BaseModel):
+    name: str
+    kanzlei: str
+    adresse: str
+    plz: str
+    ort: str
+    telefon: str
+    email: str
+
+
+class RechtsanwaltCreate(RechtsanwaltBase):
+    pass
+
+
+class Rechtsanwalt(RechtsanwaltBase):
+    id: int
+
+    class Config:
+        orm_mode = True
+
+
+# ------------------- VERSICHERUNG -------------------
+class VersicherungBase(BaseModel):
+    versicherungsname: str
+    versicherungsnummer: str
+    art: str
+    ansprechpartner: str
+    telefon: str
+    email: str
+
+
+class VersicherungCreate(VersicherungBase):
+    pass
+
+
+class Versicherung(VersicherungBase):
+    id: int
+
+    class Config:
+        orm_mode = True

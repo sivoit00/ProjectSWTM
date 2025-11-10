@@ -75,3 +75,30 @@ class KIAktion(Base):
     auftrag_id = Column(Integer, ForeignKey("auftrag.id"), nullable=True)
 
     auftrag = relationship("Auftrag")
+
+
+# --- Tabelle: Rechtsanwalt ---
+class Rechtsanwalt(Base):
+    __tablename__ = "rechtsanwalt"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100))
+    kanzlei = Column(String(100))
+    adresse = Column(String(200))
+    plz = Column(String(20))
+    ort = Column(String(100))
+    telefon = Column(String(20))
+    email = Column(String(100))
+
+
+# --- Tabelle: Versicherung ---
+class Versicherung(Base):
+    __tablename__ = "versicherung"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    versicherungsname = Column(String(100))
+    versicherungsnummer = Column(String(100))
+    art = Column(String(50))  # Vollkasko, Teilkasko, Haftpflicht
+    ansprechpartner = Column(String(100))
+    telefon = Column(String(20))
+    email = Column(String(100))

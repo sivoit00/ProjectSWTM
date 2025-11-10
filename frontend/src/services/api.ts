@@ -16,12 +16,34 @@ export interface Fahrzeug {
   baujahr: number;
   kunde_id: number;
 }
+
 export interface Werkstatt {
   id?: number;
-   name: string;
-   adresse: string;
-   plz: string;
-   ort: string; 
+  name: string;
+  adresse: string;
+  plz: string;
+  ort: string; 
+}
+
+export interface Rechtsanwalt {
+  id?: number;
+  name: string;
+  kanzlei: string;
+  adresse: string;
+  plz: string;
+  ort: string;
+  telefon: string;
+  email: string;
+}
+
+export interface Versicherung {
+  id?: number;
+  versicherungsname: string;
+  versicherungsnummer: string;
+  art: string; // z.B. Vollkasko, Teilkasko, Haftpflicht
+  ansprechpartner: string;
+  telefon: string;
+  email: string;
 }
 
 export const api = {
@@ -38,6 +60,17 @@ export const api = {
   getWerkstatt: () => axios.get<Werkstatt[]>(`${API_URL}/werkstatt`),
   createWerkstatt: (werkstatt: Omit<Werkstatt, 'id'>) => 
     axios.post<Werkstatt>(`${API_URL}/werkstatt`, werkstatt),
+
+  // Rechtsanwalt
+  getRechtsanwaelte: () => axios.get<Rechtsanwalt[]>(`${API_URL}/rechtsanwaelte`),
+  createRechtsanwalt: (rechtsanwalt: Omit<Rechtsanwalt, 'id'>) => 
+    axios.post<Rechtsanwalt>(`${API_URL}/rechtsanwaelte`, rechtsanwalt),
+
+  // Versicherung
+  getVersicherungen: () => axios.get<Versicherung[]>(`${API_URL}/versicherungen`),
+  createVersicherung: (versicherung: Omit<Versicherung, 'id'>) => 
+    axios.post<Versicherung>(`${API_URL}/versicherungen`, versicherung),
+
   // OpenAI chat
   sendToOpenAI: (message: { message: string }) =>
     axios.post<{ response: string }>(`${API_URL}/openai/chat`, message),
