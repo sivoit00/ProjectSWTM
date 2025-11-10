@@ -2,8 +2,19 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App.tsx";
-import keycloak from "./keycloak";
+import keycloak from "./keycloak"; // Keycloak temporär deaktiviert
 import "./index.css";
+
+// Keycloak-Authentifizierung temporär deaktiviert - direkt rendern
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </StrictMode>
+);
+
+// Keycloak Code auskommentiert für Sprint 1.6
 
 keycloak
   .init({ onLoad: "login-required", checkLoginIframe: false })
@@ -27,3 +38,4 @@ keycloak
 setInterval(() => {
   keycloak.updateToken(60).catch(() => keycloak.login());
 }, 60000);
+
