@@ -12,7 +12,6 @@ export default function App() {
   const handleSend = async () => {
     if (!input.trim()) return;
     const userMessage = input.trim();
-
     setMessages((prev) => [...prev, { sender: "User", text: userMessage }]);
     setInput("");
 
