@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Send } from "lucide-react";
-import { api } from "../services/api";
-import keycloak from "../keycloak";
+import { chatAPI } from "../../services/api";
+import keycloak from "../../keycloak";
 
 type Message = { sender: "User" | "Bot"; text: string };
 
@@ -16,8 +16,8 @@ export default function App() {
     setInput("");
 
     try {
-      const res = await api.sendToOpenAI({ message: userMessage });
-      const answer = res.data?.response ?? "Keine Antwort erhalten";
+      const response = await chatAPI.sendMessage({ message: userMessage });
+      const answer = response.data.response ?? "Keine Antwort erhalten";
       setMessages((prev) => [...prev, { sender: "Bot", text: answer }]);
     } catch (err) {
       console.error("OpenAI error:", err);
