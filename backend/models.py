@@ -3,8 +3,6 @@ from sqlalchemy.orm import relationship
 from database import Base
 import datetime
 
-
-# --- Tabelle: Kunde ---
 class Kunde(Base):
     __tablename__ = "kunde"
 
@@ -13,11 +11,8 @@ class Kunde(Base):
     email = Column(String(100))
     telefon = Column(String(20))
 
-    # Beziehung zu Fahrzeug (1 Kunde kann viele Fahrzeuge haben)
     fahrzeuge = relationship("Fahrzeug", back_populates="kunde")
 
-
-# --- Tabelle: Fahrzeug ---
 class Fahrzeug(Base):
     __tablename__ = "fahrzeug"
 
@@ -27,12 +22,9 @@ class Fahrzeug(Base):
     baujahr = Column(Integer)
     kunde_id = Column(Integer, ForeignKey("kunde.id"))
 
-    # Beziehungen
     kunde = relationship("Kunde", back_populates="fahrzeuge")
     auftraege = relationship("Auftrag", back_populates="fahrzeug")
 
-
-# --- Tabelle: Werkstatt ---
 class Werkstatt(Base):
     __tablename__ = "werkstatt"
     
@@ -42,11 +34,8 @@ class Werkstatt(Base):
     plz = Column(String(20))
     ort = Column(String(100))
 
-    # Beziehung zu Auftrag (eine Werkstatt kann viele Aufträge haben)
     auftraege = relationship("Auftrag", back_populates="werkstatt")
 
-
-# --- Tabelle: Auftrag ---
 class Auftrag(Base):
     __tablename__ = "auftrag"
 
@@ -58,19 +47,15 @@ class Auftrag(Base):
     werkstatt_id = Column(Integer, ForeignKey("werkstatt.id"))
     kosten = Column(Numeric(10, 2))
 
-    # Beziehungen
     fahrzeug = relationship("Fahrzeug", back_populates="auftraege")
     werkstatt = relationship("Werkstatt", back_populates="auftraege")
 
-
-# --- Tabelle: KIAktion ---
-#wird nicht mehr benötigt sobald LLM Anbindung steht
 class KIAktion(Base):
     __tablename__ = "ki_aktionen"
 
     id = Column(Integer, primary_key=True, index=True)
-    nachricht = Column(String)  # was der Kunde geschrieben hat
-    antwort = Column(String)    # was die KI geantwortet hat
+    nachricht = Column(String)
+    antwort = Column(String)
     erstellt_am = Column(Date, default=datetime.date.today)
     auftrag_id = Column(Integer, ForeignKey("auftrag.id"), nullable=True)
 

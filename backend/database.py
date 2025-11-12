@@ -19,7 +19,3 @@ def get_db():
         yield db
     finally:
         db.close()
-
-# NOTE: If you want a local SQLite fallback for development, you can use:
-# SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
-# engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})

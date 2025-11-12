@@ -2,7 +2,6 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import date
 
-# ------------------- KUNDE -------------------
 class KundeBase(BaseModel):
     name: str
     email: str
@@ -19,8 +18,6 @@ class Kunde(KundeBase):
     class Config:
         orm_mode = True
 
-
-# ------------------- FAHRZEUG -------------------
 class FahrzeugBase(BaseModel):
     marke: str
     modell: str
@@ -38,8 +35,6 @@ class Fahrzeug(FahrzeugBase):
     class Config:
         orm_mode = True
 
-
-# ------------------- WERKSTATT -------------------
 class WerkstattBase(BaseModel):
     name: str
     adresse: str
@@ -57,8 +52,6 @@ class Werkstatt(WerkstattBase):
     class Config:
         orm_mode = True
 
-
-# ------------------- AUFTRAG -------------------
 class AuftragBase(BaseModel):
     beschreibung: str
     status: str
@@ -77,8 +70,6 @@ class Auftrag(AuftragBase):
     class Config:
         orm_mode = True
 
-
-# ------------------- KI-AKTION -------------------
 class KIAktionCreate(BaseModel):
     nachricht: str
     werkstatt_id: Optional[int] = None
