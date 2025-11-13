@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 import openai
 from pydantic import BaseModel
+from agents.lawyerAgent import find_lawyers
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -22,6 +23,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class LawyerRequest(BaseModel):
+    city: str
+    topic: str = "Verkehrsrecht"
+    max_results: int = 3
 
 # Dependency für DB
 def get_db():
@@ -138,6 +143,12 @@ def ki_create_auftrag(action: schemas.KIAktionCreate, db: Session = Depends(get_
 
     return ki
 
+@app.post("/ki/find_lawyers")
+def ki_clone_find_lawyers(req: LawyerRequest):
+    if not req.city:
+        raise HTTPException(status_code=400, detail="city is required")
+    result = find_lawyers(req.dict())
+    return result
 
 # ---------------- OPENAI CHAT ----------------
 class OpenAIRequest(BaseModel):
