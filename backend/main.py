@@ -9,9 +9,12 @@ import os
 import openai
 from pydantic import BaseModel
 
+
 models.Base.metadata.create_all(bind=engine)
 
+
 app = FastAPI(title="Fahrzeugservice API")
+
 
 # Add CORS middleware
 app.add_middleware(
@@ -58,6 +61,7 @@ def create_kunde(kunde: schemas.KundeCreate, db: Session = Depends(get_db)):
 def get_fahrzeuge(db: Session = Depends(get_db)):
     return db.query(models.Fahrzeug).all()
 
+
 @app.post("/fahrzeuge", response_model=schemas.Fahrzeug)
 def create_fahrzeug(fahrzeug: schemas.FahrzeugCreate, db: Session = Depends(get_db)):
     neues_fahrzeug = models.Fahrzeug(**fahrzeug.dict())
@@ -72,6 +76,7 @@ def create_fahrzeug(fahrzeug: schemas.FahrzeugCreate, db: Session = Depends(get_
 def get_werkstatt(db: Session = Depends(get_db)):
     return db.query(models.Werkstatt).all()
 
+
 @app.post("/werkstatt", response_model=schemas.Werkstatt)
 def create_werkstatt(werkstatt: schemas.WerkstattCreate, db: Session = Depends(get_db)):
     neue_werkstatt = models.Werkstatt(**werkstatt.dict())
@@ -81,10 +86,85 @@ def create_werkstatt(werkstatt: schemas.WerkstattCreate, db: Session = Depends(g
     return neue_werkstatt
 
 
+# ---------------- RECHTSANWÄLTE ----------------
+@app.get("/rechtsanwaelte", response_model=list[schemas.Rechtsanwalt])
+def get_rechtsanwaelte(db: Session = Depends(get_db)):
+    return db.query(models.Rechtsanwalt).all()
+
+
+@app.post("/rechtsanwaelte", response_model=schemas.Rechtsanwalt)
+def create_rechtsanwalt(rechtsanwalt: schemas.RechtsanwaltCreate, db: Session = Depends(get_db)):
+    neuer_rechtsanwalt = models.Rechtsanwalt(**rechtsanwalt.dict())
+    db.add(neuer_rechtsanwalt)
+    db.commit()
+    db.refresh(neuer_rechtsanwalt)
+    return neuer_rechtsanwalt
+
+
+@app.get("/rechtsanwaelte/{rechtsanwalt_id}", response_model=schemas.Rechtsanwalt)
+def get_rechtsanwalt(rechtsanwalt_id: int, db: Session = Depends(get_db)):
+    rechtsanwalt = db.query(models.Rechtsanwalt).filter(
+        models.Rechtsanwalt.id == rechtsanwalt_id
+    ).first()
+    if not rechtsanwalt:
+        raise HTTPException(status_code=404, detail="Rechtsanwalt nicht gefunden")
+    return rechtsanwalt
+
+
+@app.delete("/rechtsanwaelte/{rechtsanwalt_id}")
+def delete_rechtsanwalt(rechtsanwalt_id: int, db: Session = Depends(get_db)):
+    rechtsanwalt = db.query(models.Rechtsanwalt).filter(
+        models.Rechtsanwalt.id == rechtsanwalt_id
+    ).first()
+    if not rechtsanwalt:
+        raise HTTPException(status_code=404, detail="Rechtsanwalt nicht gefunden")
+    db.delete(rechtsanwalt)
+    db.commit()
+    return {"message": "Rechtsanwalt erfolgreich gelöscht"}
+
+
+# ---------------- VERSICHERUNGEN ----------------
+@app.get("/versicherungen", response_model=list[schemas.Versicherung])
+def get_versicherungen(db: Session = Depends(get_db)):
+    return db.query(models.Versicherung).all()
+
+
+@app.post("/versicherungen", response_model=schemas.Versicherung)
+def create_versicherung(versicherung: schemas.VersicherungCreate, db: Session = Depends(get_db)):
+    neue_versicherung = models.Versicherung(**versicherung.dict())
+    db.add(neue_versicherung)
+    db.commit()
+    db.refresh(neue_versicherung)
+    return neue_versicherung
+
+
+@app.get("/versicherungen/{versicherung_id}", response_model=schemas.Versicherung)
+def get_versicherung(versicherung_id: int, db: Session = Depends(get_db)):
+    versicherung = db.query(models.Versicherung).filter(
+        models.Versicherung.id == versicherung_id
+    ).first()
+    if not versicherung:
+        raise HTTPException(status_code=404, detail="Versicherung nicht gefunden")
+    return versicherung
+
+
+@app.delete("/versicherungen/{versicherung_id}")
+def delete_versicherung(versicherung_id: int, db: Session = Depends(get_db)):
+    versicherung = db.query(models.Versicherung).filter(
+        models.Versicherung.id == versicherung_id
+    ).first()
+    if not versicherung:
+        raise HTTPException(status_code=404, detail="Versicherung nicht gefunden")
+    db.delete(versicherung)
+    db.commit()
+    return {"message": "Versicherung erfolgreich gelöscht"}
+
+
 # ---------------- AUFTRÄGE ----------------
 @app.get("/auftraege", response_model=list[schemas.Auftrag])
 def get_auftraege(db: Session = Depends(get_db)):
     return db.query(models.Auftrag).all()
+
 
 @app.post("/auftraege", response_model=schemas.Auftrag)
 def create_auftrag(auftrag: schemas.AuftragCreate, db: Session = Depends(get_db)):
@@ -197,14 +277,12 @@ def openai_chat(req: OpenAIRequest, db: Session = Depends(get_db)):
 #def get_fahrzeuge_von_kunde(kunde_id: int, db: Session = Depends(get_db)):
 #    return db.query(models.Fahrzeug).filter(models.Fahrzeug.kunde_id == kunde_id).all()
 
-
 # 🔹 Alle Aufträge eines Fahrzeugs abrufen
 #@app.get("/fahrzeuge/{fahrzeug_id}/auftraege", response_model=list[schemas.Auftrag])
 #def get_auftraege_von_fahrzeug(fahrzeug_id: int, db: Session = Depends(get_db)):
 #   return db.query(models.Auftrag).filter(models.Auftrag.fahrzeug_id == fahrzeug_id).all()
 
-
 # 🔹 Aufträge nach Status (z. B. offen oder abgeschlossen)
 #@app.get("/auftraege/status/{status}", response_model=list[schemas.Auftrag])
 #def get_auftraege_nach_status(status: str, db: Session = Depends(get_db)):
- #   return db.query(models.Auftrag).filter(models.Auftrag.status.ilike(status)).all()
+#   return db.query(models.Auftrag).filter(models.Auftrag.status.ilike(status)).all()
