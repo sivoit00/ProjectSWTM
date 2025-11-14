@@ -3,6 +3,7 @@ import { Send } from "lucide-react";
 import { api } from "../services/api";
 import keycloak from "../keycloak";
 import Visualization from "../components/Visualization";
+import axios from "axios";
 
 
 type Message = { sender: "User" | "Bot"; text: string };
@@ -10,6 +11,7 @@ type Message = { sender: "User" | "Bot"; text: string };
 export default function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+  const [activeNode, setActiveNode] = useState<string | null>(null);
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -18,7 +20,14 @@ export default function App() {
     setInput("");
 
     try {
-      const res = await api.sendToOpenAI({ message: userMessage });
+      /*const res = await api.sendToOpenAI({ message: userMessage });*/
+      const res = await axios.post<{ agent: string; response: string }>(
+      "http://localhost:8000/insurance",
+      { message: userMessage }
+      );
+      if (res.data?.agent) {
+        setActiveNode(res.data.agent);
+      }
       const answer = res.data?.response ?? "Keine Antwort erhalten";
       setMessages((prev) => [...prev, { sender: "Bot", text: answer }]);
     } catch (err) {
@@ -29,7 +38,7 @@ export default function App() {
       ]);
     }
   };
-
+  
   return (
     <div className="flex h-screen text-white bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 overflow-hidden">
       {/* Linke Seite: Chat */}
@@ -85,7 +94,7 @@ export default function App() {
           </button>
         </div>
       </div>
-      <Visualization/>
+      <Visualization activeNode={activeNode}/>
     </div>
   );
 }

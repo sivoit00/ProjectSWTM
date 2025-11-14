@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
-from database import SessionLocal, engine
+from backend.database import SessionLocal, engine
 import models as models, schemas as schemas
 from datetime import date
 from fastapi import HTTPException
@@ -188,6 +188,34 @@ def openai_chat(req: OpenAIRequest, db: Session = Depends(get_db)):
         except Exception:
             pass
         raise HTTPException(status_code=500, detail=detail)
+
+# ---------------- INSURANCE AGENT (DUMMY) ----------------
+from fastapi import APIRouter
+
+insurance_router = APIRouter()
+
+@insurance_router.post("/")
+def insurance_dummy(data: dict):
+    """Dummy-Agent für Testzwecke"""
+    user_input = data.get("message", "")
+    return {
+        "agent": "insurance",
+        "response": f"TEST: Versicherungs-Agent läuft (Fake-Modus). Sie haben '{user_input}' gesendet."
+    }
+
+@insurance_router.get("/test")
+def insurance_dummy_test():
+    return {
+        "agent": "insurance",
+        "response": "TEST: Versicherungs-Agent ist bereit (Fake-Modus)"
+    }
+
+# Router mounten
+app.include_router(insurance_router, prefix="/insurance")
+
+
+
+
 
 
 # --- Zusätzliche Filterfunktionen ---

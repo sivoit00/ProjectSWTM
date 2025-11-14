@@ -1,1 +1,17 @@
 @import "tailwindcss";
+
+@keyframes pulseGlow {
+  0% {
+    filter: drop-shadow(0 0 0px white);
+  }
+  50% {
+    filter: drop-shadow(0 0 15px white);
+  }
+  100% {
+    filter: drop-shadow(0 0 0px white);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 1.5s infinite ease-in-out;
+}

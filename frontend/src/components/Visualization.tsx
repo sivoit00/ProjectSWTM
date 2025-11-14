@@ -1,13 +1,17 @@
-export default function Visualization() {
-  type GraphNode = {
-    x: number;
-    y: number;
-    w: number;
-    h: number;
-    color: string;
-    label: string;
-  };
+type VisualizationProps = {
+  activeNode: string | null;
+};
 
+type GraphNode = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  color: string;
+  label: string;
+};
+
+export default function Visualization({ activeNode }: VisualizationProps) {
   const graphNodes: Record<string, GraphNode> = {
     insurance: { x: 300, y: 120, w: 140, h: 50, color: "#D46A29", label: "Insurance" },
     chatbot:   { x: 300, y: 300, w: 140, h: 50, color: "#D22DD8", label: "AI Chatbot" },
@@ -69,21 +73,28 @@ export default function Visualization() {
             );
           })}
 
-          {Object.values(graphNodes).map((n, i) => (
-            <g key={i}>
-              <rect
-                x={n.x - n.w / 2}
-                y={n.y - n.h / 2}
-                width={n.w}
-                height={n.h}
-                rx="12"
-                fill={n.color}
-              />
-              <text x={n.x} y={n.y + 4} textAnchor="middle" fontSize="14" fill="white">
-                {n.label}
-              </text>
-            </g>
-          ))}
+          {Object.entries(graphNodes).map(([key, n], i) => {
+            const isActive = key === activeNode;
+
+            return (
+              <g key={i}>
+                <rect
+                  x={n.x - n.w / 2}
+                  y={n.y - n.h / 2}
+                  width={n.w}
+                  height={n.h}
+                  rx="12"
+                  fill={n.color}
+                  stroke={isActive ? "white" : "none"}
+                  strokeWidth={isActive ? 5 : 0}
+                  className={isActive ? "animate-pulse-glow" : ""}
+                />
+                <text x={n.x} y={n.y + 4} textAnchor="middle" fontSize="14" fill="white">
+                  {n.label}
+                </text>
+              </g>
+            );
+          })}
         </svg>
 
         <div className="absolute bottom-3 w-full text-center text-sm text-gray-300">
