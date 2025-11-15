@@ -26,6 +26,9 @@ services:
       # GEÄNDERT: Zeigt jetzt auf die AWS-Datenbank
       - DATABASE_URL=postgresql://postgres:Aasal22!!@projectswtm.c9gqueuwynyt.eu-north-1.rds.amazonaws.com:5432/fahrzeugservice
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
+      - LANGSMITH_PROJECT=${LANGSMITH_PROJECT}
+      - LANGSMITH_TRACING_V2=${LANGSMITH_TRACING_V2}
     volumes:
       - ./backend:/app
     # ENTFERNT: Die "depends_on: - db" ist nicht mehr nötig

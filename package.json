@@ -4,6 +4,7 @@
     "fastapi": "^0.0.8",
     "keycloak": "^1.2.0",
     "keycloak-js": "^26.2.1",
+    "langchain": "^1.0.3",
     "lucide-react": "^0.553.0",
     "postgres": "^3.4.7",
     "pydantic": "^0.0.1-security",
@@ -11,6 +12,7 @@
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.9.5",
     "sqlalchemy": "^10.1.1",
+    "tiktoken": "^1.0.22",
     "vite": "^7.2.2"
   },
   "devDependencies": {

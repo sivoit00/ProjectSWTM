@@ -40,5 +40,5 @@ export const api = {
     axios.post<Werkstatt>(`${API_URL}/werkstatt`, werkstatt),
   // OpenAI chat
   sendToOpenAI: (message: { message: string }) =>
-    axios.post<{ response: string }>(`${API_URL}/openai/chat`, message),
+    axios.post<{ response: string }>(`${API_URL}/langchain/chat`, message),
 };
