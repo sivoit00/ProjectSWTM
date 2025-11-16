@@ -41,4 +41,10 @@ export const api = {
   // OpenAI chat
   sendToOpenAI: (message: { message: string }) =>
     axios.post<{ response: string }>(`${API_URL}/openai/chat`, message),
+  // KI Clone message
+  sendToKI: (payload: { message: string }) =>
+  axios.post<{ response: string; structured: any }>(
+    `${API_URL}/ki/message`,
+    payload
+  ),
 };

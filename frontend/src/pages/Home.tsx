@@ -18,7 +18,7 @@ export default function App() {
     setInput("");
 
     try {
-      const res = await api.sendToOpenAI({ message: userMessage });
+      const res = await api.sendToKI({ message: userMessage });
       const answer = res.data?.response ?? "Keine Antwort erhalten";
       setMessages((prev) => [...prev, { sender: "Bot", text: answer }]);
     } catch (err) {

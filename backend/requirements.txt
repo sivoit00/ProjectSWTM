@@ -4,6 +4,7 @@ psycopg2-binary
 SQLAlchemy
 openai
 langchain
+langchain-openai
 requests
 python-dotenv
 langchain-community
