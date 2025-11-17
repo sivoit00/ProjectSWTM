@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine
 from models import Base
-from routes import kunden, fahrzeuge, werkstaetten, auftraege, ki, openai_route
+from routes import kunden, fahrzeuge, werkstaetten, auftraege, ki, openai_route, chat_history, files
 
 Base.metadata.create_all(bind=engine)
 
@@ -26,6 +26,8 @@ app.include_router(werkstaetten.router, prefix="/werkstatt", tags=["Workshops"])
 app.include_router(auftraege.router, prefix="/auftraege", tags=["Orders"])
 app.include_router(ki.router, prefix="/ki", tags=["AI"])
 app.include_router(openai_route.router, prefix="", tags=["Chat"])
+app.include_router(chat_history.router)
+app.include_router(files.router)
 
 
 @app.get("/", tags=["Root"])

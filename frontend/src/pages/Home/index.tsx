@@ -1,87 +1,77 @@
-import { useState } from "react";
-import { Send } from "lucide-react";
-import { api } from "../../services/api";
-import keycloak from "../../keycloak";
-import Visualization from "../../components/common/Visualization";
-
-
-type Message = { sender: "User" | "Bot"; text: string };
+import { useNavigate } from "react-router-dom";
+import { MessageSquare, Clock, Shield } from "lucide-react";
 
 export default function Home() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-
-  const handleSend = async () => {
-    if (!input.trim()) return;
-    const userMessage = input.trim();
-    setMessages((prev) => [...prev, { sender: "User", text: userMessage }]);
-    setInput("");
-
-    try {
-      const res = await api.sendToOpenAI({ message: userMessage });
-      const answer = res.data?.response ?? "No response received";
-      setMessages((prev) => [...prev, { sender: "Bot", text: answer }]);
-    } catch (err) {
-      console.error("OpenAI error:", err);
-      setMessages((prev) => [
-        ...prev,
-        { sender: "Bot", text: "Error fetching response" },
-      ]);
-    }
-  };
+  const navigate = useNavigate();
 
   return (
-    <div className="flex h-screen text-white bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 overflow-hidden">
-      <div className="w-full md:w-1/2 flex flex-col border-r border-white/10 backdrop-blur-xl bg-white/5">
-        <div className="flex items-center justify-between p-4 border-b border-white/10">
-          <h1 className="text-xl font-semibold">💬 Clone</h1>
+    <div className="flex flex-col items-center justify-center h-screen p-8 text-white overflow-y-auto">
+      <div className="max-w-4xl w-full space-y-12">
+        {/* Hero Section */}
+        <div className="text-center space-y-4">
+          <h1 className="text-5xl font-bold">
+            Welcome to <span className="text-blue-400">MyClone</span>
+          </h1>
+          <p className="text-xl text-gray-300 max-w-2xl mx-auto">
+            Your intelligent assistant for vehicle maintenance and service management. Let our AI handle everything for you with simple conversations.
+          </p>
           <button
-            onClick={() => keycloak.logout()}
-            className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-md shadow transition"
+            onClick={() => navigate("/chat")}
+            className="mt-6 inline-flex items-center gap-2 px-8 py-4 bg-blue-600 hover:bg-blue-700 rounded-lg text-lg font-semibold shadow-lg transition transform hover:scale-105"
           >
-            Logout
+            <MessageSquare size={24} />
+            Start Chat Now
           </button>
         </div>
 
-        <div className="flex-1 p-6 space-y-3 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
-          {messages.map((msg, i) => (
-            <div
-              key={i}
-              className={`flex ${
-                msg.sender === "User" ? "justify-end" : "justify-start"
-              }`}
-            >
-              <div
-                className={`px-4 py-2 rounded-2xl max-w-[75%] shadow-md ${
-                  msg.sender === "User"
-                    ? "bg-blue-600 text-white rounded-br-none"
-                    : "bg-white/10 text-gray-200 rounded-bl-none"
-                }`}
-              >
-                {msg.text}
-              </div>
+        {/* Features */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-blue-900/30 backdrop-blur-sm border border-blue-500/20 rounded-xl p-6 hover:border-blue-500/40 transition">
+            <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-4">
+              <MessageSquare className="text-white" size={24} />
             </div>
-          ))}
+            <h3 className="text-xl font-semibold mb-2">AI-Powered</h3>
+            <p className="text-gray-300">
+              Chat with our intelligent AI assistant that understands your vehicle service needs and handles everything automatically.
+            </p>
+          </div>
+
+          <div className="bg-blue-900/30 backdrop-blur-sm border border-blue-500/20 rounded-xl p-6 hover:border-blue-500/40 transition">
+            <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-4">
+              <Clock className="text-white" size={24} />
+            </div>
+            <h3 className="text-xl font-semibold mb-2">Save Time</h3>
+            <p className="text-gray-300">
+              No complex forms or navigation. Simply describe what you need, and our AI takes care of the rest instantly.
+            </p>
+          </div>
+
+          <div className="bg-blue-900/30 backdrop-blur-sm border border-blue-500/20 rounded-xl p-6 hover:border-blue-500/40 transition">
+            <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-4">
+              <Shield className="text-white" size={24} />
+            </div>
+            <h3 className="text-xl font-semibold mb-2">Simple & Secure</h3>
+            <p className="text-gray-300">
+              Easy-to-use interface designed for everyone. Your data is protected with enterprise-grade security.
+            </p>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3 p-4 border-t border-white/10 bg-white/5">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            placeholder="Enter message..."
-            className="flex-1 px-4 py-2 text-white placeholder-gray-400 rounded-xl border border-white/20 bg-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+        {/* CTA Section */}
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-12 text-center">
+          <h2 className="text-3xl font-bold mb-4">Ready to get started?</h2>
+          <p className="text-lg text-blue-100 mb-6">
+            Experience the future of vehicle service management. Chat with our AI and let it handle your requests in seconds.
+          </p>
           <button
-            onClick={handleSend}
-            className="p-2 bg-blue-600 rounded-xl shadow-md hover:bg-blue-700 transition"
+            onClick={() => navigate("/chat")}
+            className="inline-flex items-center gap-2 px-8 py-3 bg-white text-blue-600 hover:bg-gray-100 rounded-lg font-semibold shadow-lg transition"
           >
-            <Send size={20} />
+            <MessageSquare size={20} />
+            Open Chat Assistant
           </button>
         </div>
       </div>
-      <Visualization/>
     </div>
   );
 }
