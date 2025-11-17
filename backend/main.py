@@ -1,246 +1,34 @@
-from fastapi import FastAPI, Depends
-from sqlalchemy.orm import Session
-from database import SessionLocal, engine
-import models as models, schemas as schemas
-from datetime import date
-from fastapi import HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import os
-import openai
-from pydantic import BaseModel
-from services.langchain_service import generate_answer_with_langchain
-from services.werkstatt_web_agent import run_werkstatt_agent_sequential
+from database import engine
+from models import Base
+from routes import kunden, fahrzeuge, werkstaetten, auftraege, ki, openai_route
 
+Base.metadata.create_all(bind=engine)
 
-models.Base.metadata.create_all(bind=engine)
+app = FastAPI(
+    title="Vehicle Service API",
+    description="API for vehicle service management with AI integration",
+    version="2.0.0"
+)
 
-app = FastAPI(title="Fahrzeugservice API")
-
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Frontend dev server
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-# Dependency für DB
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+app.include_router(kunden.router, prefix="/kunden", tags=["Customers"])
+app.include_router(fahrzeuge.router, prefix="/fahrzeuge", tags=["Vehicles"])
+app.include_router(werkstaetten.router, prefix="/werkstatt", tags=["Workshops"])
+app.include_router(auftraege.router, prefix="/auftraege", tags=["Orders"])
+app.include_router(ki.router, prefix="/ki", tags=["AI"])
+app.include_router(openai_route.router, prefix="", tags=["Chat"])
 
 
-# ---------------- HOME ----------------
-@app.get("/")
+@app.get("/", tags=["Root"])
 def home():
-    return {"message": "Fahrzeugservice-API läuft 🚗"}
+    return {"message": "Vehicle Service API is running 🚗", "version": "2.0.0"}
 
-
-# ---------------- KUNDEN ----------------
-@app.get("/kunden", response_model=list[schemas.Kunde])
-def get_kunden(db: Session = Depends(get_db)):
-    return db.query(models.Kunde).all()
-
-
-@app.post("/kunden", response_model=schemas.Kunde)
-def create_kunde(kunde: schemas.KundeCreate, db: Session = Depends(get_db)):
-    neuer_kunde = models.Kunde(**kunde.dict())
-    db.add(neuer_kunde)
-    db.commit()
-    db.refresh(neuer_kunde)
-    return neuer_kunde
-
-
-# ---------------- FAHRZEUGE ----------------
-@app.get("/fahrzeuge", response_model=list[schemas.Fahrzeug])
-def get_fahrzeuge(db: Session = Depends(get_db)):
-    return db.query(models.Fahrzeug).all()
-
-@app.post("/fahrzeuge", response_model=schemas.Fahrzeug)
-def create_fahrzeug(fahrzeug: schemas.FahrzeugCreate, db: Session = Depends(get_db)):
-    neues_fahrzeug = models.Fahrzeug(**fahrzeug.dict())
-    db.add(neues_fahrzeug)
-    db.commit()
-    db.refresh(neues_fahrzeug)
-    return neues_fahrzeug
-
-
-# ---------------- WERKSTÄTTEN ----------------
-@app.get("/werkstatt", response_model=list[schemas.Werkstatt])
-def get_werkstatt(db: Session = Depends(get_db)):
-    return db.query(models.Werkstatt).all()
-
-@app.post("/werkstatt", response_model=schemas.Werkstatt)
-def create_werkstatt(werkstatt: schemas.WerkstattCreate, db: Session = Depends(get_db)):
-    neue_werkstatt = models.Werkstatt(**werkstatt.dict())
-    db.add(neue_werkstatt)
-    db.commit()
-    db.refresh(neue_werkstatt)
-    return neue_werkstatt
-
-
-# ---------------- AUFTRÄGE ----------------
-@app.get("/auftraege", response_model=list[schemas.Auftrag])
-def get_auftraege(db: Session = Depends(get_db)):
-    return db.query(models.Auftrag).all()
-
-@app.post("/auftraege", response_model=schemas.Auftrag)
-def create_auftrag(auftrag: schemas.AuftragCreate, db: Session = Depends(get_db)):
-    neuer_auftrag = models.Auftrag(**auftrag.dict())
-    if not neuer_auftrag.erstellt_am:
-        neuer_auftrag.erstellt_am = date.today()
-    db.add(neuer_auftrag)
-    db.commit()
-    db.refresh(neuer_auftrag)
-    return neuer_auftrag
-
-
-# ---------------- KI-ENDPOINT ----------------
-@app.post("/ki/auftrag", response_model=schemas.KIAktionSchema)
-def ki_create_auftrag(action: schemas.KIAktionCreate, db: Session = Depends(get_db)):
-    # Einfache Heuristik: wenn werkstatt_id gegeben, verwende sie, sonst wähle erste Werkstatt
-    werkstatt_id = action.werkstatt_id
-    if werkstatt_id is None:
-        werk = db.query(models.Werkstatt).first()
-        if werk:
-            werkstatt_id = werk.id
-
-    # Falls Fahrzeuginfo fehlt, versuchen wir es nicht automatisch zuzuordnen
-    if action.fahrzeug_id is None and action.kunde_id is None:
-        antwort = "Danke für Ihre Nachricht. Bitte geben Sie mindestens eine Fahrzeug- oder Kunden-ID an."
-        ki = models.KIAktion(nachricht=action.nachricht, antwort=antwort, auftrag_id=None)
-        db.add(ki)
-        db.commit()
-        db.refresh(ki)
-        return ki
-
-    # Erstelle Auftrag
-    auftrag = models.Auftrag(
-        beschreibung=action.nachricht,
-        status="offen",
-        erstellt_am=date.today(),
-        fahrzeug_id=action.fahrzeug_id,
-        werkstatt_id=werkstatt_id,
-        kosten=0,
-    )
-    db.add(auftrag)
-    db.commit()
-    db.refresh(auftrag)
-
-    # Schreibe KIAktion
-    antwort = f"Ihr Auftrag wurde erstellt (ID {auftrag.id}). Wir haben Werkstatt-ID {werkstatt_id} zugewiesen."
-    ki = models.KIAktion(nachricht=action.nachricht, antwort=antwort, auftrag_id=auftrag.id)
-    db.add(ki)
-    db.commit()
-    db.refresh(ki)
-
-    return ki
-
-
-# ---------------- OPENAI CHAT ----------------
-
-
-
-# ---------------- LANGCHAIN CHAT ----------------
-class LangChainRequest(BaseModel):
-    message: str
-
-
-@app.post("/langchain/chat")
-def langchain_chat(req: LangChainRequest, db: Session = Depends(get_db)):
-    """Forward user message to LangChain (ChatOpenAI) and store a KIAktion.
-
-    This mirrors the behavior of /openai/chat but uses the LangChain wrapper.
-    """
-    try:
-        answer = run_werkstatt_agent_sequential(req.message)
-
-        # persist the KIAktion (optional)
-        ki = models.KIAktion(nachricht=req.message, antwort=answer, auftrag_id=None)
-        db.add(ki)
-        db.commit()
-        db.refresh(ki)
-
-        return {"response": answer}
-    except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
-        print("LangChain call failed:", tb)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# ---------------- WERKSTATT-AGENT (Sequential Chain mit Web-Suche) ----------------
-class WerkstattAgentRequest(BaseModel):
-    query: str
-
-
-@app.post("/werkstatt-agent/search")
-def werkstatt_agent_search(req: WerkstattAgentRequest, db: Session = Depends(get_db)):
-    """Sequential Chain mit 2 Agenten für intelligente Werkstattsuche
-    
-    AGENT 1 (Klassifizierung):
-    - Nimmt alle Anfragen entgegen
-    - Analysiert, ob es um Werkstattsuche geht
-    - Extrahiert Parameter (PLZ, Ort, Fahrzeugtyp)
-    - Entscheidet: An Agent 2 weiterleiten oder direkt beantworten
-    
-    AGENT 2 (Werkstattsuche):
-    - Wird nur bei Werkstattsuche aktiviert
-    - Sucht im Internet (benötigt TAVILY_API_KEY in .env)
-    - Durchsucht lokale Datenbank
-    - Kombiniert beide Quellen
-    
-    Beispiele:
-    {
-        "query": "Finde mir eine gute Werkstatt in Berlin"
-    }
-    {
-        "query": "Suche Werkstatt für VW Golf in München"
-    }
-    {
-        "query": "Wie oft sollte ich Ölwechsel machen?"  # Wird von Agent 1 direkt beantwortet
-    }
-    """
-    try:
-        answer = run_werkstatt_agent_sequential(req.query)
-
-        # Log die Agent-Anfrage
-        ki = models.KIAktion(nachricht=req.query, antwort=answer, auftrag_id=None)
-        db.add(ki)
-        db.commit()
-        db.refresh(ki)
-
-        return {
-            "response": answer,
-            "agent_type": "sequential_werkstatt_agent"
-        }
-    except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
-        print("Werkstatt-Agent call failed:", tb)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# --- Zusätzliche Filterfunktionen ---
-#
-# 🔹 Alle Fahrzeuge eines Kunden abrufen
-#@app.get("/kunden/{kunde_id}/fahrzeuge", response_model=list[schemas.Fahrzeug])
-#def get_fahrzeuge_von_kunde(kunde_id: int, db: Session = Depends(get_db)):
-#    return db.query(models.Fahrzeug).filter(models.Fahrzeug.kunde_id == kunde_id).all()
-
-
-# 🔹 Alle Aufträge eines Fahrzeugs abrufen
-#@app.get("/fahrzeuge/{fahrzeug_id}/auftraege", response_model=list[schemas.Auftrag])
-#def get_auftraege_von_fahrzeug(fahrzeug_id: int, db: Session = Depends(get_db)):
-#   return db.query(models.Auftrag).filter(models.Auftrag.fahrzeug_id == fahrzeug_id).all()
-
-
-# 🔹 Aufträge nach Status (z. B. offen oder abgeschlossen)
-#@app.get("/auftraege/status/{status}", response_model=list[schemas.Auftrag])
-#def get_auftraege_nach_status(status: str, db: Session = Depends(get_db)):
- #   return db.query(models.Auftrag).filter(models.Auftrag.status.ilike(status)).all()
