@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { Send } from "lucide-react";
-import { api } from "../services/api";
-import keycloak from "../keycloak";
-import Visualization from "../components/Visualization";
+import { api } from "../../services/api";
+import keycloak from "../../keycloak";
+import Visualization from "../../components/common/Visualization";
 
 
 type Message = { sender: "User" | "Bot"; text: string };
 
-export default function App() {
+export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
 
@@ -19,22 +19,20 @@ export default function App() {
 
     try {
       const res = await api.sendToOpenAI({ message: userMessage });
-      const answer = res.data?.response ?? "Keine Antwort erhalten";
+      const answer = res.data?.response ?? "No response received";
       setMessages((prev) => [...prev, { sender: "Bot", text: answer }]);
     } catch (err) {
       console.error("OpenAI error:", err);
       setMessages((prev) => [
         ...prev,
-        { sender: "Bot", text: "Fehler beim Abrufen der Antwort" },
+        { sender: "Bot", text: "Error fetching response" },
       ]);
     }
   };
 
   return (
     <div className="flex h-screen text-white bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 overflow-hidden">
-      {/* Linke Seite: Chat */}
       <div className="w-full md:w-1/2 flex flex-col border-r border-white/10 backdrop-blur-xl bg-white/5">
-        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-white/10">
           <h1 className="text-xl font-semibold">💬 Clone</h1>
           <button
@@ -45,7 +43,6 @@ export default function App() {
           </button>
         </div>
 
-        {/* Nachrichtenverlauf */}
         <div className="flex-1 p-6 space-y-3 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
           {messages.map((msg, i) => (
             <div
@@ -67,14 +64,13 @@ export default function App() {
           ))}
         </div>
 
-        {/* Eingabe */}
         <div className="flex items-center gap-3 p-4 border-t border-white/10 bg-white/5">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            placeholder="Nachricht eingeben..."
+            placeholder="Enter message..."
             className="flex-1 px-4 py-2 text-white placeholder-gray-400 rounded-xl border border-white/20 bg-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button

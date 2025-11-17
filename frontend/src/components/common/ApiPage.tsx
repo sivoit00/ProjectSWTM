@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { api } from "../services/api";
-import type { Kunde, Fahrzeug, Werkstatt } from "../services/api";
+import { api } from "../../services/api";
+import type { Kunde, Fahrzeug, Werkstatt } from "../../services/api";
 
-function App() {
+export default function ApiPage() {
   const [kunden, setKunden] = useState<Kunde[]>([]);
   const [werkstatt, setWerkstatt] = useState<Werkstatt[]>([]);
   const [fahrzeuge, setFahrzeuge] = useState<Fahrzeug[]>([]);
-  const [text, setText] = useState(""); // Add text state
+  const [text, setText] = useState("");
 
   useEffect(() => {
     loadData();
@@ -28,11 +28,10 @@ function App() {
   };
 
   return (
-    /*Simple Database query for testing Frontend/Backend*/
     <div>
-      <h1>Fahrzeugservice</h1>
+      <h1>Vehicle Service</h1>
 
-      <h2>Kunden</h2>
+      <h2>Customers</h2>
       <ul>
         {kunden.map((kunde) => (
           <li key={kunde.id}>
@@ -41,7 +40,7 @@ function App() {
         ))}
       </ul>
 
-      <h2>Fahrzeuge</h2>
+      <h2>Vehicles</h2>
       <ul>
         {fahrzeuge.map((fahrzeug) => (
           <li key={fahrzeug.id}>
@@ -49,16 +48,15 @@ function App() {
           </li>
         ))}
       </ul>
-      <h2>Werkstatt</h2>
+      <h2>Workshops</h2>
       <ul>
-        {werkstatt.map((werkstatt) => (
-          <li key={werkstatt.id}>
-            {werkstatt.name} {werkstatt.adresse} {werkstatt.plz} {werkstatt.ort}
+        {werkstatt.map((w) => (
+          <li key={w.id}>
+            {w.name} {w.adresse} {w.plz} {w.ort}
           </li>
         ))}
       </ul>
 
-      {/* Add text input field */}
       <div className="text">
         <input
           type="text"
@@ -71,5 +69,3 @@ function App() {
     </div>
   );
 }
-
-export default App;
