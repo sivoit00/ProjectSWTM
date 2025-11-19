@@ -46,6 +46,23 @@ export const api = {
   chat: {
     sendMessage: (message: { message: string }) =>
       axios.post<{ response: string }>(`${API_URL}/langchain/chat`, message),
+    saveMessage: (data: { user_id: string; sender: string; message: string }) =>
+      axios.post(`${API_URL}/chat/save`, data),
+    getHistory: (userId: string) =>
+      axios.get(`${API_URL}/chat/history/${userId}`),
+    clearHistory: (userId: string) =>
+      axios.delete(`${API_URL}/chat/history/${userId}`),
+  },
+
+  files: {
+    upload: (files: File[]) => {
+      const formData = new FormData();
+      files.forEach(file => formData.append('files', file));
+      return axios.post(`${API_URL}/files/upload`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+    },
+    getFileUrl: (filename: string) => `${API_URL}/files/uploads/${filename}`,
   },
 
   getKunden: () => axios.get<Kunde[]>(`${API_URL}/kunden`),
