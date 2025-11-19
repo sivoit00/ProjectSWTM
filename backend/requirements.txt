@@ -8,3 +8,9 @@ langchain-openai
 requests
 python-dotenv
 langchain-community
+langchain
+tiktoken
+langchain-community
+langsmith
+tavily-python
+

@@ -47,9 +47,9 @@ export default function Visualization() {
   }
 
   return (
-    <div className="hidden md:flex w-1/2 items-center justify-center border-l border-white/10 backdrop-blur-xl bg-white/5">
-      <div className="relative w-[600px] h-[600px] bg-white/5 rounded-xl border border-white/10">
-        <svg width="100%" height="100%">
+    <div className="flex items-center justify-center p-8 bg-gray-900">
+      <div className="relative w-full max-w-[650px] h-[650px] bg-gray-800/50 rounded-xl border border-gray-700">
+        <svg width="100%" height="100%" viewBox="0 0 650 650" preserveAspectRatio="xMidYMid meet">
           {graphEdges.map(([a, b], i) => {
             const A = graphNodes[a];
             const B = graphNodes[b];
@@ -79,14 +79,14 @@ export default function Visualization() {
                 rx="12"
                 fill={n.color}
               />
-              <text x={n.x} y={n.y + 4} textAnchor="middle" fontSize="14" fill="white">
+              <text x={n.x} y={n.y + 4} textAnchor="middle" fontSize="14" fill="white" fontWeight="500">
                 {n.label}
               </text>
             </g>
           ))}
         </svg>
 
-        <div className="absolute bottom-3 w-full text-center text-sm text-gray-300">
+        <div className="absolute bottom-4 w-full text-center text-sm text-gray-400">
           AI-system-module overview (Sprint 1)
         </div>
       </div>
