@@ -13,4 +13,5 @@ tiktoken
 langchain-community
 langsmith
 tavily-python
+python-multipart
 

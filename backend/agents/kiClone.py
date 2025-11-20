@@ -2,35 +2,30 @@ import json
 import logging
 from typing import Any, Dict
 from langchain_openai import ChatOpenAI
-from agents.lawyerAgent import handle_lawyer_request 
+from agents.lawyerAgent import handle_lawyer_request
 
 log = logging.getLogger(__name__)
-llm = ChatOpenAI(temperature=0.0, model="gpt-5-nano-2025-08-07") 
+
+llm = ChatOpenAI(
+    temperature=0.0,
+    model="gpt-5-nano-2025-08-07"
+)
 
 PROMPT_ROUTE = """
-Du bist ein KI-Orchestrator. Deine Aufgabe ist es, die Nutzeranfrage an den richtigen Agenten zuzuweisen.
+Du bist ein KI-Orchestrator. Entscheide, welcher Agent zuständig ist.
 
-Verfügbare Agenten:
-- "lawyer": Für Anwälte, Rechtsfragen, Unfälle, Bußgelder, Verträge.
-- "general": Für alle anderen Anfragen (allgemeine Konversation, Hallo, etc.).
+Agenten:
+- "lawyer": Anwälte, Rechtsfragen, Unfälle, Bußgelder, Verträge.
+- "general": Alles andere.
 
-Gib als einzige Ausgabe reines JSON zurück mit dem Key "agent".
+Format der Ausgabe: reines JSON, nur:
+{{
+  "agent": "<lawyer|general>"
+}}
 
-Beispiele:
+Analysen und Erklärungen sind verboten.
 
-Text: "Ich brauche einen Anwalt in München wegen einem Autounfall."
-JSON: {{"agent":"lawyer"}}
-
-Text: "Hallo, wie geht's dir?"
-JSON: {{"agent":"general"}}
-
-Text: "Was ist die Hauptstadt von Frankreich?"
-JSON: {{"agent":"general"}}
-
-Text: "Mein Bußgeldbescheid ist da."
-JSON: {{"agent":"lawyer"}}
-
-Text: "{user_message}"
+Nutzertext: "{user_message}"
 JSON:
 """
 
@@ -38,55 +33,70 @@ AGENT_DISPATCHER = {
     "lawyer": handle_lawyer_request,
 }
 
+
+def _safe_json_loads(s: str) -> dict:
+    """Sorgt dafür, dass das LLM-JSON zuverlässig geparst wird."""
+    try:
+        return json.loads(s)
+    except json.JSONDecodeError:
+        log.warning("LLM lieferte kein valides JSON: %s", s)
+        return {}
+
+
 def _get_routing_agent(text: str) -> str:
-    """Ermittelt den zuständigen Agenten ('lawyer' or 'general') via LLM."""
     prompt = PROMPT_ROUTE.format(user_message=text)
-    
+
     try:
         response = llm.invoke(prompt)
-        raw_content = response.content.strip() 
-        data = json.loads(raw_content)
+        raw = response.content.strip()
+
+        data = _safe_json_loads(raw)
         agent = data.get("agent")
-        if agent in AGENT_DISPATCHER:
+
+        if agent in AGENT_DISPATCHER or agent == "general":
             return agent
+
         return "general"
+
     except Exception as e:
-        log.warning("Routing failed: %s. Defaulting to 'general'.", e)
+        log.warning("Routing-Fehler: %s", e)
         return "general"
+
 
 def handle_general_request(user_message: str) -> Dict[str, Any]:
-    """
-    Standard-Chat-Funktion (wie ChatGPT).
-    Wird aufgerufen, wenn agent_name == "general".
-    """
-    log.info("Handling general request: %s", user_message)
+    log.info("Handling general request.")
     try:
-        prompt = f"Beantworte diese Nutzeranfrage: {user_message}"
+        prompt = f"Beantworte kurz und hilfreich: {user_message}"
         response = llm.invoke(prompt)
-        chat_response = response.content
-        
-        return {"response": chat_response.strip(), "structured": {"intent": "general"}}
-    
+        return {
+            "response": response.content.strip(),
+            "structured": {"intent": "general"}
+        }
     except Exception as e:
-        log.exception("General request failed: %s", e)
-        return {"response": "Tut mir leid, ich habe gerade ein technisches Problem.", "structured": {"intent": "general", "error": str(e)}}
+        log.exception("General agent failed.")
+        return {
+            "response": "Tut mir leid, es gab ein Problem.",
+            "structured": {"intent": "general", "error": str(e)}
+        }
+
 
 def route_message(user_message: str) -> Dict[str, Any]:
-    """
-    Die Hauptfunktion, die von FastAPI aufgerufen wird.
-    Leitet die Anfrage an den richtigen Handler weiter.
-    """
-    log.info("kiClone routing message: %s", user_message)
+    print("route_message called with:", user_message)
+    log.info("kiClone routing: %s", user_message)
+
     agent_name = _get_routing_agent(user_message)
-    log.info("Routing decision: %s", agent_name)
+    log.info("Routing result: %s", agent_name)
+
     if agent_name == "general":
-        response = handle_general_request(user_message)
-    else:
-        handler_func = AGENT_DISPATCHER[agent_name]
-        try:
-            response = handler_func(user_message)
-        except Exception as e:
-            log.exception("Agent '%s' failed to execute.", agent_name)
-            response = {"response": "Entschuldigung, der zuständige Fachbereich ist gerade nicht verfügbar.", "structured": {"intent": agent_name, "error": str(e)}}
-    
-    return response
+        return handle_general_request(user_message)
+
+    try:
+        handler = AGENT_DISPATCHER[agent_name]
+        return handler(user_message)
+
+    except Exception as e:
+        log.exception("Agent '%s' failed.", agent_name)
+        return {
+            "response": "Der zuständige Fachbereich ist gerade nicht verfügbar.",
+            "structured": {"intent": agent_name, "error": str(e)}
+        }

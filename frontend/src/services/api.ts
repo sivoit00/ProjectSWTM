@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8000';
+const API_URL = (import.meta.env?.VITE_API_URL as string) || 'http://localhost:8000';
 
 export interface Kunde {
   id?: number;
@@ -78,7 +78,5 @@ export const api = {
   // KI Clone message
   sendToKI: (payload: { message: string }) =>
   axios.post<{ response: string; structured: any }>(
-    `${API_URL}/ki/message`,
-    payload
-  ),
+    `${API_URL}/ki-orchestrator/message`, payload),
 };

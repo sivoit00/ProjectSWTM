@@ -29,6 +29,7 @@ services:
       - LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
       - LANGSMITH_PROJECT=${LANGSMITH_PROJECT}
       - LANGSMITH_TRACING_V2=${LANGSMITH_TRACING_V2}
+      - SERPAPI_KEY=${SERPAPI_KEY}
     volumes:
       - ./backend:/app
     # ENTFERNT: Die "depends_on: - db" ist nicht mehr nötig
