@@ -7,27 +7,29 @@ from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain_core.prompts import ChatPromptTemplate
 from langchain.tools import tool
 import requests
+import smtplib
+from email.message import EmailMessage
 from dotenv import load_dotenv
 
 load_dotenv()
-
 log = logging.getLogger(__name__)
-
-# LLM
 llm = ChatOpenAI(temperature=0.0, model="gpt-5-nano-2025-08-07")
 
-# SerpAPI Key aus .env
 SERPAPI_KEY = os.environ.get("SERPAPI_KEY")
 if not SERPAPI_KEY:
     raise ValueError("SERPAPI_KEY nicht gesetzt. Bitte in .env eintragen.")
 
+SMTP_HOST = os.environ.get("SMTP_HOST")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", 587))
+SMTP_USER = os.environ.get("SMTP_USER")
+SMTP_PASS = os.environ.get("SMTP_PASS")
+SMTP_TO = os.environ.get("SMTP_TO") 
+if not all([SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_TO]):
+    raise ValueError("SMTP-Konfiguration unvollständig. Bitte alle Werte in .env setzen.")
+
 @tool
 def search_lawyers_online(city: str, topic: str = "Verkehrsrecht") -> List[Dict]:
-    """
-    Sucht online nach Anwälten via SerpAPI Google Search API.
-    Liefert Name, Email, Telefon, Anschrift, Bewertung zurück.
-    Maximal 3 Ergebnisse.
-    """
+    """Sucht online nach Anwälten via SerpAPI Google Search API."""
     url = "https://serpapi.com/search.json"
     params = {
         "engine": "google",
@@ -47,22 +49,37 @@ def search_lawyers_online(city: str, topic: str = "Verkehrsrecht") -> List[Dict]
         for item in data.get("local_results", {}).get("places", [])[:3]:
             lawyer = {
                 "name": item.get("title"),
-                "email": item.get("email") or "Keine Info",
+                "email": SMTP_TO,
                 "telefon": item.get("phone") or "Keine Info",
                 "anschrift": item.get("address") or "Keine Info",
                 "bewertung": item.get("rating") or "Keine Info"
             }
             results.append(lawyer)
         return results
-
     except Exception as e:
         log.exception("Fehler bei der SerpAPI-Anfrage: %s", e)
         return []
 
-# Tools
+def send_email(to_email: str, subject: str, body: str):
+    """Versendet eine Test-E-Mail via SMTP."""
+    try:
+        msg = EmailMessage()
+        msg["From"] = SMTP_USER
+        msg["To"] = to_email
+        msg["Subject"] = subject
+        msg.set_content(body)
+
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.send_message(msg)
+
+        log.info("Test-E-Mail erfolgreich versendet an %s", to_email)
+    except Exception as e:
+        log.exception("Fehler beim E-Mail-Versand: %s", e)
+
 tools = [search_lawyers_online]
 
-# System-Prompt für saubere Ausgabe
 SYSTEM_PROMPT = """
 Du bist ein spezialisierter Assistent des "systecs-Fahrzeugservice".
 Deine Aufgabe ist es, Nutzern bei der Anwaltssuche zu helfen.
@@ -80,15 +97,21 @@ prompt = ChatPromptTemplate.from_messages([
     ("placeholder", "{agent_scratchpad}"),
 ])
 
-# Agent erstellen
 agent = create_openai_tools_agent(llm, tools, prompt)
 agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=False)
 
 def handle_lawyer_request(user_message: str) -> Dict[str, Any]:
+    """Verarbeitet die Anfrage, liefert Antwort und verschickt Test-E-Mail."""
     log.info("LawyerAgent (online) processing: %s", user_message)
     try:
         result = agent_executor.invoke({"user_message": user_message})
-        return {"response": result['output'], "structured": {"intent": "lawyer"}}
+        output_text = result['output']
+
+        email_subject = "Test: Anfrage Anwaltssuche"
+        email_body = f"Sehr geehrte/r Anwalt/Anwältin,\n\nFolgende Anfrage wurde über den Agenten generiert:\n\n{output_text}\n\nMit freundlichen Grüßen,\nTestsystem"
+        send_email(SMTP_TO, email_subject, email_body)
+
+        return {"response": output_text, "structured": {"intent": "lawyer"}}
     except Exception as e:
         log.exception("LawyerAgent (online) failed: %s", e)
         return {"response": "Entschuldigung, die Anwaltssuche ist gerade nicht verfügbar.",
