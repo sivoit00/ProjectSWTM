@@ -70,8 +70,10 @@ export default function Chat() {
       // Save user message to history
       await saveMessageToHistory("User", messageText);
 
-      // Send message to AI
-      const res = await api.chat.sendMessage({ message: userMessage });
+      // Send message to AI via the orchestrator (kiClone) so the request is dispatched
+      // to the appropriate agent (lawyer/general/etc.). If you prefer the
+      // LangChain-specific endpoint use `api.chat.sendMessage` instead.
+      const res = await api.sendToKI({ message: userMessage });
       const answer = res.data?.response ?? "No response received";
       
       // Add bot response to UI
