@@ -1,25 +1,25 @@
 """
 services/insurance_service.py
 
-Helfer-Funktionen, die die tatsächlichen Tools des Insurance Agent repräsentieren.
-Implementiert mit defensivem Fallback: DB-Zugriff -> REST -> Mock.
+Helper functions that represent the actual Insurance Agent tools.
+Implemented with defensive fallback: DB access -> REST -> Mock.
 """
 
 import os
 import json
 from typing import Any, Dict
 
-# Versuch: DB-Session importieren (falls vorhanden)
+# try: import db session (if available)
 try:
     from database import SessionLocal
-    from models import Customer, Policy, Claim  # falls im Projekt vorhanden
+    from models import Customer, Policy, Claim  
     DB_AVAILABLE = True
 except Exception:
     DB_AVAILABLE = False
 
 import requests
 
-BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8000")  # falls REST-Fallback nötig
+BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8000")  
 TIMEOUT = 6
 
 def _call_rest(path: str, method: str = "get", json_body: dict = None):
@@ -34,7 +34,7 @@ def _call_rest(path: str, method: str = "get", json_body: dict = None):
     except Exception as e:
         return {"error": str(e)}
 
-# ---- Service-Implementationen ----
+# ---- service-implementations ----
 
 def get_policy_details(customer_id: str) -> Dict[str, Any]:
     """
@@ -54,10 +54,10 @@ def get_policy_details(customer_id: str) -> Dict[str, Any]:
     # REST fallback
     resp = _call_rest(f"kunden/{customer_id}")
     if resp and not resp.get("error"):
-        # Annahme: /kunden/{id} gibt Kunden + ggf. police zurück; passe an falls nötig
-        # Einfacher Fallback: return whole customer object
+        # Assumption: /customers/{id} returns customers + possibly policy; adjust if necessary
+        # Simple fallback: return whole customer object
         return {"customer": resp}
-    # letzter Fallback (Mock)
+    # last fallback (Mock)
     return {
         "policy_id": f"POL-{customer_id}",
         "coverage": {"liability": True, "collision": False, "theft": True},
@@ -80,7 +80,7 @@ def calculate_premium(vehicle_data: Any) -> Dict[str, Any]:
         vehicle = {"make": "unknown", "year": 2020}
 
     base = 200.0
-    # einfaches Heuristik-Beispiel
+    # simple heuristic example
     age = 2025 - int(vehicle.get("year", 2020))
     premium = base + max(0, age) * 10
     if vehicle.get("value"):

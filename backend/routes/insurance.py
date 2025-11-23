@@ -1,4 +1,4 @@
-# routes/insurance.py
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
@@ -33,7 +33,7 @@ def run_insurance(req: InsuranceRunRequest):
     res = run_insurance_agent(user_input=req.user_input, user_id=req.user_id, context=req.context or {})
     if not res.get("ok"):
         raise HTTPException(status_code=500, detail=res.get("error", "unknown"))
-    # Wir geben strukturierte Antwort (nicht nur string)
+    # structured answer (not just string)
     return {
         "ok": True,
         "response": res.get("response"),

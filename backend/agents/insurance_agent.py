@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-# Service-Funktionen
+# service-functions
 from services.insurance_service import (
     get_policy_details,
     calculate_premium,
@@ -16,7 +16,7 @@ from services.insurance_service import (
 )
 
 # ----------------------------------------------------------
-# Hauptfunktion: Insurance Agent
+# main function: Insurance Agent
 # ----------------------------------------------------------
 
 def run_insurance_agent(user_input: str, user_id: str = None, context: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -37,7 +37,7 @@ def run_insurance_agent(user_input: str, user_id: str = None, context: Dict[str,
     if context is None:
         context = {}
 
-    # -------------------- Agent 1: Klassifizierung ---------------------
+    # -------------------- Agent 1: Classification ---------------------
 
     classifier_prompt = ChatPromptTemplate.from_template("""
 Du bist Agent 1, ein Klassifizierungs-Agent für Versicherungsthemen.
@@ -49,8 +49,9 @@ KATEGORIE:
 - PREMIUM_CALC
 - CLAIM_SUBMIT
 - CLAIM_STATUS
+- CLAIM_CAPTURE
 - ANDERE
-
+                                                         
 WEITERLEITEN: JA oder NEIN
 
 PARAMETER:
@@ -58,7 +59,8 @@ PARAMETER:
 - vehicle_data
 - claim_data
 - claim_id
-
+- info_provided
+                                                         
 BEGRÜNDUNG: Warum diese Entscheidung?
 
 NUTZEREINGABE:
@@ -79,7 +81,7 @@ KONTEXT:
     print("\n=== AGENT 1 CLASSIFICATION ===")
     print(classification_text)
 
-    # -------------------- Vorverarbeitung ------------------------------
+    # -------------------- Preparation ------------------------------
 
     extracted = extract_parameters_from_classification(classification_text, context)
 
@@ -101,7 +103,7 @@ KONTEXT:
     }
 
 # ----------------------------------------------------------
-# Parameter Extraktion
+# parameter extraction
 # ----------------------------------------------------------
 
 def extract_parameters_from_classification(text: str, context: Dict[str, Any]):
@@ -113,6 +115,8 @@ def extract_parameters_from_classification(text: str, context: Dict[str, Any]):
         category = "CLAIM_SUBMIT"
     elif "CLAIM_STATUS" in text:
         category = "CLAIM_STATUS"
+    elif "CLAIM_CAPTURE" in text:
+        category = "CLAIM_CAPTURE"
     else:
         category = "ANDERE"
 
@@ -128,6 +132,7 @@ def extract_parameters_from_classification(text: str, context: Dict[str, Any]):
         "context_customer": context.get("customer_id"),
         "claim_id": claim_id,
         "raw_classification": text,
+        "info_provided": text,
     }
 
 # ----------------------------------------------------------
@@ -154,11 +159,17 @@ def run_tool_logic_based_on_category(category_text: str, ext: Dict[str, Any]):
         if not ext["claim_id"]:
             return {"error": "Keine claim_id erkannt."}
         return get_claim_status(ext["claim_id"])
+    if category == "CLAIM_CAPTURE":
+        return {
+        "next_step": "CLAIM_SUBMIT",
+        "message": "Ich habe die notwendigen Informationen gesammelt. Willst du den Schaden jetzt einreichen?",
+        "captured_data": ext["info_provided"]
+        }
 
     return "Ich habe deine Frage verstanden, aber keine passende Versicherungsfunktion gefunden."
 
 # ----------------------------------------------------------
-# Fallback Antwort
+# fallback response
 # ----------------------------------------------------------
 
 def simple_general_answer(llm, text: str) -> str:
