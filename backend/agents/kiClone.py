@@ -3,6 +3,7 @@ import logging
 from typing import Any, Dict
 from langchain_openai import ChatOpenAI
 from agents.lawyerAgent import handle_lawyer_request
+from agents.insurance_agent import run_insurance_agent
 
 log = logging.getLogger(__name__)
 
@@ -16,11 +17,12 @@ Du bist ein KI-Orchestrator. Entscheide, welcher Agent zuständig ist.
 
 Agenten:
 - "lawyer": Anwälte, Rechtsfragen, Unfälle, Bußgelder, Verträge.
+- "insurance": Versicherung, Police, Schaden, Prämie, Deckung, Versicherungsstatus.
 - "general": Alles andere.
 
 Format der Ausgabe: reines JSON, nur:
 {{
-  "agent": "<lawyer|general>"
+  "agent": "<lawyer|insurance|general>"
 }}
 
 Analysen und Erklärungen sind verboten.
@@ -31,6 +33,7 @@ JSON:
 
 AGENT_DISPATCHER = {
     "lawyer": handle_lawyer_request,
+    "insurance": run_insurance_agent,
 }
 
 
