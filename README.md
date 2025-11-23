@@ -206,3 +206,92 @@ Vollständige Dokumentation: http://localhost:8000/docs
 
 ---
 
+Was kann der Versicherungsagent
+
+1️⃣ Versicherungsprämie berechnen (PREMIUM_CALC)
+
+Der Agent erkennt, wenn der User etwas sagt wie:
+
+„Ich möchte meine Versicherungsprämie berechnen“
+
+„Wie viel kostet meine Autoversicherung?“
+
+„Kannst du meine Haftpflichtprämie schätzen?“
+
+🔹 Der Agent antwortet mit:
+
+Rückfragen zu notwendigen Eckdaten (Versicherungsart, Alter, Fahrzeug, SF, etc.)
+
+einer groben Schätzung
+
+einer Empfehlung, wie man es offiziell berechnet
+
+2️⃣ Schaden melden (CLAIM_SUBMIT)
+
+Wenn der User z. B. sagt:
+
+„Ich möchte einen Schaden melden“
+
+„Ich hatte einen Unfall“
+
+„Ich brauche Hilfe bei der Schadensmeldung“
+
+🔹 Der Agent fragt nach:
+
+Art des Schadens (Auto / Haus / Haftpflicht …)
+
+Datum, Ort, Beschreibung
+
+🔹 Und erklärt:
+
+welche Infos gebraucht werden
+
+wie die Meldung gespeichert oder eingereicht wird
+
+3️⃣ Schadensstatus prüfen (CLAIM_STATUS)
+
+Wenn der User sagt:
+
+„Wie ist der Status meines Schadens?“
+
+„Wurde mein Schaden schon bearbeitet?“
+
+🔹 Der Versicherungs-Agent erklärt:
+
+welche Infos er benötigt (Vorgangsnummer etc.)
+
+wie der Status üblicherweise abgefragt wird
+
+was die nächsten Schritte wären
+
+4️⃣ Allgemeine Versicherungsinformationen (POLICY_INFO)
+
+Der Agent versteht Fragen wie:
+
+„Was deckt meine Haftpflicht ab?“
+
+„Was ist versichert?“
+
+„Was bringt Vollkasko?“
+
+„Welche Versicherung brauche ich für mein Auto?“
+
+🔹 Der Agent gibt einfache, nicht-juristische Erklärungen.
+
+5️⃣ Neutrale Smalltalk- oder Chatbot-Antworten (FALLBACK / CHATBOT)
+
+Wenn die KI keine Versicherungsintention erkennt, fällt sie zurück zu:
+
+„Wie geht es dir?“
+
+„Erzähl mir mehr.“
+
+allgemeiner Konversation
+
+hilfreichen Hinweisen
+
+Nachfrage zur Klärung
+
+Dies ist dein fallback-Agent.
+
+---
