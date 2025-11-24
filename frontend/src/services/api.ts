@@ -1,6 +1,35 @@
 import axios from 'axios';
+import keycloak from '../keycloak';
 
 const API_URL = (import.meta.env?.VITE_API_URL as string) || 'http://localhost:8000';
+
+const apiClient = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+apiClient.interceptors.request.use(
+  async (config) => {
+    if (keycloak.token) {
+      try {
+        await keycloak.updateToken(30);
+        
+        if (config.headers) {
+          config.headers.Authorization = `Bearer ${keycloak.token}`;
+        }
+      } catch (error) {
+        console.error("Token refresh fehlgeschlagen, leite zum Login:", error);
+        keycloak.login();
+      }
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 export interface Kunde {
   id?: number;
@@ -27,56 +56,54 @@ export interface Werkstatt {
 
 export const api = {
   customers: {
-    getAll: () => axios.get<Kunde[]>(`${API_URL}/kunden`),
-    create: (kunde: Omit<Kunde, 'id'>) => axios.post<Kunde>(`${API_URL}/kunden`, kunde),
+    getAll: () => apiClient.get<Kunde[]>('/kunden'),
+    create: (kunde: Omit<Kunde, 'id'>) => apiClient.post<Kunde>('/kunden', kunde),
   },
 
   vehicles: {
-    getAll: () => axios.get<Fahrzeug[]>(`${API_URL}/fahrzeuge`),
-    create: (fahrzeug: Omit<Fahrzeug, 'id'>) => 
-      axios.post<Fahrzeug>(`${API_URL}/fahrzeuge`, fahrzeug),
+    getAll: () => apiClient.get<Fahrzeug[]>('/fahrzeuge'),
+    create: (fahrzeug: Omit<Fahrzeug, 'id'>) => apiClient.post<Fahrzeug>('/fahrzeuge', fahrzeug),
   },
 
   workshops: {
-    getAll: () => axios.get<Werkstatt[]>(`${API_URL}/werkstatt`),
-    create: (werkstatt: Omit<Werkstatt, 'id'>) => 
-      axios.post<Werkstatt>(`${API_URL}/werkstatt`, werkstatt),
+    getAll: () => apiClient.get<Werkstatt[]>('/werkstatt'),
+    create: (werkstatt: Omit<Werkstatt, 'id'>) => apiClient.post<Werkstatt>('/werkstatt', werkstatt),
   },
 
   chat: {
     sendMessage: (message: { message: string }) =>
-      axios.post<{ response: string }>(`${API_URL}/langchain/chat`, message),
+      apiClient.post<{ response: string }>('/langchain/chat', message),
+    
     saveMessage: (data: { user_id: string; sender: string; message: string }) =>
-      axios.post(`${API_URL}/chat/save`, data),
+      apiClient.post('/chat/save', data),
+    
     getHistory: (userId: string) =>
-      axios.get(`${API_URL}/chat/history/${userId}`),
+      apiClient.get(`/chat/history/${userId}`),
+    
     clearHistory: (userId: string) =>
-      axios.delete(`${API_URL}/chat/history/${userId}`),
+      apiClient.delete(`/chat/history/${userId}`),
   },
 
   files: {
     upload: (files: File[]) => {
       const formData = new FormData();
       files.forEach(file => formData.append('files', file));
-      return axios.post(`${API_URL}/files/upload`, formData, {
+      return apiClient.post('/files/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
     },
     getFileUrl: (filename: string) => `${API_URL}/files/uploads/${filename}`,
   },
 
-  getKunden: () => axios.get<Kunde[]>(`${API_URL}/kunden`),
-  createKunde: (kunde: Omit<Kunde, 'id'>) => axios.post<Kunde>(`${API_URL}/kunden`, kunde),
-  getFahrzeuge: () => axios.get<Fahrzeug[]>(`${API_URL}/fahrzeuge`),
-  createFahrzeug: (fahrzeug: Omit<Fahrzeug, 'id'>) => 
-    axios.post<Fahrzeug>(`${API_URL}/fahrzeuge`, fahrzeug),
-  getWerkstatt: () => axios.get<Werkstatt[]>(`${API_URL}/werkstatt`),
-  createWerkstatt: (werkstatt: Omit<Werkstatt, 'id'>) => 
-    axios.post<Werkstatt>(`${API_URL}/werkstatt`, werkstatt),
-  sendToOpenAI: (message: { message: string }) =>
-    axios.post<{ response: string }>(`${API_URL}/langchain/chat`, message),
-  // KI Clone message
   sendToKI: (payload: { message: string }) =>
-  axios.post<{ response: string; structured: any }>(
-    `${API_URL}/ki-orchestrator/message`, payload),
+    apiClient.post<{ response: string; structured: any }>('/ki-orchestrator/message', payload),
+
+ 
+  getKunden: () => apiClient.get<Kunde[]>('/kunden'),
+  createKunde: (kunde: Omit<Kunde, 'id'>) => apiClient.post<Kunde>('/kunden', kunde),
+  getFahrzeuge: () => apiClient.get<Fahrzeug[]>('/fahrzeuge'),
+  createFahrzeug: (fahrzeug: Omit<Fahrzeug, 'id'>) => apiClient.post<Fahrzeug>('/fahrzeuge', fahrzeug),
+  getWerkstatt: () => apiClient.get<Werkstatt[]>('/werkstatt'),
+  createWerkstatt: (werkstatt: Omit<Werkstatt, 'id'>) => apiClient.post<Werkstatt>('/werkstatt', werkstatt),
+  sendToOpenAI: (message: { message: string }) => apiClient.post<{ response: string }>('/langchain/chat', message),
 };
