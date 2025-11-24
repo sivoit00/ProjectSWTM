@@ -3,6 +3,7 @@ import logging
 from typing import Any, Dict
 from langchain_openai import ChatOpenAI
 from agents.lawyerAgent import handle_lawyer_request
+from agents.insurance_agent import run_insurance_agent
 
 log = logging.getLogger(__name__)
 
@@ -13,16 +14,24 @@ CURRENT_ACTIVE_AGENT = None
 PROMPT_ROUTE = """
 Du bist ein KI-Orchestrator. Entscheide, welcher Agent zuständig ist.
 Agenten:
-- "lawyer": Anwälte, Rechtsfragen, Unfälle, Bußgelder.
+- "lawyer": Anwälte, Rechtsfragen, Unfälle, Bußgelder, Verträge.
+- "insurance": Versicherung, Police, Schaden, Prämie, Deckung, Versicherungsstatus.
 - "general": Alles andere.
 - "reset": Thema wechseln / Abbruch.
 
-Format: JSON {{ "agent": "..." }}
+Format der Ausgabe: reines JSON, nur:
+{{
+  "agent": "<lawyer|insurance|general>"
+}}
+
+Analysen und Erklärungen sind verboten.
+
 Nutzertext: "{user_message}"
 """
 
 AGENT_DISPATCHER = {
     "lawyer": handle_lawyer_request,
+    "insurance": run_insurance_agent,
 }
 
 def _safe_json_loads(s: str) -> dict:
