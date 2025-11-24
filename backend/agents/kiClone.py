@@ -7,18 +7,17 @@ from agents.insurance_agent import run_insurance_agent
 
 log = logging.getLogger(__name__)
 
-llm = ChatOpenAI(
-    temperature=0.0,
-    model="gpt-5-nano-2025-08-07"
-)
+llm = ChatOpenAI(temperature=0.0, model="gpt-4o-mini")
+
+CURRENT_ACTIVE_AGENT = None 
 
 PROMPT_ROUTE = """
 Du bist ein KI-Orchestrator. Entscheide, welcher Agent zuständig ist.
-
 Agenten:
 - "lawyer": Anwälte, Rechtsfragen, Unfälle, Bußgelder, Verträge.
 - "insurance": Versicherung, Police, Schaden, Prämie, Deckung, Versicherungsstatus.
 - "general": Alles andere.
+- "reset": Thema wechseln / Abbruch.
 
 Format der Ausgabe: reines JSON, nur:
 {{
@@ -28,7 +27,6 @@ Format der Ausgabe: reines JSON, nur:
 Analysen und Erklärungen sind verboten.
 
 Nutzertext: "{user_message}"
-JSON:
 """
 
 AGENT_DISPATCHER = {
@@ -36,70 +34,59 @@ AGENT_DISPATCHER = {
     "insurance": run_insurance_agent,
 }
 
-
 def _safe_json_loads(s: str) -> dict:
-    """Sorgt dafür, dass das LLM-JSON zuverlässig geparst wird."""
     try:
+        s = s.replace("```json", "").replace("```", "").strip()
         return json.loads(s)
     except json.JSONDecodeError:
-        log.warning("LLM lieferte kein valides JSON: %s", s)
         return {}
 
-
-def _get_routing_agent(text: str) -> str:
-    prompt = PROMPT_ROUTE.format(user_message=text)
-
+def _get_routing_decision(text: str) -> str:
     try:
-        response = llm.invoke(prompt)
-        raw = response.content.strip()
-
-        data = _safe_json_loads(raw)
-        agent = data.get("agent")
-
-        if agent in AGENT_DISPATCHER or agent == "general":
-            return agent
-
+        response = llm.invoke(PROMPT_ROUTE.format(user_message=text))
+        data = _safe_json_loads(response.content)
+        return data.get("agent", "general")
+    except Exception:
         return "general"
-
-    except Exception as e:
-        log.warning("Routing-Fehler: %s", e)
-        return "general"
-
 
 def handle_general_request(user_message: str) -> Dict[str, Any]:
-    log.info("Handling general request.")
+    resp = llm.invoke(user_message)
+    return {"response": resp.content, "structured": {"intent": "general"}}
+
+def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dict[str, Any]:
+    global CURRENT_ACTIVE_AGENT
+    
+    if user_context is None:
+        user_context = {}
+
+    log.info(f"Orchestrator Routing: '{user_message}' | User: {user_context.get('name')}")
+
+    target_agent = "general"
+
+    if CURRENT_ACTIVE_AGENT:
+        if user_message.lower() in ["stop", "abbruch", "ende"]:
+            CURRENT_ACTIVE_AGENT = None
+            return {"response": "Gespräch beendet.", "structured": {"intent": "reset"}}
+        target_agent = CURRENT_ACTIVE_AGENT
+    else:
+        decision = _get_routing_decision(user_message)
+        if decision == "reset":
+            CURRENT_ACTIVE_AGENT = None
+            return {"response": "Okay.", "structured": {"intent": "reset"}}
+        target_agent = decision
+
     try:
-        prompt = f"Beantworte kurz und hilfreich: {user_message}"
-        response = llm.invoke(prompt)
-        return {
-            "response": response.content.strip(),
-            "structured": {"intent": "general"}
-        }
+        if target_agent == "lawyer":
+            CURRENT_ACTIVE_AGENT = "lawyer"
+            return handle_lawyer_request(user_message, user_context)
+        
+        else:
+            CURRENT_ACTIVE_AGENT = None
+            return handle_general_request(user_message)
+            
     except Exception as e:
-        log.exception("General agent failed.")
+        log.exception(f"Fehler im Agenten '{target_agent}': {e}")
         return {
-            "response": "Tut mir leid, es gab ein Problem.",
-            "structured": {"intent": "general", "error": str(e)}
-        }
-
-
-def route_message(user_message: str) -> Dict[str, Any]:
-    print("route_message called with:", user_message)
-    log.info("kiClone routing: %s", user_message)
-
-    agent_name = _get_routing_agent(user_message)
-    log.info("Routing result: %s", agent_name)
-
-    if agent_name == "general":
-        return handle_general_request(user_message)
-
-    try:
-        handler = AGENT_DISPATCHER[agent_name]
-        return handler(user_message)
-
-    except Exception as e:
-        log.exception("Agent '%s' failed.", agent_name)
-        return {
-            "response": "Der zuständige Fachbereich ist gerade nicht verfügbar.",
-            "structured": {"intent": agent_name, "error": str(e)}
+            "response": "Entschuldigung, es gab einen internen Fehler bei der Verarbeitung.", 
+            "structured": {"intent": target_agent, "error": str(e)}
         }

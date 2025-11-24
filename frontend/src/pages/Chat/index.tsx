@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Send, Paperclip, X, FileText, Image as ImageIcon } from "lucide-react";
-import { api } from "../../services/api";
+import { api } from "../../services/api"; // Die zentrale API nutzt jetzt automatisch den Token
 import Visualization from "../../components/common/Visualization";
 import FileUpload from "../../components/common/FileUpload";
 import keycloak from "../../keycloak";
@@ -13,9 +13,9 @@ export default function Chat() {
   const [loading, setLoading] = useState(false);
   const [showFileUpload, setShowFileUpload] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  
   const userId = keycloak.tokenParsed?.sub || "anonymous";
 
-  // Load chat history on mount
   useEffect(() => {
     loadChatHistory();
   }, []);
@@ -54,7 +54,6 @@ export default function Chat() {
     setLoading(true);
 
     try {
-      // Upload files first if any
       if (selectedFiles.length > 0) {
         const uploadResponse = await api.files.upload(selectedFiles);
         uploadedFileNames = uploadResponse.data.files.map((f: any) => f.stored_filename);
@@ -62,25 +61,20 @@ export default function Chat() {
         setShowFileUpload(false);
       }
 
-      // Add user message to UI
       const messageText = userMessage || `[${selectedFiles.length} file(s) uploaded]`;
       setMessages((prev) => [...prev, { sender: "User", text: messageText, files: uploadedFileNames }]);
       setInput("");
 
-      // Save user message to history
       await saveMessageToHistory("User", messageText);
 
-      // Send message to AI via the orchestrator (kiClone) so the request is dispatched
-      // to the appropriate agent (lawyer/general/etc.). If you prefer the
-      // LangChain-specific endpoint use `api.chat.sendMessage` instead.
       const res = await api.sendToKI({ message: userMessage });
+      
       const answer = res.data?.response ?? "No response received";
       
-      // Add bot response to UI
       setMessages((prev) => [...prev, { sender: "Bot", text: answer }]);
       
-      // Save bot response to history
       await saveMessageToHistory("Bot", answer);
+
     } catch (err) {
       console.error("Chat error:", err);
       const errorMsg = "Sorry, I encountered an error. Please try again.";
