@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine
 from models import Base
-from routes import kunden, fahrzeuge, werkstaetten, auftraege, ki, openai_route, chat_history, files, ki_orchestrator
+from routes import kunden, fahrzeuge, werkstaetten, auftraege, ki, openai_route, chat_history, files, ki_orchestrator, insurance
 from pydantic import BaseModel
 
 Base.metadata.create_all(bind=engine)
@@ -30,6 +30,7 @@ app.include_router(openai_route.router, tags=["Chat"])
 app.include_router(chat_history.router)
 app.include_router(files.router)
 app.include_router(ki_orchestrator.router, prefix="/ki-orchestrator", tags=["KI Orchestrator"])
+app.include_router(insurance.router, prefix="/ki", tags=["Insurance"])
 
 @app.get("/", tags=["Root"])
 def home():
