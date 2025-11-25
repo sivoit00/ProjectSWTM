@@ -1,12 +1,13 @@
-import axios from 'axios';
-import keycloak from '../keycloak';
+import axios from "axios";
+import keycloak from "../keycloak";
 
-const API_URL = (import.meta.env?.VITE_API_URL as string) || 'http://localhost:8000';
+const API_URL =
+  (import.meta.env?.VITE_API_URL as string) || "http://localhost:8000";
 
 const apiClient = axios.create({
   baseURL: API_URL,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
@@ -15,71 +16,113 @@ apiClient.interceptors.request.use(
     if (keycloak.token) {
       try {
         await keycloak.updateToken(30);
-        
+
         if (config.headers) {
           config.headers.Authorization = `Bearer ${keycloak.token}`;
         }
       } catch (error) {
-        console.error("Token refresh fehlgeschlagen, leite zum Login:", error);
+        console.error("Token refresh failed, redirecting to login:", error);
         keycloak.login();
       }
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-export interface Kunde {
+// ----- Interfaces (English, aligned with Profile form) -----
+
+export interface Customer {
+  id?: number;
+  firstName: string;
+  lastName: string;
+  username: string;
+  email: string;
+  phone: string;
+  postcode: string;
+  city: string;
+}
+
+export interface Vehicle {
+  id?: number;
+  brand: string;
+  model: string;
+  year: number;
+  numberPlate: string;
+  customerId: number;
+}
+
+export interface Workshop {
   id?: number;
   name: string;
   email: string;
-  telefon: string;
+  phone: string;
+  postcode: string;
+  city: string;
 }
 
-export interface Fahrzeug {
+export interface Lawyer {
   id?: number;
-  marke: string;
-  modell: string;
-  baujahr: number;
-  kunde_id: number;
+  firstName: string;
+  lastName: string;
+  company: string;
+  email: string;
+  phone: string;
+  postcode: string;
+  city: string;
 }
 
-export interface Werkstatt {
+export interface Insurance {
   id?: number;
   name: string;
-  adresse: string;
-  plz: string;
-  ort: string; 
+  email: string;
+  phone: string;
+  postcode: string;
+  city: string;
 }
+
+// ----- API wrapper -----
 
 export const api = {
   customers: {
-    getAll: () => apiClient.get<Kunde[]>('/kunden'),
-    create: (kunde: Omit<Kunde, 'id'>) => apiClient.post<Kunde>('/kunden', kunde),
+    getAll: () => apiClient.get<Customer[]>("/customers"),
+    create: (customer: Omit<Customer, "id">) =>
+      apiClient.post<Customer>("/customers", customer),
   },
 
   vehicles: {
-    getAll: () => apiClient.get<Fahrzeug[]>('/fahrzeuge'),
-    create: (fahrzeug: Omit<Fahrzeug, 'id'>) => apiClient.post<Fahrzeug>('/fahrzeuge', fahrzeug),
+    getAll: () => apiClient.get<Vehicle[]>("/vehicles"),
+    create: (vehicle: Omit<Vehicle, "id">) =>
+      apiClient.post<Vehicle>("/vehicles", vehicle),
   },
 
   workshops: {
-    getAll: () => apiClient.get<Werkstatt[]>('/werkstatt'),
-    create: (werkstatt: Omit<Werkstatt, 'id'>) => apiClient.post<Werkstatt>('/werkstatt', werkstatt),
+    getAll: () => apiClient.get<Workshop[]>("/workshops"),
+    create: (workshop: Omit<Workshop, "id">) =>
+      apiClient.post<Workshop>("/workshops", workshop),
+  },
+
+  lawyers: {
+    getAll: () => apiClient.get<Lawyer[]>("/lawyers"),
+    create: (lawyer: Omit<Lawyer, "id">) =>
+      apiClient.post<Lawyer>("/lawyers", lawyer),
+  },
+
+  insurances: {
+    getAll: () => apiClient.get<Insurance[]>("/insurances"),
+    create: (insurance: Omit<Insurance, "id">) =>
+      apiClient.post<Insurance>("/insurances", insurance),
   },
 
   chat: {
     sendMessage: (message: { message: string }) =>
-      apiClient.post<{ response: string }>('/langchain/chat', message),
-    
+      apiClient.post<{ response: string }>("/langchain/chat", message),
+
     saveMessage: (data: { user_id: string; sender: string; message: string }) =>
-      apiClient.post('/chat/save', data),
-    
-    getHistory: (userId: string) =>
-      apiClient.get(`/chat/history/${userId}`),
-    
+      apiClient.post("/chat/save", data),
+
+    getHistory: (userId: string) => apiClient.get(`/chat/history/${userId}`),
+
     clearHistory: (userId: string) =>
       apiClient.delete(`/chat/history/${userId}`),
   },
@@ -87,23 +130,22 @@ export const api = {
   files: {
     upload: (files: File[]) => {
       const formData = new FormData();
-      files.forEach(file => formData.append('files', file));
-      return apiClient.post('/files/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      files.forEach((file) => formData.append("files", file));
+      return apiClient.post("/files/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
     },
     getFileUrl: (filename: string) => `${API_URL}/files/uploads/${filename}`,
   },
 
   sendToKI: (payload: { message: string }) =>
-    apiClient.post<{ response: string; structured: any }>('/ki-orchestrator/message', payload),
+    apiClient.post<{ response: string; structured: any }>(
+      "/ki-orchestrator/message",
+      payload
+    ),
 
- 
-  getKunden: () => apiClient.get<Kunde[]>('/kunden'),
-  createKunde: (kunde: Omit<Kunde, 'id'>) => apiClient.post<Kunde>('/kunden', kunde),
-  getFahrzeuge: () => apiClient.get<Fahrzeug[]>('/fahrzeuge'),
-  createFahrzeug: (fahrzeug: Omit<Fahrzeug, 'id'>) => apiClient.post<Fahrzeug>('/fahrzeuge', fahrzeug),
-  getWerkstatt: () => apiClient.get<Werkstatt[]>('/werkstatt'),
-  createWerkstatt: (werkstatt: Omit<Werkstatt, 'id'>) => apiClient.post<Werkstatt>('/werkstatt', werkstatt),
-  sendToOpenAI: (message: { message: string }) => apiClient.post<{ response: string }>('/langchain/chat', message),
+  // optional alias, falls du die alten Namen noch irgendwo nutzt
+  getCustomers: () => apiClient.get<Customer[]>("/customers"),
+  createCustomer: (customer: Omit<Customer, "id">) =>
+    apiClient.post<Customer>("/customers", customer),
 };

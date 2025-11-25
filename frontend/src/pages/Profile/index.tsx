@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { api } from "../../services/api";
 
 export default function Profile() {
   const [form, setForm] = useState({
@@ -45,10 +46,103 @@ export default function Profile() {
     setForm(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Hier API-Call zum Speichern machen
-    console.log("Profile data:", form);
+
+    try {
+      // 1) Customer (My Profile)
+      const customerPayload = {
+        firstName: form.firstName,
+        lastName: form.lastName,
+        username: form.username,
+        email: form.email,
+        phone: form.phone,
+        postcode: form.postcode,
+        city: form.city,
+      };
+
+      const customerRes = await api.customers.create(customerPayload);
+      const customerId = customerRes.data.id!;
+
+      // 2) Vehicle
+      if (
+        form.vehicleBrand ||
+        form.vehicleModel ||
+        form.vehicleYear ||
+        form.vehicleNumberPlate
+      ) {
+        const vehiclePayload = {
+          brand: form.vehicleBrand,
+          model: form.vehicleModel,
+          year: Number(form.vehicleYear) || 0,
+          numberPlate: form.vehicleNumberPlate,
+          customerId,
+        };
+        await api.vehicles.create(vehiclePayload);
+      }
+
+      // 3) Workshop
+      if (
+        form.workshopName ||
+        form.workshopEmail ||
+        form.workshopPhone ||
+        form.workshopPostcode ||
+        form.workshopCity
+      ) {
+        const workshopPayload = {
+          name: form.workshopName,
+          email: form.workshopEmail,
+          phone: form.workshopPhone,
+          postcode: form.workshopPostcode,
+          city: form.workshopCity,
+        };
+        await api.workshops.create(workshopPayload);
+      }
+
+      // 4) Lawyer
+      if (
+        form.lawyerFirstName ||
+        form.lawyerLastName ||
+        form.lawyerCompany ||
+        form.lawyerEmail ||
+        form.lawyerPhone ||
+        form.lawyerPostcode ||
+        form.lawyerCity
+      ) {
+        const lawyerPayload = {
+          firstName: form.lawyerFirstName,
+          lastName: form.lawyerLastName,
+          company: form.lawyerCompany,
+          email: form.lawyerEmail,
+          phone: form.lawyerPhone,
+          postcode: form.lawyerPostcode,
+          city: form.lawyerCity,
+        };
+        await api.lawyers.create(lawyerPayload);
+      }
+
+      // 5) Insurance
+      if (
+        form.insuranceName ||
+        form.insuranceEmail ||
+        form.insurancePhone ||
+        form.insurancePostcode ||
+        form.insuranceCity
+      ) {
+        const insurancePayload = {
+          name: form.insuranceName,
+          email: form.insuranceEmail,
+          phone: form.insurancePhone,
+          postcode: form.insurancePostcode,
+          city: form.insuranceCity,
+        };
+        await api.insurances.create(insurancePayload);
+      }
+
+      console.log("Profile saved");
+    } catch (error) {
+      console.error("Error saving profile", error);
+    }
   };
 
   return (
