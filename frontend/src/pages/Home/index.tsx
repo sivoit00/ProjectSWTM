@@ -5,7 +5,7 @@ export default function Home() {
   const navigate = useNavigate();
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen p-8 text-white overflow-y-auto">
+    <div className="flex flex-col items-center h-screen p-8 text-white overflow-y-auto">
       <div className="max-w-4xl w-full space-y-12">
         {/* Hero Section */}
         <div className="text-center space-y-4">

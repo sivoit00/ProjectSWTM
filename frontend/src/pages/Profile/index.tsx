@@ -146,7 +146,7 @@ export default function Profile() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen p-8 text-white overflow-y-auto">
+    <div className="flex flex-col items-center h-screen p-8 text-white overflow-y-auto">
       <div className="max-w-4xl w-full space-y-8">
         {/* Header */}
         <div className="text-center space-y-2">
