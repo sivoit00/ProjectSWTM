@@ -1,7 +1,7 @@
-import axios from 'axios';
+import axios, { type AxiosRequestConfig, type InternalAxiosRequestConfig } from 'axios';
 import keycloak from '../keycloak';
 
-const API_URL = (import.meta.env?.VITE_API_URL as string) || 'http://localhost:8000';
+export const API_URL = ((import.meta as any).env?.VITE_API_URL as string) || 'http://localhost:8000';
 
 const apiClient = axios.create({
   baseURL: API_URL,
@@ -11,13 +11,13 @@ const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use(
-  async (config) => {
+  async (config: InternalAxiosRequestConfig) => {
     if (keycloak.token) {
       try {
         await keycloak.updateToken(30);
         
         if (config.headers) {
-          config.headers.Authorization = `Bearer ${keycloak.token}`;
+          (config.headers as Record<string, any>).Authorization = `Bearer ${keycloak.token}`;
         }
       } catch (error) {
         console.error("Token refresh fehlgeschlagen, leite zum Login:", error);
@@ -26,7 +26,7 @@ apiClient.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
+  (error: any) => {
     return Promise.reject(error);
   }
 );
@@ -95,8 +95,12 @@ export const api = {
     getFileUrl: (filename: string) => `${API_URL}/files/uploads/${filename}`,
   },
 
-  sendToKI: (payload: { message: string }) =>
-    apiClient.post<{ response: string; structured: any }>('/ki-orchestrator/message', payload),
+  sendToKI: (payload: { message: string }) => {
+    // attach session_id from localStorage if present so backend agents can use per-session memory
+    const sessionId = typeof window !== 'undefined' ? localStorage.getItem('sessionId') : null;
+    const body = sessionId ? { ...payload, session_id: sessionId } : payload;
+    return apiClient.post<{ response: string; structured: any }>('/ki-orchestrator/message', body);
+  },
 
  
   getKunden: () => apiClient.get<Kunde[]>('/kunden'),
