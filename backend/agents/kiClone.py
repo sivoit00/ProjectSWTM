@@ -101,7 +101,8 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
             session_id = None
             if user_context:
                 session_id = user_context.get("session_id") or user_context.get("session")
-            res = run_repair_agent_with_memory(user_message, session_id or "default")
+            # pass full user_context so agents can access token-extracted info (e.g. email)
+            res = run_repair_agent_with_memory(user_message, session_id or "default", user_context)
             return wrap_response("repair", res)
 
         # default: general

@@ -11,10 +11,6 @@ from database import SessionLocal
 import models
 from agents.email_service import send_email, create_workshop_recommendation_html, format_workshop_recommendation_email, parse_workshops_from_text
 
-import logging
-
-log = logging.getLogger(__name__)
-
 conversation_memories: Dict[str, ConversationBufferMemory] = {}
 session_user_emails: Dict[str, str] = {}
 
@@ -22,35 +18,12 @@ session_user_emails: Dict[str, str] = {}
 def get_or_create_memory(session_id: str) -> ConversationBufferMemory:
     """Gets or creates a memory for a session"""
     if session_id not in conversation_memories:
-        mem = ConversationBufferMemory(
+        conversation_memories[session_id] = ConversationBufferMemory(
             memory_key="chat_history",
             return_messages=True,
             input_key="user_input",
             output_key="response"
         )
-
-        # try to hydrate memory from persisted chat messages
-        try:
-            db = SessionLocal()
-            msgs = db.query(models.ChatMessage).filter(models.ChatMessage.user_id == session_id).order_by(models.ChatMessage.timestamp).all()
-            for m in msgs:
-                try:
-                    if m.sender.lower() in ("user", "human"):
-                        mem.chat_memory.add_user_message(m.message)
-                    else:
-                        mem.chat_memory.add_ai_message(m.message)
-                except Exception:
-                    # memory backend may not expose chat_memory helpers
-                    pass
-        except Exception as e:
-            log.exception("Error hydrating memory for session %s: %s", session_id, e)
-        finally:
-            try:
-                db.close()
-            except Exception:
-                pass
-
-        conversation_memories[session_id] = mem
     return conversation_memories[session_id]
 
 
@@ -60,19 +33,6 @@ def clear_session_memory(session_id: str):
         del conversation_memories[session_id]
     if session_id in session_user_emails:
         del session_user_emails[session_id]
-
-    # Also remove persisted chat messages for this session
-    try:
-        db = SessionLocal()
-        db.query(models.ChatMessage).filter(models.ChatMessage.user_id == session_id).delete()
-        db.commit()
-    except Exception as e:
-        log.exception("Failed to clear persisted messages for session %s: %s", session_id, e)
-    finally:
-        try:
-            db.close()
-        except Exception:
-            pass
 
 
 def set_user_email(session_id: str, email: str) -> None:
@@ -85,7 +45,7 @@ def get_user_email(session_id: str) -> Optional[str]:
     return session_user_emails.get(session_id)
 
 
-def run_repair_agent_with_memory(user_query: str, session_id: str = "default") -> str:
+def run_repair_agent_with_memory(user_query: str, session_id: str = "default", user_context: Optional[Dict] = None) -> str:
     """
     Sequential Chain with 2 agents + conversational memory:
     
@@ -122,6 +82,17 @@ def run_repair_agent_with_memory(user_query: str, session_id: str = "default") -
     llm = ChatOpenAI(openai_api_key=api_key, model_name=model_name, temperature=0.3)
     
     memory = get_or_create_memory(session_id)
+
+    # If the orchestrator passed a user context (extracted from Keycloak token),
+    # and it contains an email, store it for this session so we can email results.
+    try:
+        if user_context and isinstance(user_context, dict):
+            email_from_ctx = user_context.get("email") or user_context.get("user_email")
+            if email_from_ctx:
+                set_user_email(session_id, email_from_ctx)
+    except Exception:
+        # non-fatal: ignore problems reading user_context
+        pass
    
     classification_template = """You are Agent 1, a classification agent for vehicle service requests.
 
