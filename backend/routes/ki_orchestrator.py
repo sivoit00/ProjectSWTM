@@ -5,12 +5,15 @@ import logging
 from typing import Optional, Dict, Any
 from jose import jwt
 from agents.kiClone import route_message 
+from agents.repair_chat_agent import clear_session_memory
+import uuid
 
 router = APIRouter()
 log = logging.getLogger(__name__)
 
 class KIMessage(BaseModel):
     message: str
+    session_id: Optional[str] = None
 
 def extract_user_from_header(auth_header: Optional[str]) -> Dict[str, Any]:
     """
@@ -45,11 +48,15 @@ async def ki_message(
     if user_context['name']:
         log.info(f"User erkannt: {user_context['name']}")
 
+    # include session_id from body (if provided) into user_context so agents can use per-session memory
+    if getattr(req, 'session_id', None):
+        user_context['session_id'] = req.session_id
+
     try:
         result = await anyio.to_thread.run_sync(
-            route_message, 
-            req.message, 
-            user_context
+            route_message,
+            req.message,
+            user_context,
         )
 
         if not isinstance(result, dict):
@@ -59,4 +66,26 @@ async def ki_message(
 
     except Exception as e:
         log.exception("KI Orchestrator failed.")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/session/{session_id}")
+async def clear_session(session_id: str):
+    """Clears agent memory for a given session id (useful to start a new chat)."""
+    try:
+        clear_session_memory(session_id)
+        return {"ok": True, "message": f"Session {session_id} cleared."}
+    except Exception as e:
+        log.exception(f"Failed to clear session {session_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/session/new")
+async def create_session():
+    """Create a new session id (UUID) to start a fresh chat on the frontend."""
+    try:
+        session_id = str(uuid.uuid4())
+        return {"ok": True, "session_id": session_id, "message": "New session created."}
+    except Exception as e:
+        log.exception(f"Failed to create new session: {e}")
         raise HTTPException(status_code=500, detail=str(e))

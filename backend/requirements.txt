@@ -13,5 +13,9 @@ tiktoken
 langchain-community
 langsmith
 tavily-python
+langchain-tavily
 python-multipart
 python-jose
+secure-smtplib
+python-jose[cryptography]
+python-keycloak

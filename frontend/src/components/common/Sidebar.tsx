@@ -1,6 +1,15 @@
+import * as React from "react";
 import { MessageSquare, LogOut } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import keycloak from "../../keycloak";
+
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      [elemName: string]: any;
+    }
+  }
+}
 
 export default function Sidebar() {
   const location = useLocation();
@@ -40,6 +49,8 @@ export default function Sidebar() {
           <MessageSquare size={20} />
           <span>MyClone</span>
         </Link>
+
+        
       </nav>
 
       {/* Logout button at bottom */}
