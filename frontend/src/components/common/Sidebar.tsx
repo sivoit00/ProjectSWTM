@@ -52,6 +52,18 @@ export default function Sidebar() {
           <MessageSquare size={20} />
           <span>Profile</span>
         </Link>
+
+        <Link
+          to="/onboarding"
+          className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+            isActive("/onboarding")
+              ? "bg-blue-600 text-white"
+              : "text-gray-300 hover:bg-gray-700"
+          }`}
+        >
+          <MessageSquare size={20} />
+          <span>Onboarding</span>
+        </Link>
       </nav>
 
       {/* Logout button at bottom */}
