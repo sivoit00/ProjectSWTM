@@ -26,7 +26,7 @@ SMTP_USER = os.environ.get("SMTP_USER")
 SMTP_PASS = os.environ.get("SMTP_PASS")
 SMTP_TO = os.environ.get("SMTP_TO") 
 
-llm = ChatOpenAI(temperature=0.0, model="gpt-5-nano") 
+llm = ChatOpenAI(temperature=0.0, model="gpt-4o-mini") 
 
 
 @tool
@@ -83,26 +83,20 @@ def send_personal_email(lawyer_email: str, subject: str, email_body: str) -> str
 
 tools = [search_lawyers_online, send_personal_email]
 
+# --- PROMPT LOADING ---
+def load_prompt(filename: str) -> str:
+    """Lädt den Prompt aus dem 'prompts' Unterordner."""
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    prompt_path = os.path.join(current_dir, "prompts", filename)
+    
+    try:
+        with open(prompt_path, "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        log.error(f"Prompt-Datei nicht gefunden: {prompt_path}")
+        raise
 
-SYSTEM_PROMPT = """
-Du bist ein persönlicher Assistent (Ghostwriter) für den Nutzer.
-Ziel: Anwalt finden und E-Mail schreiben.
-
-**USER DATEN:**
-Name: {user_name}
-Email: {user_email}
-
-**Regeln:**
-1. **Interview:** Erst alle W-Fragen klären (Was, Wann, Wo, Versicherung).
-   - FRAGE NICHT nach dem Namen, wenn er oben unter "USER DATEN" steht.
-   
-2. **Suche:** Nutze `search_lawyers_online`.
-   - Nenne IMMER Name, Adresse UND Bewertung.
-
-3. **Auswahl & Email:** - Nutze `send_personal_email`.
-   - Schreibe aus der ICH-Perspektive.
-   - Unterschreibe mit dem Namen des Nutzers.
-"""
+SYSTEM_PROMPT = load_prompt("lawyer_prompt.md")
 
 prompt = ChatPromptTemplate.from_messages([
     ("system", SYSTEM_PROMPT),
@@ -136,9 +130,9 @@ def handle_lawyer_request(user_message: str, user_context: Dict[str, Any] = None
         user_context = {}
 
     user_name = user_context.get("name", "Unbekannt")
-    user_email = user_context.get("email", "Unbekannt")
+    user_email = user_context.get("email")
     
-    session_id = user_email if user_email != "Unbekannt" else "default_session"
+    session_id = f"LAWYER_{user_email}"
 
     log.info(f"LawyerAgent gestartet für: {user_name} (Session: {session_id})")
 
@@ -147,7 +141,8 @@ def handle_lawyer_request(user_message: str, user_context: Dict[str, Any] = None
             {
                 "user_message": user_message,
                 "user_name": user_name,
-                "user_email": user_email
+                "user_email": user_email,
+                "session_id": session_id
             },
             config={"configurable": {"session_id": session_id}}
         )
