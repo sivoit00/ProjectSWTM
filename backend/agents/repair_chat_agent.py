@@ -1,9 +1,8 @@
 from typing import Optional, List, Dict
 import os
 from langchain_openai import ChatOpenAI
-from langchain import LLMChain
 from langchain.prompts import PromptTemplate, ChatPromptTemplate, MessagesPlaceholder
-from langchain.chains import SequentialChain
+from langchain.chains import SequentialChain, LLMChain
 from langchain.memory import ConversationBufferMemory
 from langchain_tavily import TavilySearch
 from sqlalchemy.orm import Session
