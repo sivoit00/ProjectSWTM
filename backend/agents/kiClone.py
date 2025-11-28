@@ -80,10 +80,10 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
         if isinstance(result, dict):
             structured = result.get("structured") or {"intent": agent_name}
             resp = result.get("response") or result.get("output") or result.get("data") or str(result)
-            return {"response": resp, "structured": structured}
+            return {"response": resp, "structured": structured, "agent": agent_name}
         if isinstance(result, str):
-            return {"response": result, "structured": {"intent": agent_name}}
-        return {"response": str(result), "structured": {"intent": agent_name}}
+            return {"response": result, "structured": {"intent": agent_name}, "agent": agent_name}
+        return {"response": str(result), "structured": {"intent": agent_name}, "agent": agent_name}
 
     try:
         if target_agent == "lawyer":

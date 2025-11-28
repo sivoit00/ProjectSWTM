@@ -1,21 +1,45 @@
-export default function Visualization() {
-  type GraphNode = {
-    x: number;
-    y: number;
-    w: number;
-    h: number;
-    color: string;
-    label: string;
-  };
+import { useEffect, useState } from "react";
+import { 
+  MessageSquare, 
+  Shield, 
+  Database, 
+  Scale, 
+  Wrench,
+  Building2,
+  CheckCircle2,
+  Clock
+} from "lucide-react";
 
-  const graphNodes: Record<string, GraphNode> = {
-    insurance: { x: 300, y: 120, w: 140, h: 50, color: "#D46A29", label: "Insurance" },
-    chatbot:   { x: 300, y: 300, w: 140, h: 50, color: "#D22DD8", label: "AI Chatbot" },
-    guard:     { x: 300, y: 520, w: 140, h: 50, color: "#0A4BFF", label: "GuardRails" },
-    server:    { x: 120, y: 200, w: 140, h: 50, color: "#26B6C6", label: "Server" },
-    sql:       { x: 140, y: 420, w: 140, h: 50, color: "#E6C62F", label: "SQL Database" },
-    lawyer:    { x: 480, y: 200, w: 140, h: 50, color: "#3EC764", label: "Lawyer" },
-    garage:    { x: 460, y: 420, w: 140, h: 50, color: "#A237E0", label: "Garage" },
+interface AgentStep {
+  agent: string;
+  timestamp: string;
+  status: "active" | "completed" | "pending";
+  description: string;
+}
+
+interface VisualizationProps {
+  activeAgent?: string;
+  agentHistory?: AgentStep[];
+}
+
+export default function Visualization({ activeAgent, agentHistory = [] }: VisualizationProps) {
+  const [steps, setSteps] = useState<AgentStep[]>(agentHistory);
+
+  useEffect(() => {
+    if (agentHistory.length > 0) {
+      setSteps(agentHistory);
+    }
+  }, [agentHistory]);
+
+  // Agent-Konfiguration mit Icons und Farben
+  const agentConfig: Record<string, { icon: any; color: string; label: string }> = {
+    chatbot: { icon: MessageSquare, color: "#D22DD8", label: "AI Chatbot" },
+    guardrails: { icon: Shield, color: "#0A4BFF", label: "GuardRails" },
+    lawyer: { icon: Scale, color: "#3EC764", label: "Lawyer Agent" },
+    insurance: { icon: Building2, color: "#D46A29", label: "Insurance Agent" },
+    repair: { icon: Wrench, color: "#A237E0", label: "Repair Agent" },
+    database: { icon: Database, color: "#E6C62F", label: "Database" },
+    general: { icon: MessageSquare, color: "#26B6C6", label: "General AI" },
   };
 
   type NodeKey = keyof typeof graphNodes;

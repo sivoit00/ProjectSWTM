@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { Send, Paperclip, X, FileText, Image as ImageIcon } from "lucide-react";
 import { api } from "../../services/api"; // Die zentrale API nutzt jetzt automatisch den Token
-import Visualization from "../../components/common/Visualization";
+import VisualizationTimeline, { AgentStep } from "../../components/common/VisualizationTimeline";
 import FileUpload from "../../components/common/FileUpload";
 import keycloak from "../../keycloak";
 
-type Message = { sender: "User" | "Bot"; text: string; files?: string[] };
+type Message = { sender: "User" | "Bot"; text: string; files?: string[]; agentSteps?: AgentStep[] };
 
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -13,6 +13,7 @@ export default function Chat() {
   const [loading, setLoading] = useState(false);
   const [showFileUpload, setShowFileUpload] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [allAgentSteps, setAllAgentSteps] = useState<AgentStep[]>([]);
   
   const userId = keycloak.tokenParsed?.sub || "anonymous";
 
@@ -70,8 +71,12 @@ export default function Chat() {
       const res = await api.sendToKI({ message: userMessage });
       
       const answer = res.data?.response ?? "No response received";
+      const agentSteps = res.data?.agent_steps || [];
       
-      setMessages((prev) => [...prev, { sender: "Bot", text: answer }]);
+      // Akkumuliere Steps statt Reset
+      setAllAgentSteps((prev) => [...prev, ...agentSteps]);
+      
+      setMessages((prev) => [...prev, { sender: "Bot", text: answer, agentSteps }]);
       
       await saveMessageToHistory("Bot", answer);
 
@@ -239,7 +244,7 @@ export default function Chat() {
 
       {/* Visualization - 40% width */}
       <div className="w-2/5">
-        <Visualization />
+        <VisualizationTimeline steps={allAgentSteps} />
       </div>
     </div>
   );
