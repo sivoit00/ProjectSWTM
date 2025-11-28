@@ -2,9 +2,8 @@ import json
 import logging
 from typing import Any, Dict
 from langchain_openai import ChatOpenAI
-from agents.lawyerAgent import handle_lawyer_request
+from agents.lawyer_agent import handle_lawyer_request
 from agents.insurance_agent import run_insurance_agent
-
 from agents.repair_chat_agent import run_repair_agent_with_memory
 
 log = logging.getLogger(__name__)

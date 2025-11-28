@@ -1,9 +1,8 @@
 from typing import Optional
 import os
-from langchain.chat_models import ChatOpenAI
-from langchain import LLMChain
+from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
-from langchain.chains import SequentialChain
+from langchain.chains import SequentialChain, LLMChain
 from langchain_community.tools.tavily_search import TavilySearchResults
 from sqlalchemy.orm import Session
 from database import SessionLocal
