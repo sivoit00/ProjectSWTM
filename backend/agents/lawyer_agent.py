@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+import pathlib
 from langchain.tools import tool
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
@@ -26,7 +27,7 @@ SMTP_USER = os.environ.get("SMTP_USER")
 SMTP_PASS = os.environ.get("SMTP_PASS")
 SMTP_TO = os.environ.get("SMTP_TO") 
 
-llm = ChatOpenAI(temperature=0.0, model="gpt-4o-mini") 
+llm = ChatOpenAI(temperature=0.0, model="gpt-5-mini") 
 
 
 @tool
@@ -83,20 +84,15 @@ def send_personal_email(lawyer_email: str, subject: str, email_body: str) -> str
 
 tools = [search_lawyers_online, send_personal_email]
 
-# --- PROMPT LOADING ---
-def load_prompt(filename: str) -> str:
-    """Lädt den Prompt aus dem 'prompts' Unterordner."""
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    prompt_path = os.path.join(current_dir, "prompts", filename)
-    
-    try:
-        with open(prompt_path, "r", encoding="utf-8") as f:
-            return f.read()
-    except FileNotFoundError:
-        log.error(f"Prompt-Datei nicht gefunden: {prompt_path}")
-        raise
 
-SYSTEM_PROMPT = load_prompt("lawyer_prompt.md")
+TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
+
+def _load_template(name: str) -> str:
+     path = os.path.join(TEMPLATES_DIR, name)
+     with open(path, "r", encoding="utf-8") as f:
+          return f.read()
+
+SYSTEM_PROMPT = _load_template("lawyer_system.md")
 
 prompt = ChatPromptTemplate.from_messages([
     ("system", SYSTEM_PROMPT),
