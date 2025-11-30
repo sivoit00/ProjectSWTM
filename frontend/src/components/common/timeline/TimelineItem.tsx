@@ -1,0 +1,166 @@
+import { useState } from "react";
+import { CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
+import { getTaskIcon, getStatusDisplay, getTaskColor, formatTime } from "./timelineUtils";
+
+export interface TimelineEvent {
+  task: string;
+  timestamp: string | Date;
+  status: "pending" | "working" | "sent" | "completed" | "active";
+  description: string;
+  details?: string;
+  agent?: string;
+  event_type?: "task" | "user_request" | "internal";
+  messageId?: string;
+}
+
+interface TimelineItemProps {
+  event: TimelineEvent;
+  index: number;
+  totalCount: number;
+  isAutoCollapsed?: boolean;
+  onEventClick?: (messageId: string) => void;
+}
+
+export default function TimelineItem({ event, index, totalCount, isAutoCollapsed = false, onEventClick }: TimelineItemProps) {
+  const [isExpanded, setIsExpanded] = useState(!isAutoCollapsed);
+  const [isHovered, setIsHovered] = useState(false);
+  
+  const Icon = getTaskIcon(event.task);
+  const statusInfo = getStatusDisplay(event.status);
+  const StatusIcon = statusInfo.icon;
+  const isActive = event.status === "working" || event.status === "active";
+  const isCompleted = event.status === "completed";
+  const hasDetails = event.details && event.details.length > 0;
+  const isLastItem = index === totalCount - 1;
+
+  return (
+    <div 
+      className="relative flex items-start gap-2 animate-slideIn"
+      style={{
+        animationDelay: `${index * 0.05}s`
+      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* Vertikale Verbindungslinie */}
+      {!isLastItem && (
+        <div 
+          className="absolute left-3.5 top-7 w-0.5 h-full bg-gradient-to-b from-gray-700 to-transparent"
+          style={{ height: 'calc(100% + 8px)' }}
+        />
+      )}
+    
+      <div className="relative z-10 flex-shrink-0">
+        <div
+          className={`
+            flex items-center justify-center w-7 h-7 rounded-full
+            transition-all duration-300 relative
+            ${isActive ? 'ring-2 ring-opacity-50 shadow-lg' : ''}
+            ${isCompleted ? 'bg-green-500' : 'bg-gray-800'}
+          `}
+          style={{
+            backgroundColor: isActive ? getTaskColor(event.task) : isCompleted ? '#10B981' : '#1f2937',
+            boxShadow: isActive ? `0 0 10px ${getTaskColor(event.task)}40` : undefined
+          }}
+        >
+          <Icon size={14} className="text-white" />
+        
+          {isActive && (
+            <div 
+              className="absolute inset-0 rounded-full animate-ping opacity-30"
+              style={{ backgroundColor: getTaskColor(event.task) }}
+            ></div>
+          )}
+        </div>
+        
+    
+        <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-gray-900 rounded-full flex items-center justify-center border border-gray-700">
+          <span className="text-[8px] text-gray-400 font-bold">
+            {index + 1}
+          </span>
+        </div>
+      </div>
+
+   
+      <div className="flex-1 pb-1">
+        <div
+          className={`
+            bg-gray-800/70 backdrop-blur-sm rounded-lg p-2 border
+            transition-all duration-300 cursor-pointer
+            ${isActive ? 'border-blue-500 shadow-lg shadow-blue-500/20' : 'border-gray-700/50'}
+            ${isHovered ? 'border-gray-600 shadow-lg transform scale-[1.02]' : ''}
+            ${!isExpanded ? 'opacity-70' : ''}
+          `}
+          onClick={() => {
+            if (hasDetails) setIsExpanded(!isExpanded);
+            if (event.messageId && onEventClick) onEventClick(event.messageId);
+          }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-1.5 flex-1">
+              <h4 className="text-white font-semibold text-xs">
+                {event.description}
+              </h4>
+      
+              <span
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium transition-all"
+                style={{
+                  backgroundColor: `${statusInfo.color}20`,
+                  color: statusInfo.color,
+                }}
+              >
+                <StatusIcon size={10} />
+                {statusInfo.label}
+              </span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-gray-500">
+                {formatTime(event.timestamp)}
+              </span>
+              
+              {/* Expand/Collapse Icon */}
+              {hasDetails && (
+                <div className="text-gray-400">
+                  {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Details (expandable) */}
+          {hasDetails && isExpanded && (
+            <div className="animate-slideDown">
+              <p className="text-[11px] text-gray-400 leading-snug mt-1 pl-2 border-l-2 border-gray-700">
+                {event.details}
+              </p>
+            </div>
+          )}
+
+          {/* Status Indicators */}
+          {isActive && (
+            <div className="mt-1.5 flex items-center gap-1.5 animate-pulse">
+              <div className="relative">
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping"></div>
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-400 absolute top-0 left-0"></div>
+              </div>
+              <span className="text-[10px] text-blue-400 font-medium">
+                In Bearbeitung...
+              </span>
+            </div>
+          )}
+          
+          {isCompleted && isHovered && (
+            <div className="mt-1.5 flex items-center gap-1.5 animate-fadeIn">
+              <CheckCircle2 size={12} className="text-green-400" />
+              <span className="text-[10px] text-green-400 font-medium">
+                Abgeschlossen
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

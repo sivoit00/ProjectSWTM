@@ -19,14 +19,12 @@ export default function FileUpload({
   const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/bmp", "application/pdf"];
 
   const validateFile = (file: File): boolean => {
-    // Check size
     const maxSize = maxSizeMB * 1024 * 1024;
     if (file.size > maxSize) {
       setError(`File too large: ${file.name} (max ${maxSizeMB}MB)`);
       return false;
     }
 
-    // Check type
     if (!allowedTypes.includes(file.type)) {
       setError(`File type not supported: ${file.name}`);
       return false;
@@ -41,13 +39,11 @@ export default function FileUpload({
     setError("");
     const fileArray = Array.from(files);
 
-    // Check total number
     if (selectedFiles.length + fileArray.length > maxFiles) {
       setError(`Maximum ${maxFiles} files allowed`);
       return;
     }
 
-    // Validate each file
     const validFiles = fileArray.filter(validateFile);
     
     if (validFiles.length > 0) {
@@ -90,7 +86,6 @@ export default function FileUpload({
 
   return (
     <div className="w-full">
-      {/* Drag & Drop Area */}
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -124,14 +119,13 @@ export default function FileUpload({
         </label>
       </div>
 
-      {/* Error Message */}
       {error && (
         <div className="mt-3 p-3 bg-red-500/20 border border-red-500 rounded-lg text-red-300 text-sm">
           {error}
         </div>
       )}
 
-      {/* Selected Files List */}
+
       {selectedFiles.length > 0 && (
         <div className="mt-4 space-y-2">
           <p className="text-sm text-gray-400">
