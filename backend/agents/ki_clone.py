@@ -2,34 +2,25 @@ import json
 import logging
 from typing import Any, Dict
 from langchain_openai import ChatOpenAI
+import os
 from agents.lawyer_agent import handle_lawyer_request
 from agents.insurance_agent import run_insurance_agent
-from agents.repair_chat_agent import run_repair_agent_with_memory
+from agents.repair_chat_agent import run_repair_agent_with_memory, is_session_active
 
 log = logging.getLogger(__name__)
 
-llm = ChatOpenAI(temperature=0.0, model="gpt-4o-mini")
+llm = ChatOpenAI(temperature=0.0, model="gpt-5")
 
 CURRENT_ACTIVE_AGENT = None 
 
-PROMPT_ROUTE = """
-Du bist ein KI-Orchestrator. Entscheide, welcher Agent zuständig ist.
-Agenten:
-- "lawyer": Anwälte, Rechtsfragen, Unfälle, Bußgelder, Verträge.
-- "insurance": Versicherung, Police, Schaden, Prämie, Deckung, Versicherungsstatus.
-- "repair": Werkstatt-/Reparatur- und Serviceanfragen, Werkstattsuche, Termine, Empfehlungen.
-- "general": Alles andere.
-- "reset": Thema wechseln / Abbruch.
+TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 
-Format der Ausgabe: reines JSON, nur:
-{{
-    "agent": "<lawyer|insurance|repair|general|reset>"
-}}
+def _load_template(name: str) -> str:
+    path = os.path.join(TEMPLATES_DIR, name)
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read()
 
-Analysen und Erklärungen sind verboten.
-
-Nutzertext: "{user_message}"
-"""
+PROMPT_ROUTE = _load_template("orchestrator_route.md")
 
 AGENT_DISPATCHER = {
     "lawyer": handle_lawyer_request,
@@ -47,10 +38,24 @@ def _safe_json_loads(s: str) -> dict:
 def _get_routing_decision(text: str) -> str:
     try:
         response = llm.invoke(PROMPT_ROUTE.format(user_message=text))
+        log.debug(f"Raw routing LLM response: {response.content}")
         data = _safe_json_loads(response.content)
         return data.get("agent", "general")
     except Exception:
         return "general"
+
+REPAIR_KEYWORDS = [
+    "werkstatt", "termin", "service", "reparatur", "reifen", "inspektion", "ölwechsel", "wartung", "appointment", "repair", "workshop"
+]
+
+def _keyword_override(decision: str, text: str) -> str:
+    if decision == "general":
+        lowered = text.lower()
+        for kw in REPAIR_KEYWORDS:
+            if kw in lowered:
+                log.debug(f"Keyword override triggered by '{kw}' -> 'repair'")
+                return "repair"
+    return decision
 
 def handle_general_request(user_message: str) -> Dict[str, Any]:
     resp = llm.invoke(user_message)
@@ -66,11 +71,27 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
 
     # quick stop/reset handling
     if user_message.lower().strip() in ["stop", "abbruch", "ende"]:
-        return {"response": "Gespräch beendet.", "structured": {"intent": "reset"}}
+        return {"response": "Gespräch beendet.", "structured": {"intent": "reset"}, "agent": "reset"}
 
     decision = _get_routing_decision(user_message)
+    decision = _keyword_override(decision, user_message)
+
+    # If we are in the middle of a repair workflow (session state not done), keep routing to repair
+    session_id = user_context.get("session_id") or user_context.get("session") or "default"
+    # Explicit switch to lawyer/insurance should override sticky repair
+    lowered = user_message.lower()
+    wants_lawyer = any(tok in lowered for tok in ["anwalt", "lawyer", "jurist", "rechtshilfe"]) 
+    wants_insurance = any(tok in lowered for tok in ["versicherung", "insurance", "claim", "police"]) 
+
+    if wants_lawyer:
+        decision = "lawyer"
+    elif wants_insurance:
+        decision = "insurance"
+    elif decision == "general" and is_session_active(session_id):
+        log.debug(f"Sticky repair override: active session '{session_id}', forcing agent 'repair'.")
+        decision = "repair"
     if decision == "reset":
-        return {"response": "Okay.", "structured": {"intent": "reset"}}
+        return {"response": "Okay.", "structured": {"intent": "reset"}, "agent": "reset"}
 
     target_agent = decision or "general"
 
@@ -79,10 +100,10 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
         if isinstance(result, dict):
             structured = result.get("structured") or {"intent": agent_name}
             resp = result.get("response") or result.get("output") or result.get("data") or str(result)
-            return {"response": resp, "structured": structured}
+            return {"response": resp, "structured": structured, "agent": agent_name}
         if isinstance(result, str):
-            return {"response": result, "structured": {"intent": agent_name}}
-        return {"response": str(result), "structured": {"intent": agent_name}}
+            return {"response": result, "structured": {"intent": agent_name}, "agent": agent_name}
+        return {"response": str(result), "structured": {"intent": agent_name}, "agent": agent_name}
 
     try:
         if target_agent == "lawyer":
@@ -109,4 +130,4 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
 
     except Exception as e:
         log.exception(f"Fehler im Agenten '{target_agent}': {e}")
-        return {"response": "Entschuldigung, es gab einen internen Fehler bei der Verarbeitung.", "structured": {"intent": target_agent, "error": str(e)}}
+        return {"response": "Entschuldigung, es gab einen internen Fehler bei der Verarbeitung.", "structured": {"intent": target_agent, "error": str(e)}, "agent": target_agent}

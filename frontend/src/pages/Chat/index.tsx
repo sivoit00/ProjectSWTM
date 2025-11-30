@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
+// removed session-based routing logic
 import { Send, Paperclip, X, FileText, Image as ImageIcon } from "lucide-react";
 import { api } from "../../services/api"; // Die zentrale API nutzt jetzt automatisch den Token
 import Visualization from "../../components/common/Visualization";
 import FileUpload from "../../components/common/FileUpload";
 import keycloak from "../../keycloak";
 
-type Message = { sender: "User" | "Bot"; text: string; files?: string[] };
+type Message = { sender: "User" | "Bot"; text: string; files?: string[]; agent?: string };
 
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -14,11 +15,13 @@ export default function Chat() {
   const [showFileUpload, setShowFileUpload] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   
-  const userId = keycloak.tokenParsed?.sub || "anonymous";
+  const userId = keycloak.tokenParsed?.sub;
 
   useEffect(() => {
     loadChatHistory();
   }, []);
+
+  
 
   const loadChatHistory = async () => {
     try {
@@ -70,8 +73,10 @@ export default function Chat() {
       const res = await api.sendToKI({ message: userMessage });
       
       const answer = res.data?.response ?? "No response received";
-      
-      setMessages((prev) => [...prev, { sender: "Bot", text: answer }]);
+      const agent = res.data?.agent || res.data?.structured?.intent;
+
+      setMessages((prev) => [...prev, { sender: "Bot", text: answer, agent }]);
+     
       
       await saveMessageToHistory("Bot", answer);
 
@@ -117,6 +122,11 @@ export default function Chat() {
                     : "bg-gray-800 text-gray-200 rounded-bl-none border border-gray-700"
                 }`}
               >
+                {msg.sender === "Bot" && msg.agent && (
+                  <span className="inline-block text-[10px] font-semibold tracking-wide uppercase mb-1 px-2 py-0.5 rounded-full bg-gray-700 text-gray-300 border border-gray-600">
+                    {msg.agent}
+                  </span>
+                )}
                 <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
                 
                 {/* Display uploaded files */}
