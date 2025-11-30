@@ -4,13 +4,14 @@ from typing import Any, Dict
 from langchain_openai import ChatOpenAI
 from agents.lawyer_agent import handle_lawyer_request
 from agents.insurance_agent import run_insurance_agent
-from agents.repair_chat_agent import run_repair_agent_with_memory
+from agents.repair_chat_agent import run_repair_agent_with_memory, is_session_active
 
 log = logging.getLogger(__name__)
 
-llm = ChatOpenAI(temperature=0.0, model="gpt-4o-mini")
+llm = ChatOpenAI(temperature=0.0, model="gpt-5-mini")
 
-CURRENT_ACTIVE_AGENT = None 
+# Track active agent per session to enable fluid multi-turn conversations
+ACTIVE_AGENT_BY_SESSION: dict[str, str] = {}
 
 PROMPT_ROUTE = """
 Du bist ein KI-Orchestrator. Entscheide, welcher Agent zuständig ist.
@@ -52,13 +53,42 @@ def _get_routing_decision(text: str) -> str:
     except Exception:
         return "general"
 
+def _is_followup_answer(text: str) -> bool:
+    """Detects short follow-up messages like 'ja', 'nein', '1', 'ok'."""
+    t = (text or "").strip().lower()
+    if not t:
+        return False
+    short_yes_no = {"ja", "nein", "j", "n", "yes", "no", "ok", "okay"}
+    numerics = {"1", "2", "3"}
+    return t in short_yes_no or t in numerics or len(t) <= 6
+
+def _wants_switch(text: str) -> bool:
+    """Detects intent to switch topic/agent, including English phrases."""
+    t = (text or "").lower()
+    switch_tokens = [
+        # generic
+        "wechsel", "wechseln", "anderes thema", "neues thema", "reset",
+        "agent wechseln", "wechsel zum",
+        # German agent intents
+        "anwalt", "rechtsanwalt", "jurist", "juristische hilfe",
+        "versicherung", "versicherungsagent", "versicherungsfall",
+        "werkstatt", "reparaturagent",
+        # English agent intents
+        "lawyer", "attorney", "legal", "legal help",
+        "insurance", "insurer",
+        "repair", "workshop",
+        # common command patterns
+        "finde einen anwalt", "anwalt finden", "find a lawyer", "need a lawyer",
+        "brauche versicherung", "insurance claim", "need insurance"
+    ]
+    return any(tok in t for tok in switch_tokens)
+
 def handle_general_request(user_message: str) -> Dict[str, Any]:
     resp = llm.invoke(user_message)
     return {"response": resp.content, "structured": {"intent": "general"}}
 
 def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dict[str, Any]:
-    # Per-message routing (stateless) — avoids sticky behavior where the first matched
-    # agent handles all following user messages. The orchestrator decides each call.
+    # Stateful routing — keeps active agent per session and supports follow-ups.
     if user_context is None:
         user_context = {}
 
@@ -68,11 +98,34 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
     if user_message.lower().strip() in ["stop", "abbruch", "ende"]:
         return {"response": "Gespräch beendet.", "structured": {"intent": "reset"}}
 
-    decision = _get_routing_decision(user_message)
-    if decision == "reset":
-        return {"response": "Okay.", "structured": {"intent": "reset"}}
+    # derive session_id for state
+    session_id = (
+        user_context.get("session_id")
+        or user_context.get("email")
+        or user_context.get("user_email")
+        or user_context.get("user_id")
+        or user_context.get("id")
+        or "default"
+    )
 
-    target_agent = decision or "general"
+    # keep repair agent active when its appointment workflow is ongoing
+    try:
+        if is_session_active(session_id):
+            ACTIVE_AGENT_BY_SESSION[session_id] = "repair"
+    except Exception:
+        pass
+
+    active_agent = ACTIVE_AGENT_BY_SESSION.get(session_id)
+
+    # Prefer staying with the active agent unless user explicitly wants to switch
+    if active_agent and not _wants_switch(user_message):
+        target_agent = active_agent
+    else:
+        decision = _get_routing_decision(user_message)
+        if decision == "reset":
+            ACTIVE_AGENT_BY_SESSION.pop(session_id, None)
+            return {"response": "Okay.", "structured": {"intent": "reset"}}
+        target_agent = decision or active_agent or "general"
 
     def wrap_response(agent_name: str, result) -> Dict[str, Any]:
         # Normalize different agent return types to a standard dict
@@ -87,6 +140,7 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
     try:
         if target_agent == "lawyer":
             res = handle_lawyer_request(user_message, user_context)
+            ACTIVE_AGENT_BY_SESSION[session_id] = "lawyer"
             return wrap_response("lawyer", res)
 
         if target_agent == "insurance":
@@ -94,17 +148,17 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
             if user_context:
                 user_id = user_context.get("user_id") or user_context.get("id")
             res = run_insurance_agent(user_message, user_id, user_context)
+            ACTIVE_AGENT_BY_SESSION[session_id] = "insurance"
             return wrap_response("insurance", res)
 
         if target_agent == "repair":
-            session_id = None
-            if user_context:
-                session_id = user_context.get("session_id") or user_context.get("session")
-            res = run_repair_agent_with_memory(user_message, session_id or "default")
+            res = run_repair_agent_with_memory(user_message, session_id=session_id, user_context=user_context)
+            ACTIVE_AGENT_BY_SESSION[session_id] = "repair"
             return wrap_response("repair", res)
 
         # default: general
         res = handle_general_request(user_message)
+        ACTIVE_AGENT_BY_SESSION[session_id] = "general"
         return wrap_response("general", res)
 
     except Exception as e:

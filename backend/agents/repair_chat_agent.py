@@ -1,8 +1,10 @@
 from typing import Optional, List, Dict
 import os
 from langchain_openai import ChatOpenAI
+from langchain import LLMChain
 from langchain.prompts import PromptTemplate, ChatPromptTemplate, MessagesPlaceholder
-from langchain.chains import SequentialChain, LLMChain
+import pathlib
+from langchain.chains import SequentialChain
 from langchain.memory import ConversationBufferMemory
 from langchain_tavily import TavilySearch
 from sqlalchemy.orm import Session
@@ -10,46 +12,32 @@ from database import SessionLocal
 import models
 from agents.email_service import send_email, create_workshop_recommendation_html, format_workshop_recommendation_email, parse_workshops_from_text
 
-import logging
-
-log = logging.getLogger(__name__)
-
 conversation_memories: Dict[str, ConversationBufferMemory] = {}
 session_user_emails: Dict[str, str] = {}
+session_states: Dict[str, dict] = {}
+
+
+TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
+
+
+def _load_template_file(name: str) -> str:
+    p = os.path.join(TEMPLATES_DIR, name)
+    try:
+        with open(p, "r", encoding="utf-8") as fh:
+            return fh.read()
+    except Exception:
+        return ""
 
 
 def get_or_create_memory(session_id: str) -> ConversationBufferMemory:
     """Gets or creates a memory for a session"""
     if session_id not in conversation_memories:
-        mem = ConversationBufferMemory(
+        conversation_memories[session_id] = ConversationBufferMemory(
             memory_key="chat_history",
             return_messages=True,
             input_key="user_input",
             output_key="response"
         )
-
-        # try to hydrate memory from persisted chat messages
-        try:
-            db = SessionLocal()
-            msgs = db.query(models.ChatMessage).filter(models.ChatMessage.user_id == session_id).order_by(models.ChatMessage.timestamp).all()
-            for m in msgs:
-                try:
-                    if m.sender.lower() in ("user", "human"):
-                        mem.chat_memory.add_user_message(m.message)
-                    else:
-                        mem.chat_memory.add_ai_message(m.message)
-                except Exception:
-                    # memory backend may not expose chat_memory helpers
-                    pass
-        except Exception as e:
-            log.exception("Error hydrating memory for session %s: %s", session_id, e)
-        finally:
-            try:
-                db.close()
-            except Exception:
-                pass
-
-        conversation_memories[session_id] = mem
     return conversation_memories[session_id]
 
 
@@ -59,19 +47,8 @@ def clear_session_memory(session_id: str):
         del conversation_memories[session_id]
     if session_id in session_user_emails:
         del session_user_emails[session_id]
-
-    # Also remove persisted chat messages for this session
-    try:
-        db = SessionLocal()
-        db.query(models.ChatMessage).filter(models.ChatMessage.user_id == session_id).delete()
-        db.commit()
-    except Exception as e:
-        log.exception("Failed to clear persisted messages for session %s: %s", session_id, e)
-    finally:
-        try:
-            db.close()
-        except Exception:
-            pass
+    if session_id in session_states:
+        del session_states[session_id]
 
 
 def set_user_email(session_id: str, email: str) -> None:
@@ -84,7 +61,15 @@ def get_user_email(session_id: str) -> Optional[str]:
     return session_user_emails.get(session_id)
 
 
-def run_repair_agent_with_memory(user_query: str, session_id: str = "default") -> str:
+def is_session_active(session_id: str) -> bool:
+    """Return True if there is an in-progress (not done) appointment workflow for this session."""
+    state = session_states.get(session_id)
+    if not state:
+        return False
+    return state.get('phase') not in (None, 'done')
+
+
+def run_repair_agent_with_memory(user_query: str, session_id: str = "default", user_context: Optional[Dict] = None) -> str:
     """
     Sequential Chain with 2 agents + conversational memory:
     
@@ -117,66 +102,30 @@ def run_repair_agent_with_memory(user_query: str, session_id: str = "default") -
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY is not configured")
     
-    model_name = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    model_name = os.getenv("OPENAI_MODEL", "gpt-5-mini")
     llm = ChatOpenAI(openai_api_key=api_key, model_name=model_name, temperature=0.3)
     
     memory = get_or_create_memory(session_id)
+
    
-    classification_template = """You are Agent 1, a classification agent for vehicle service requests.
-
-CHAT HISTORY:
-{chat_history}
-
-CURRENT REQUEST: {user_input}
-
-Your task: 
-1. CONSIDER the previous conversation
-2. Analyze the current request in the context of the history
-3. Decide if it should be forwarded to Agent 2 (Workshop Search Agent)
-
-IMPORTANT: 
-- If the user is responding to a previous question, use that context
-- If information is missing (e.g. location), ask for it
-- If enough info is available, forward
-
-Return the following format:
-
-CATEGORY: [WORKSHOP_SEARCH or OTHER or INQUIRY or EMAIL_REQUEST]
-
-FORWARD: [YES or NO or MORE_INFO_NEEDED]
-
-User wants email: [YES or NO]
-User email address: [extract if provided, otherwise NONE]
-
-EXTRACTED PARAMETERS (also from history):
-- Location/ZIP: [if available]
-- Vehicle type: [if available]
-- Special requirements: [e.g. "good reviews", "cheap"]
-
-REASONING: [Why this decision?]
-
-INSTRUCTION FOR AGENT 2: [What should Agent 2 do specifically?]
-
-Examples:
-- User: "Find workshop" → INQUIRY (city missing), User wants email: NO, User email address: NONE
-- User: "Berlin" (after previous question) → WORKSHOP_SEARCH, User wants email: NO, User email address: NONE
-- User: "Send me results by email" → WORKSHOP_SEARCH, User wants email: YES, User email address: NONE
-- User: "my email is john@example.com" → OTHER, User wants email: NO, User email address: john@example.com
-- User: "john@example.com" → OTHER, User wants email: NO, User email address: john@example.com
-- User: "Email results to test@gmail.com" → WORKSHOP_SEARCH, User wants email: YES, User email address: test@gmail.com
-- User: "How often oil change?" → OTHER, User wants email: NO, User email address: NONE
-"""
+    try:
+        if user_context and isinstance(user_context, dict):
+            email_from_ctx = user_context.get("email") or user_context.get("user_email")
+            if email_from_ctx:
+                set_user_email(session_id, email_from_ctx)
+    except Exception:
+        
+        pass
+   
     
-    # New flow: the orchestrator is responsible for routing. This function no longer runs
-    # the previous Agent 1 classifier. Instead we use light heuristics and direct searches
-    # or a general LLM reply depending on the user input and chat history.
 
     chat_history = memory.load_memory_variables({}).get("chat_history", [])
     history_text = format_chat_history(chat_history)
+   
 
     response = ""
 
-    # helpers
+   
     import re
 
     def extract_email(text: str) -> Optional[str]:
@@ -188,24 +137,397 @@ Examples:
         t = text.lower()
         return any(k in t for k in keywords)
 
+    def is_appointment_request(text: str) -> bool:
+        t = text.lower()
+        keywords = ["termin", "vereinbaren", "termin vereinbaren", "appointment", "book", "wanna book", "termin anfrage", "terminanfrage"]
+        return any(k in t for k in keywords)
+
+    def persist_session_state(session_id: str, state: dict):
+        session_states[session_id] = state
+
+    def load_session_state(session_id: str) -> dict:
+        return session_states.get(session_id, {})
+
+    def extract_phone(text: str) -> Optional[str]:
+        import re as _re
+        if not text:
+            return None
+        t = text.strip()
+        
+        m = _re.search(r"(\+?\d[\d\s\-/()]{4,}\d)|(^\d{6,}$)", t)
+        if m:
+            phone = m.group(0)
+            phone_norm = _re.sub(r"[\s\-()]+", "", phone)
+            return phone_norm
+        return None
+
     def extract_location(text: str) -> Optional[str]:
-        # try postal code
+      
         m = re.search(r"\b(\d{5})\b", text)
         if m:
             return m.group(1)
-        # try 'in <city>' pattern
+       
         m2 = re.search(r"in\s+([A-Za-zÄÖÜäöüß\- ]{2,40})", text)
         if m2:
             return m2.group(1).strip()
+       
+        single = re.fullmatch(r"[A-Za-zÄÖÜäöüß\-]{2,40}", text.strip())
+        if single:
+            return text.strip()
         return None
 
-    # extract email if present in user_query and store it
+    def extract_service(text: str) -> Optional[str]:
+        if not text:
+            return None
+        t = text.lower()
+        
+        services = [
+            "inspektion", "ölwechsel", "bremsen", "reifen", "tüv", "klimaanlage",
+            "diagnose", "wartung", "service", "kundendienst"
+        ]
+        for s in services:
+            if s in t:
+                return s.capitalize()
+       
+        import re as _re
+        if _re.fullmatch(r"[A-Za-zÄÖÜäöüß]+", text.strip()) and len(text.strip()) <= 30:
+            return text.strip().capitalize()
+        return None
+
+    def extract_preferred_date(text: str) -> Optional[str]:
+        """Extract a date/time expression (German style like 01.12, 01.12.2025 13:00, 1.12 13 Uhr). Returns normalized string."""
+        if not text:
+            return None
+        import re as _re
+        t = text.strip()
+        
+        date_pattern = r"(\b\d{1,2}[\.\-/]\d{1,2}(?:[\.\-/]\d{2,4})?)"
+        time_pattern = r"(\b\d{1,2}[:\.]\d{2}\b|\b\d{1,2}\s*Uhr\b)"
+        dt_pattern = _re.compile(fr"{date_pattern}(?:\s+um\s+{time_pattern}|\s+{time_pattern})?", _re.IGNORECASE)
+        m = dt_pattern.search(t)
+        if m:
+            
+            return _re.sub(r"\s+", " ", m.group(0)).strip()
+       
+        time_only = _re.search(time_pattern, t)
+        if time_only:
+            return time_only.group(0)
+       
+        if _re.fullmatch(r"(heute|morgen|übermorgen|nachmittag|vormittag|abend)", t.lower()):
+            return t.lower()
+        return None
+
+   
     user_email_candidate = extract_email(user_query)
     if user_email_candidate:
         set_user_email(session_id, user_email_candidate)
         response += f"✅ Email address saved: {user_email_candidate}\n\n"
 
     wants_email = bool(re.search(r"\b(email|e-mail|send|mail)\b", user_query.lower())) or bool(user_email_candidate)
+
+  
+    existing_state = load_session_state(session_id)
+    in_progress = bool(existing_state) and existing_state.get('phase') != 'done'
+
+   
+    if is_appointment_request(user_query) or is_appointment_request(history_text) or in_progress:
+        state = load_session_state(session_id)
+
+       
+        if not state:
+            state = {"phase": "collect_info", "data": {}, "candidates": []}
+
+     
+        base_fields = ["user_name", "user_email", "phone", "vehicle", "had_accident", "damage_description", "service", "preferred_date", "location"]
+        required_fields = base_fields
+
+        
+        if user_context and isinstance(user_context, dict):
+            if user_context.get("name"):
+                state["data"]["user_name"] = user_context.get("name")
+            if user_context.get("email"):
+                state["data"]["user_email"] = user_context.get("email")
+
+        
+        email_candidate = extract_email(user_query)
+        if email_candidate:
+            state["data"]["user_email"] = email_candidate
+
+        location_candidate = extract_location(user_query)
+        if location_candidate:
+            state["data"]["location"] = location_candidate
+
+        phone_candidate = extract_phone(user_query)
+        if phone_candidate:
+            state["data"]["phone"] = phone_candidate
+
+        service_candidate = None
+        if not state["data"].get("service"):
+            service_candidate = extract_service(user_query)
+            if service_candidate:
+                state["data"]["service"] = service_candidate
+
+        preferred_date_candidate = None
+        if not state["data"].get("preferred_date"):
+            preferred_date_candidate = extract_preferred_date(user_query)
+            if preferred_date_candidate:
+                state["data"]["preferred_date"] = preferred_date_candidate
+
+        
+        def extract_accident_answer(text: str):
+            if not text:
+                return None
+            t = text.lower()
+            yes_tokens = ["ja", "j", "hatte einen unfall", "unfall", "crash", "kollision"]
+            no_tokens = ["nein", "n", "kein unfall", "keinen unfall"]
+            for y in yes_tokens:
+                if y in t:
+                    return True
+            for n in no_tokens:
+                if n in t:
+                    return False
+            return None
+
+        # Early capture of accident yes/no to avoid repeating the question
+        if state["data"].get("had_accident") is None:
+            accident_answer = extract_accident_answer(user_query)
+            if accident_answer is not None:
+                state["data"]["had_accident"] = accident_answer
+                # Persist updated state immediately
+                persist_session_state(session_id, state)
+    
+        if state["data"].get("had_accident") is True and not state["data"].get("damage_description"):
+           
+            import re as _rex
+            if extract_accident_answer(user_query) is None:
+                
+                if len(user_query.strip()) >= 5:
+                    state["data"]["damage_description"] = user_query.strip()
+
+       
+        import re as _re
+        vmatch = _re.search(r"(\b[A-Za-z]{2,}\b)\s*(\d{4})", user_query)
+        if vmatch and "vehicle" not in state["data"]:
+            state["data"]["vehicle"] = f"{vmatch.group(1)} {vmatch.group(2)}"
+
+      
+        # Load central template for generating phrasing
+        general_template = _load_template_file("repair_general.md") or """
+You are a vehicle service assistant.
+
+CHAT HISTORY:
+{chat_history}
+
+CURRENT REQUEST:
+{user_input}
+
+Answer the question in a friendly and helpful manner.
+Consider the context from the chat history.
+Answer in German unless user requests English.
+"""
+
+        # Prepare optional damage line and partial variables to satisfy template placeholders
+        optional_damage_line = ""
+        if state["data"].get("had_accident") is True and state["data"].get("damage_description"):
+            optional_damage_line = f"Schadensbeschreibung: {state['data'].get('damage_description')}"
+
+        general_chain = LLMChain(
+            llm=llm,
+            prompt=PromptTemplate(
+                template=general_template,
+                input_variables=["chat_history", "user_input"],
+                partial_variables={
+                    "user_name": state["data"].get("user_name", ""),
+                    "user_email": state["data"].get("user_email", ""),
+                    "phone": state["data"].get("phone", ""),
+                    "vehicle": state["data"].get("vehicle", ""),
+                    "service": state["data"].get("service", ""),
+                    "preferred_date": state["data"].get("preferred_date", ""),
+                    "damage_description": state["data"].get("damage_description", ""),
+                    "optional_damage_line": optional_damage_line,
+                }
+            )
+        )
+
+        def ask_with_template(missing_field: str, state_data: dict) -> str:
+            # Build a concise instruction leveraging the template to phrase the question
+            field_map = {
+                "user_name": "Bitte Ihren vollständigen Namen angeben.",
+                "user_email": "Bitte Ihre E-Mail-Adresse für Rückmeldungen angeben.",
+                "phone": "Unter welcher Telefonnummer können Sie erreicht werden?",
+                "vehicle": "Welches Fahrzeug (Marke, Modell, Baujahr) betrifft die Anfrage?",
+                "had_accident": "Hatten Sie einen Unfall mit dem Fahrzeug? (ja/nein)",
+                "damage_description": "Bitte beschreiben Sie kurz die entstandenen Schäden.",
+                "service": "Aus welchem Grund soll der Termin vereinbart werden? (z.B. Inspektion, Ölwechsel, Bremsen, TÜV, Diagnose)",
+                "preferred_date": "Welches Datum / Zeit bevorzugen Sie für den Termin?",
+                "location": "In welcher Stadt oder Postleitzahl suchen Sie?"
+            }
+            base = field_map.get(missing_field, f"Bitte geben Sie {missing_field} an.")
+            instruction = f"{base} Kontext: {state_data}"
+            result = general_chain.invoke({
+                "chat_history": history_text,
+                "user_input": instruction
+            })
+            return result.get("text") or base
+
+        if state.get("phase") == "collect_info":
+            for field in required_fields:
+               
+                # Skip damage description if no accident
+                if field == "damage_description" and state["data"].get("had_accident") is False:
+                    continue
+                if not state["data"].get(field):
+                    # If field is had_accident and user already answered in this message, do not re-ask
+                    if field == "had_accident" and state["data"].get("had_accident") is not None:
+                        continue
+                    question = ask_with_template(field, state["data"]) 
+                    persist_session_state(session_id, state)
+                    memory.save_context({"user_input": user_query}, {"response": question})
+                    return question
+
+            
+            state["phase"] = "present_options"
+            persist_session_state(session_id, state)
+
+        if state.get("phase") == "present_options":
+            # Build search query and gather candidates from DB and web
+            loc = state["data"].get("location")
+            damage_part = state["data"].get("damage_description") or ""
+            query_for_search = f"{state['data'].get('service')} {damage_part} {loc}".strip()
+            db_results, workshops_list = search_workshops_in_db(query_for_search, "WORKSHOP_SEARCH", history_text)
+            web_results = search_workshops_in_web(query_for_search, "WORKSHOP_SEARCH")
+
+            import json as _json
+            candidates = []
+            try:
+                parsed = _json.loads(web_results)
+                results = parsed.get("results", [])
+                for r in results:
+                    candidates.append(r)
+            except Exception:
+                candidates = []
+
+            # add DB workshops as candidates
+            for w in workshops_list:
+                try:
+                    candidates.append({
+                        "name": w.name,
+                        "url": getattr(w, "homepage", "") or "",
+                        "content": f"{w.adresse}, {w.plz} {w.ort}",
+                        "phone": getattr(w, "telefon", None) or getattr(w, "phone", None) or None,
+                        "email": getattr(w, "email", None) or None,
+                        "score": 0.5
+                    })
+                except Exception:
+                    continue
+
+            # dedupe and limit to 3
+            seen = set()
+            unique = []
+            for c in candidates:
+                key = (c.get("name"), c.get("email"), c.get("url"))
+                if key in seen:
+                    continue
+                seen.add(key)
+                unique.append(c)
+                if len(unique) >= 3:
+                    break
+
+            state["candidates"] = unique
+            state["phase"] = "await_selection"
+            persist_session_state(session_id, state)
+
+            if not unique:
+                response_text = "Leider konnte ich keine geeigneten Werkstätten in Ihrer Nähe finden. Möchten Sie eine größere Suche versuchen?"
+                memory.save_context({"user_input": user_query}, {"response": response_text})
+                return response_text
+
+            # present options
+            lines = ["Ich habe folgende 3 Werkstätten gefunden:"]
+            for i, c in enumerate(unique, 1):
+                name = c.get("name") or f"Werkstatt {i}"
+                phone = c.get("phone") or "keine Nummer"
+                email = c.get("email") or "keine E-Mail"
+                snippet = (c.get("content") or "")[:140]
+                lines.append(f"{i}) {name} — 📞 {phone} — ✉️ {email}\n   {snippet}")
+
+            lines.append("Bitte wählen Sie eine Werkstatt per Nummer (z.B. 1) oder geben Sie 'abbrechen'.")
+            message = "\n".join(lines)
+            memory.save_context({"user_input": user_query}, {"response": message})
+            return message
+
+        # awaiting selection
+        if state.get("phase") == "await_selection":
+            # if user now replies with a number, handle selection
+            import re as __re
+            sel = None
+            m = __re.search(r"\b([1-3])\b", user_query)
+            if m:
+                sel = int(m.group(1)) - 1
+                candidates = state.get('candidates', [])
+                if 0 <= sel < len(candidates):
+                    chosen = candidates[sel]
+                    # confirm sending
+                    state['chosen'] = chosen
+                    state['phase'] = 'confirm_send'
+                    persist_session_state(session_id, state)
+                    confirm = f"Möchten Sie, dass ich jetzt eine Terminanfrage an {chosen.get('name')} schicke (E-Mail: {chosen.get('email')}) für {state['data'].get('service')} am {state['data'].get('preferred_date')}?"
+                    memory.save_context({"user_input": user_query}, {"response": confirm})
+                    return confirm
+
+            # else, not a valid selection
+            message = "Bitte wählen Sie eine gültige Nummer aus der Liste (1-3), oder geben Sie weitere Informationen an."
+            memory.save_context({"user_input": user_query}, {"response": message})
+            return message
+
+        if state.get('phase') == 'confirm_send':
+            # user confirms
+            if user_query.strip().lower() in ['ja', 'j', 'yes', 'bestätigen', 'ok']:
+                chosen = state.get('chosen')
+                if not chosen or not chosen.get('email'):
+                    message = "Die ausgewählte Werkstatt hat keine E-Mail-Adresse. Möchten Sie eine andere Werkstatt wählen oder möchten Sie, dass ich die Telefonnummer anzeige?"
+                    memory.save_context({"user_input": user_query}, {"response": message})
+                    return message
+
+                # compose email
+                user_name = state['data'].get('user_name')
+                phone = state['data'].get('phone')
+                email = state['data'].get('user_email')
+                subject = f"Terminanfrage: {state['data'].get('service')} für {user_name}"
+                damage_line = ""
+                if state['data'].get('had_accident') is True and state['data'].get('damage_description'):
+                    damage_line = f"Schadensbeschreibung: {state['data'].get('damage_description')}"
+                body_lines = [
+                    "Sehr geehrte Damen und Herren,",
+                    "",
+                    f"ich möchte gerne einen Termin für {state['data'].get('service')} für mein Fahrzeug ({state['data'].get('vehicle')}) vereinbaren.",
+                    f"Bevorzugtes Datum/Zeit: {state['data'].get('preferred_date')}",
+                    damage_line,
+                    "",
+                    f"Bitte kontaktieren Sie mich unter {phone} oder {email} zur Bestätigung.",
+                    "",
+                    "Mit freundlichen Grüßen",
+                    f"{user_name}"
+                ]
+                body_lines = [l for l in body_lines if l is not None and l != ""]
+                body = "\n".join(body_lines)
+                html_body = None
+                success, msg = send_email(chosen.get('email'), subject, body, html_body)
+                if success:
+                    state['phase'] = 'done'
+                    state['sent'] = {'to': chosen.get('email'), 'subject': subject, 'body': body}
+                    persist_session_state(session_id, state)
+                    reply = f"✅ E-Mail gesendet an {chosen.get('name')} ({chosen.get('email')}). Ich melde mich, sobald es eine Antwort gibt."
+                else:
+                    reply = f"⚠️ Fehler beim Senden der E-Mail: {msg}"
+                memory.save_context({"user_input": user_query}, {"response": reply})
+                return reply
+            else:
+                memory.save_context({"user_input": user_query}, {"response": "Okay, der Versand wurde abgebrochen. Möchten Sie eine andere Werkstatt wählen?"})
+                # Return to selection of existing candidates
+                state['phase'] = 'await_selection'
+                persist_session_state(session_id, state)
+                return "Abgebrochen. Bitte wählen Sie eine andere Werkstatt (1-3)."
 
     # Decide if the user requests a workshop search
     if likely_workshop_query(user_query) or likely_workshop_query(history_text):
@@ -276,8 +598,8 @@ Examples:
         memory.save_context({"user_input": user_query}, {"response": response})
         return response
 
-    # fallback: general answer using LLM (no internal Agent 1 classifier)
-    general_template = """You are a vehicle service assistant.
+    # fallback: general answer using a lightweight inline LLM prompt loaded from markdown
+    general_template = _load_template_file("repair_general.md") or """You are a vehicle service assistant.
 
 CHAT HISTORY:
 {chat_history}
@@ -287,14 +609,25 @@ CURRENT REQUEST:
 
 Answer the question in a friendly and helpful manner.
 Consider the context from the chat history.
-Answer in English.
+Answer in German unless user requests English.
 """
 
+    # Provide empty partials for optional placeholders used in the markdown template
     general_chain = LLMChain(
         llm=llm,
         prompt=PromptTemplate(
             template=general_template,
-            input_variables=["chat_history", "user_input"]
+            input_variables=["chat_history", "user_input"],
+            partial_variables={
+                "user_name": "",
+                "user_email": "",
+                "phone": "",
+                "vehicle": "",
+                "service": "",
+                "preferred_date": "",
+                "damage_description": "",
+                "optional_damage_line": "",
+            }
         )
     )
 
@@ -307,19 +640,6 @@ Answer in English.
 
     memory.save_context({"user_input": user_query}, {"response": response})
 
-    return response
-    
-  
-    if email_match:
-        extracted_email = email_match.group(1)
-        if extracted_email and extracted_email != "NONE":
-            response += f"\n\n✅ Email address saved: {extracted_email}"
-    
-    memory.save_context(
-        {"user_input": user_query},
-        {"response": response}
-    )
-    
     return response
 
 
@@ -402,7 +722,7 @@ def search_workshops_in_web(user_query: str, classification: str) -> str:
 
         search = TavilySearch(
             api_key=tavily_api_key,
-            max_results=5,
+            max_results=3,
             search_depth="basic",
             include_answer=True
         )
