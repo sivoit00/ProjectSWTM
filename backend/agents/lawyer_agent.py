@@ -3,18 +3,16 @@ import logging
 import smtplib
 from typing import Any, Dict, List
 from email.message import EmailMessage
-
 import requests
 from dotenv import load_dotenv
-
 from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import pathlib
 from langchain.tools import tool
 from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain_community.chat_message_histories import ChatMessageHistory
-from langchain_core.chat_history import BaseChatMessageHistory
+from agents.email_listener import check_inbox_for_replies
+from agents.memory import get_session_history
 
 load_dotenv()
 log = logging.getLogger(__name__)
@@ -104,13 +102,6 @@ prompt = ChatPromptTemplate.from_messages([
 agent = create_openai_tools_agent(llm, tools, prompt)
 agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
-store = {}
-
-def get_session_history(session_id: str) -> BaseChatMessageHistory:
-    if session_id not in store:
-        store[session_id] = ChatMessageHistory()
-    return store[session_id]
-
 agent_with_chat_history = RunnableWithMessageHistory(
     agent_executor,
     get_session_history,
@@ -122,6 +113,9 @@ def handle_lawyer_request(user_message: str, user_context: Dict[str, Any] = None
     """
     Nimmt user_message UND user_context entgegen.
     """
+    log.info("Prüfe Posteingang auf Antworten...")
+    check_inbox_for_replies()
+
     if user_context is None:
         user_context = {}
 

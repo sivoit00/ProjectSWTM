@@ -5,7 +5,7 @@ import re
 import os
 import logging
 from langchain_core.messages import SystemMessage
-from memory import global_store
+from agents.memory import global_store
 
 log = logging.getLogger(__name__)
 
