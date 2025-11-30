@@ -1,4 +1,6 @@
 import os
+import json
+import time
 from typing import Dict, Any
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
@@ -14,6 +16,15 @@ from services.insurance_service import (
     submit_claim,
     get_claim_status,
 )
+
+def safe_string(x: Any):
+    if isinstance(x, (dict, list)):
+        try:
+            return json.dumps(x, indent=2, ensure_ascii=False)
+        except:
+            return str(x)
+    return str(x)
+
 
 # ----------------------------------------------------------
 # main function: Insurance Agent
@@ -95,13 +106,25 @@ KONTEXT:
 
     result = run_tool_logic_based_on_category(classification_text, extracted)
 
+    summary = llm.invoke([
+        {
+            "role": "system",
+            "content": "Fasse das folgende Tool-Ergebnis in natürlicher Sprache für einen Benutzer zusammen. "
+                       "Sei kurz, hilfreich und versicherungsbezogen."
+        },
+        {
+            "role": "user",
+            "content": f"Tool-Ergebnis: {result}"
+        }
+    ]).content
+
     return {
         "ok": True,
         "category": extracted["category"],
-        "data_used": extracted,
-        "response": result,
+        "data_used": safe_string(extracted),
+        "tool_result_raw": safe_string(result),
+        "response": summary,
     }
-
 # ----------------------------------------------------------
 # parameter extraction
 # ----------------------------------------------------------
@@ -152,7 +175,12 @@ def run_tool_logic_based_on_category(category_text: str, ext: Dict[str, Any]):
         return calculate_premium(vehicle_data)
 
     if category == "CLAIM_SUBMIT":
-        claim_data = {"customer_id": ext["context_customer"], "details": "Schaden gemeldet"}
+        customer_id = int(ext["context_customer"]) if ext["context_customer"] else 1
+        claim_data = {
+            "customer_id": customer_id,
+            "claim_id": f"CLM-{int(time.time())}", 
+            "description": "Schaden gemeldet"
+        }
         return submit_claim(claim_data)
 
     if category == "CLAIM_STATUS":
