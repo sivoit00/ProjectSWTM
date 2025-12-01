@@ -3,14 +3,38 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import engine
 from models import Base
 from routes import kunden, fahrzeuge, werkstaetten, auftraege, ki, openai_route, chat_history, files, ki_orchestrator, insurance
-from pydantic import BaseModel
+from contextlib import asynccontextmanager
+from apscheduler.schedulers.background import BackgroundScheduler
+from agents.email_listener import check_inbox_for_replies
+import logging
+
+log = logging.getLogger(__name__)
 
 Base.metadata.create_all(bind=engine)
+
+def run_email_check():
+    """Wird vom Scheduler regelmäßig aufgerufen"""
+    try:
+        check_inbox_for_replies()
+    except Exception as e:
+        log.error(f"Fehler im Email-Scheduler: {e}")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(run_email_check, 'interval', seconds=60) 
+    scheduler.start()
+    log.info("Email-Scheduler gestartet (Check alle 60s).")
+    yield
+    scheduler.shutdown()
+    log.info("Email-Scheduler beendet.")
+
 
 app = FastAPI(
     title="Vehicle Service API",
     description="API for vehicle service management with AI integration",
-    version="2.0.0"
+    version="2.0.0",
+    lifespan=lifespan 
 )
 
 app.add_middleware(

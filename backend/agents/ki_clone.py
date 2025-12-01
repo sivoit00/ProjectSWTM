@@ -3,34 +3,42 @@ import logging
 from typing import Any, Dict
 from langchain_openai import ChatOpenAI
 import os
+import re
 from agents.lawyer_agent import handle_lawyer_request
 from agents.insurance_agent import run_insurance_agent
-from agents.repair_chat_agent import run_repair_agent_with_memory, is_session_active
+from agents.repair_chat_agent import run_repair_agent_with_memory 
 
 log = logging.getLogger(__name__)
 
-llm = ChatOpenAI(temperature=0.0, model="gpt-5")
-
-CURRENT_ACTIVE_AGENT = None 
+llm = ChatOpenAI(temperature=0.0, model="gpt-5-mini") 
 
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 
+agent_session_state = {}
+
 def _load_template(name: str) -> str:
     path = os.path.join(TEMPLATES_DIR, name)
+    if not os.path.exists(path):
+        return "{user_message}"
     with open(path, "r", encoding="utf-8") as f:
         return f.read()
 
-PROMPT_ROUTE = _load_template("orchestrator_route.md")
-
-AGENT_DISPATCHER = {
-    "lawyer": handle_lawyer_request,
-    "insurance": run_insurance_agent,
-    "repair": run_repair_agent_with_memory,
-}
+try:
+    PROMPT_ROUTE = _load_template("orchestrator_route.md")
+except:
+    PROMPT_ROUTE = """
+    Classify intent: lawyer, insurance, repair, general.
+    JSON: {"agent": "..."}
+    User: {user_message}
+    """
 
 def _safe_json_loads(s: str) -> dict:
     try:
         s = s.replace("```json", "").replace("```", "").strip()
+        start = s.find("{")
+        end = s.rfind("}") + 1
+        if start != -1 and end != -1:
+            s = s[start:end]
         return json.loads(s)
     except json.JSONDecodeError:
         return {}
@@ -38,96 +46,90 @@ def _safe_json_loads(s: str) -> dict:
 def _get_routing_decision(text: str) -> str:
     try:
         response = llm.invoke(PROMPT_ROUTE.format(user_message=text))
-        log.debug(f"Raw routing LLM response: {response.content}")
         data = _safe_json_loads(response.content)
         return data.get("agent", "general")
     except Exception:
         return "general"
 
-REPAIR_KEYWORDS = [
-    "werkstatt", "termin", "service", "reparatur", "reifen", "inspektion", "ölwechsel", "wartung", "appointment", "repair", "workshop"
-]
-
 def _keyword_override(decision: str, text: str) -> str:
+    """Zwingt Entscheidung bei sehr eindeutigen Keywords"""
+    text = text.lower()
+    
+    if any(x in text for x in ["anwalt", "lawyer", "rechtsbeistand", "verklagen"]):
+        return "lawyer"
+        
     if decision == "general":
-        lowered = text.lower()
-        for kw in REPAIR_KEYWORDS:
-            if kw in lowered:
-                log.debug(f"Keyword override triggered by '{kw}' -> 'repair'")
-                return "repair"
+        repair_keywords = ["werkstatt", "termin", "reparatur", "reifen", "ölwechsel", "inspektion"]
+        if any(k in text for k in repair_keywords):
+            return "repair"
+            
     return decision
 
 def handle_general_request(user_message: str) -> Dict[str, Any]:
-    resp = llm.invoke(user_message)
+    sys_msg = "Du bist ein hilfreicher Assistent. Antworte kurz und prägnant."
+    messages = [("system", sys_msg), ("human", user_message)]
+    resp = llm.invoke(messages)
     return {"response": resp.content, "structured": {"intent": "general"}}
 
 def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dict[str, Any]:
-    # Per-message routing (stateless) — avoids sticky behavior where the first matched
-    # agent handles all following user messages. The orchestrator decides each call.
     if user_context is None:
         user_context = {}
 
-    log.info(f"Orchestrator Routing: '{user_message}' | User: {user_context.get('name')}")
+    user_email = user_context.get("email")
+    session_id = user_context.get("session_id") or user_email or "default_session"
+    
+    user_name = user_context.get("name", "User")
+    log.info(f"Orchestrator Routing: '{user_message}' | User: {user_name} | Session: {session_id}")
 
-    # quick stop/reset handling
-    if user_message.lower().strip() in ["stop", "abbruch", "ende"]:
-        return {"response": "Gespräch beendet.", "structured": {"intent": "reset"}, "agent": "reset"}
+    if user_message.lower().strip() in ["stop", "abbruch", "ende", "reset", "neues thema"]:
+        if session_id in agent_session_state:
+            del agent_session_state[session_id]
+        return {"response": "Gespräch zurückgesetzt. Wie kann ich helfen?", "structured": {"intent": "reset"}, "agent": "reset"}
 
     decision = _get_routing_decision(user_message)
     decision = _keyword_override(decision, user_message)
 
-    # If we are in the middle of a repair workflow (session state not done), keep routing to repair
-    session_id = user_context.get("session_id") or user_context.get("session") or "default"
-    # Explicit switch to lawyer/insurance should override sticky repair
-    lowered = user_message.lower()
-    wants_lawyer = any(tok in lowered for tok in ["anwalt", "lawyer", "jurist", "rechtshilfe"]) 
-    wants_insurance = any(tok in lowered for tok in ["versicherung", "insurance", "claim", "police"]) 
+    active_agent = agent_session_state.get(session_id)
 
-    if wants_lawyer:
-        decision = "lawyer"
-    elif wants_insurance:
-        decision = "insurance"
-    elif decision == "general" and is_session_active(session_id):
-        log.debug(f"Sticky repair override: active session '{session_id}', forcing agent 'repair'.")
-        decision = "repair"
-    if decision == "reset":
-        return {"response": "Okay.", "structured": {"intent": "reset"}, "agent": "reset"}
+    if active_agent and decision == "general":
+        log.info(f"Sticky Session: Bleibe bei Agent '{active_agent}'")
+        target_agent = active_agent
+    else:
+        if decision != "general":
+            log.info(f"Agent Wechsel/Start: {active_agent} -> {decision}")
+            agent_session_state[session_id] = decision
+            target_agent = decision
+        else:
+            target_agent = "general"
 
-    target_agent = decision or "general"
-
+    
     def wrap_response(agent_name: str, result) -> Dict[str, Any]:
-        # Normalize different agent return types to a standard dict
         if isinstance(result, dict):
             structured = result.get("structured") or {"intent": agent_name}
-            resp = result.get("response") or result.get("output") or result.get("data") or str(result)
+            resp = result.get("response") or result.get("output") or str(result)
             return {"response": resp, "structured": structured, "agent": agent_name}
-        if isinstance(result, str):
-            return {"response": result, "structured": {"intent": agent_name}, "agent": agent_name}
         return {"response": str(result), "structured": {"intent": agent_name}, "agent": agent_name}
 
     try:
         if target_agent == "lawyer":
+            user_context["session_id"] = session_id 
+            
             res = handle_lawyer_request(user_message, user_context)
             return wrap_response("lawyer", res)
 
-        if target_agent == "insurance":
-            user_id = None
-            if user_context:
-                user_id = user_context.get("user_id") or user_context.get("id")
+        elif target_agent == "insurance":
+            user_id = user_context.get("user_id") or "default_id"
             res = run_insurance_agent(user_message, user_id, user_context)
             return wrap_response("insurance", res)
 
-        if target_agent == "repair":
-            session_id = None
-            if user_context:
-                session_id = user_context.get("session_id") or user_context.get("session")
-            res = run_repair_agent_with_memory(user_message, session_id or "default")
+        elif target_agent == "repair":
+            res = run_repair_agent_with_memory(user_message, session_id)
             return wrap_response("repair", res)
 
-        # default: general
-        res = handle_general_request(user_message)
-        return wrap_response("general", res)
+        else: # General
+            res = handle_general_request(user_message)
+            return wrap_response("general", res)
 
     except Exception as e:
         log.exception(f"Fehler im Agenten '{target_agent}': {e}")
-        return {"response": "Entschuldigung, es gab einen internen Fehler bei der Verarbeitung.", "structured": {"intent": target_agent, "error": str(e)}, "agent": target_agent}
+        return {"response": "Sorry, interner Fehler.", "structured": {"error": str(e)}, "agent": target_agent}
