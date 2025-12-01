@@ -15,7 +15,7 @@ export default function Chat() {
   const [showFileUpload, setShowFileUpload] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   
-  const userId = keycloak.tokenParsed?.sub;
+  const userId = keycloak.tokenParsed?.sub + 1000; // Simple user ID derivation
 
   useEffect(() => {
     loadChatHistory();
