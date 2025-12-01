@@ -23,7 +23,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      # GEÄNDERT: Zeigt jetzt auf die AWS-Datenbank
+      
       - DATABASE_URL=postgresql://postgres:Aasal22!!@projectswtm.c9gqueuwynyt.eu-north-1.rds.amazonaws.com:5432/fahrzeugservice
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
@@ -38,10 +38,7 @@ services:
       - SMTP_TO=${SMTP_TO}
     volumes:
       - ./backend:/app
-    # ENTFERNT: Die "depends_on: - db" ist nicht mehr nötig
-
-  # ENTFERNT: Der lokale "db"-Service wird nicht mehr benötigt,
-  # da das Backend jetzt die AWS-Datenbank nutzt.
+   
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.4.2
@@ -56,11 +53,11 @@ services:
     ports:
       - "8080:8080"
     command: ["start-dev", "--import-realm"]
-    # ENTFERNT: Die "depends_on: - db" ist nicht mehr nötig
+   
     volumes:
       - keycloak_data:/opt/keycloak/data
       - ./keycloak/realm.json:/opt/keycloak/data/import/realm.json
 
 volumes:
-  # ENTFERNT: postgres_data wird nicht mehr benötigt
+ 
   keycloak_data:
