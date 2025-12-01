@@ -5,6 +5,7 @@ from typing import Any, Dict, List
 from email.message import EmailMessage
 import requests
 from dotenv import load_dotenv
+from bs4 import BeautifulSoup
 from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -27,6 +28,41 @@ SMTP_TO = os.environ.get("SMTP_TO")
 
 llm = ChatOpenAI(temperature=0.0, model="gpt-5-mini") 
 
+def _extract_email_from_url(url: str) -> str:
+    """Besucht eine URL und extrahiert die E-Mail via LLM."""
+    if not url:
+        return "Keine Website"
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    }
+    
+    try:
+        response = requests.get(url, headers=headers, timeout=5)
+        if response.status_code != 200:
+            return "Seite nicht erreichbar"
+    
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        for script in soup(["script", "style"]):
+            script.extract()
+            
+        text_content = soup.get_text()[:4000]
+        
+        extraction_prompt = f"""
+        Suche im folgenden Text nach einer Kontakt-Email-Adresse für den Anwalt oder die Kanzlei.
+        Gib NUR die E-Mail zurück. Wenn keine gefunden wird, antworte mit 'N/A'.
+        
+        Text:
+        {text_content}
+        """
+        
+        result = llm.invoke(extraction_prompt)
+        return result.content.strip()
+
+    except Exception as e:
+        log.warning(f"Email Scraping Fehler bei {url}: {e}")
+        return "N/A"
 
 @tool
 def search_lawyers_online(city: str, topic: str = "Verkehrsrecht") -> List[Dict]:
@@ -36,21 +72,28 @@ def search_lawyers_online(city: str, topic: str = "Verkehrsrecht") -> List[Dict]
         
     url = "https://serpapi.com/search.json"
     params = {
-        "engine": "google", "q": f"{topic} Anwalt {city}", "google_domain": "google.com",
+        "engine": "google_maps", "q": f"{topic} Anwalt {city}", "google_domain": "google.com",
         "hl": "de", "num": 3, "api_key": SERPAPI_KEY
     }
     try:
         resp = requests.get(url, params=params, timeout=10)
         data = resp.json()
         results = []
-        places = data.get("local_results", {}).get("places", [])
-        if not places and "organic_results" in data:
-             places = data.get("organic_results", [])[:3]
+        local_results = data.get("local_results", [])
+        if not local_results and "organic_results" in data:
+             local_results = data.get("organic_results", [])[:3]
 
-        for item in places:
+        for item in local_results:
+            website_url = item.get("website")
+
+            found_email = "Nicht gefunden"
+            if website_url:
+                found_email = _extract_email_from_url(website_url)
+
             lawyer = {
                 "name": item.get("title"),
-                "email": SMTP_TO,
+                "email": found_email,
+                "website": website_url,
                 "telefon": item.get("phone") or "Keine Nummer",
                 "anschrift": item.get("address") or "Keine Adresse",
                 "bewertung": item.get("rating") or "Keine Bewertung",
@@ -76,7 +119,7 @@ def send_personal_email(lawyer_email: str, subject: str, email_body: str) -> str
             server.starttls()
             server.login(SMTP_USER, SMTP_PASS)
             server.send_message(msg)
-        return f"E-Mail erfolgreich versendet."
+        return f"E-Mail erfolgreich versendet an {SMTP_TO} (statt {lawyer_email} zu Testzwecken)."
     except Exception as e:
         return f"Fehler beim Versand: {str(e)}"
 

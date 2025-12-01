@@ -14,6 +14,7 @@ langchain-tavily
 tiktoken
 langsmith
 tavily-python
+beautifulsoup4
 
 python-jose[cryptography]
 python-keycloak
