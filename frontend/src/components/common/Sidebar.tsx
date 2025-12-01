@@ -1,6 +1,6 @@
 import * as React from "react";
 import { MessageSquare, LogOut, Trash2 } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import keycloak from "../../keycloak";
 
 declare global {
@@ -17,6 +17,7 @@ interface SidebarProps {
 
 export default function Sidebar({ onClearChat }: SidebarProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   
   const isActive = (path: string) => location.pathname === path;
 
@@ -52,7 +53,14 @@ export default function Sidebar({ onClearChat }: SidebarProps) {
         >
           <MessageSquare size={20} />
           <span>MyClone</span>
+          
         </Link>
+        
+
+        
+        
+
+        
 
         
       </nav>

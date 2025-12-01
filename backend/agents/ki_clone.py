@@ -2,34 +2,27 @@ import json
 import logging
 from typing import Any, Dict
 from langchain_openai import ChatOpenAI
+import os
 from agents.lawyer_agent import handle_lawyer_request
 from agents.insurance_agent import run_insurance_agent
-from agents.repair_chat_agent import run_repair_agent_with_memory
+from agents.repair_chat_agent import run_repair_agent_with_memory, is_session_active
 from agents.session_manager import get_active_agent, set_active_agent, get_session_state, reset_session
 from agents.intent_detector import detect_intent_from_message, should_switch_agent
 
 log = logging.getLogger(__name__)
 
-llm = ChatOpenAI(temperature=0.0, model="gpt-4o-mini") 
+llm = ChatOpenAI(temperature=0.0, model="gpt-5")
 
-PROMPT_ROUTE = """
-Du bist ein KI-Orchestrator. Entscheide, welcher Agent zuständig ist.
-Agenten:
-- "lawyer": Anwälte, Rechtsfragen, Unfälle, Bußgelder, Verträge.
-- "insurance": Versicherung, Police, Schaden, Prämie, Deckung, Versicherungsstatus.
-- "repair": Werkstatt-/Reparatur- und Serviceanfragen, Werkstattsuche, Termine, Empfehlungen.
-- "general": Alles andere.
-- "reset": Thema wechseln / Abbruch.
+CURRENT_ACTIVE_AGENT = None 
 
-Format der Ausgabe: reines JSON, nur:
-{{
-    "agent": "<lawyer|insurance|repair|general|reset>"
-}}
+TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 
-Analysen und Erklärungen sind verboten.
+def _load_template(name: str) -> str:
+    path = os.path.join(TEMPLATES_DIR, name)
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read()
 
-Nutzertext: "{user_message}"
-"""
+PROMPT_ROUTE = _load_template("orchestrator_route.md")
 
 AGENT_DISPATCHER = {
     "lawyer": handle_lawyer_request,
@@ -47,10 +40,24 @@ def _safe_json_loads(s: str) -> dict:
 def _get_routing_decision(text: str) -> str:
     try:
         response = llm.invoke(PROMPT_ROUTE.format(user_message=text))
+        log.debug(f"Raw routing LLM response: {response.content}")
         data = _safe_json_loads(response.content)
         return data.get("agent", "general")
     except Exception:
         return "general"
+
+REPAIR_KEYWORDS = [
+    "werkstatt", "termin", "service", "reparatur", "reifen", "inspektion", "ölwechsel", "wartung", "appointment", "repair", "workshop"
+]
+
+def _keyword_override(decision: str, text: str) -> str:
+    if decision == "general":
+        lowered = text.lower()
+        for kw in REPAIR_KEYWORDS:
+            if kw in lowered:
+                log.debug(f"Keyword override triggered by '{kw}' -> 'repair'")
+                return "repair"
+    return decision
 
 def handle_general_request(user_message: str) -> Dict[str, Any]:
     resp = llm.invoke(user_message)

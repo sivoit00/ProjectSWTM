@@ -99,7 +99,7 @@ export const api = {
     // attach session_id from localStorage if present so backend agents can use per-session memory
     const sessionId = typeof window !== 'undefined' ? localStorage.getItem('sessionId') : null;
     const body = sessionId ? { ...payload, session_id: sessionId } : payload;
-    return apiClient.post<{ response: string; structured: any }>('/ki-orchestrator/message', body);
+    return apiClient.post<{ response: string; structured: any; agent?: string }>('/ki-orchestrator/message', body);
   },
 
  

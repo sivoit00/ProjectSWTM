@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+import pathlib
 from langchain.tools import tool
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
@@ -26,7 +27,7 @@ SMTP_USER = os.environ.get("SMTP_USER")
 SMTP_PASS = os.environ.get("SMTP_PASS")
 SMTP_TO = os.environ.get("SMTP_TO") 
 
-llm = ChatOpenAI(temperature=0.0, model="gpt-5-nano") 
+llm = ChatOpenAI(temperature=0.0, model="gpt-5-mini") 
 
 
 @tool
@@ -84,25 +85,14 @@ def send_personal_email(lawyer_email: str, subject: str, email_body: str) -> str
 tools = [search_lawyers_online, send_personal_email]
 
 
-SYSTEM_PROMPT = """
-Du bist ein persönlicher Assistent (Ghostwriter) für den Nutzer.
-Ziel: Anwalt finden und E-Mail schreiben.
+TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 
-**USER DATEN:**
-Name: {user_name}
-Email: {user_email}
+def _load_template(name: str) -> str:
+     path = os.path.join(TEMPLATES_DIR, name)
+     with open(path, "r", encoding="utf-8") as f:
+          return f.read()
 
-**Regeln:**
-1. **Interview:** Erst alle W-Fragen klären (Was, Wann, Wo, Versicherung).
-   - FRAGE NICHT nach dem Namen, wenn er oben unter "USER DATEN" steht.
-   
-2. **Suche:** Nutze `search_lawyers_online`.
-   - Nenne IMMER Name, Adresse UND Bewertung.
-
-3. **Auswahl & Email:** - Nutze `send_personal_email`.
-   - Schreibe aus der ICH-Perspektive.
-   - Unterschreibe mit dem Namen des Nutzers.
-"""
+SYSTEM_PROMPT = _load_template("lawyer_system.md")
 
 prompt = ChatPromptTemplate.from_messages([
     ("system", SYSTEM_PROMPT),

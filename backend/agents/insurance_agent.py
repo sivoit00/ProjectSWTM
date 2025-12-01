@@ -2,6 +2,7 @@ import os
 from typing import Dict, Any
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
+import os
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -25,7 +26,7 @@ def run_insurance_agent(user_input: str, user_id: str = None, context: Dict[str,
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY ist nicht gesetzt.")
 
-    model_name = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    model_name = os.getenv("OPENAI_MODEL", "gpt-5-mini")
 
     llm = ChatOpenAI(
         api_key=api_key,
@@ -39,36 +40,10 @@ def run_insurance_agent(user_input: str, user_id: str = None, context: Dict[str,
 
     # -------------------- Agent 1: Classification ---------------------
 
-    classifier_prompt = ChatPromptTemplate.from_template("""
-Du bist Agent 1, ein Klassifizierungs-Agent für Versicherungsthemen.
-
-Analysiere folgende Nutzereingabe und gib eine strukturierte Klassifikation zurück:
-
-KATEGORIE:
-- POLICY_INFO
-- PREMIUM_CALC
-- CLAIM_SUBMIT
-- CLAIM_STATUS
-- CLAIM_CAPTURE
-- ANDERE
-                                                         
-WEITERLEITEN: JA oder NEIN
-
-PARAMETER:
-- customer_id
-- vehicle_data
-- claim_data
-- claim_id
-- info_provided
-                                                         
-BEGRÜNDUNG: Warum diese Entscheidung?
-
-NUTZEREINGABE:
-{user_input}
-
-KONTEXT:
-{context}
-""")
+    templates_dir = os.path.join(os.path.dirname(__file__), "templates")
+    with open(os.path.join(templates_dir, "insurance_classifier.md"), "r", encoding="utf-8") as f:
+        classifier_template = f.read()
+    classifier_prompt = ChatPromptTemplate.from_template(classifier_template)
 
     agent1_messages = classifier_prompt.format_messages(
         user_input=user_input,
