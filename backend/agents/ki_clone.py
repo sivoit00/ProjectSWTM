@@ -2,7 +2,7 @@ import json
 import logging
 from typing import Any, Dict
 from langchain_openai import ChatOpenAI
-from agents.lawyerAgent import handle_lawyer_request
+from agents.lawyer_agent import handle_lawyer_request
 from agents.insurance_agent import run_insurance_agent
 from agents.repair_chat_agent import run_repair_agent_with_memory
 from agents.session_manager import get_active_agent, set_active_agent, get_session_state, reset_session
