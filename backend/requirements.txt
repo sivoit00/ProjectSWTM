@@ -13,8 +13,11 @@ langchain-openai
 langchain-tavily
 tiktoken
 langsmith
+tavily-python
 
 python-jose[cryptography]
 python-keycloak
 
 secure-smtplib
+
+APScheduler
