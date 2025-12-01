@@ -118,6 +118,9 @@ export function useChatState() {
       const answer = res.data?.response ?? "No response received";
       const agentSteps = (res.data as any)?.agent_steps || [];
       
+      console.log("🔍 Backend Response:", res.data);
+      console.log("🔍 Agent Steps received:", agentSteps);
+      
       const botMsgId = `msg-${Date.now()}-bot`;
       
       // Verknüpfe Timeline-Events mit Message-ID
@@ -125,6 +128,8 @@ export function useChatState() {
         ...step,
         messageId: botMsgId
       }));
+      
+      console.log("🔍 Steps with MsgId:", stepsWithMsgId);
       
       setAllAgentSteps((prev) => [...prev, ...stepsWithMsgId]);
       

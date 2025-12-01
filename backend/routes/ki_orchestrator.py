@@ -8,7 +8,7 @@ from agents.kiClone import route_message
 from agents.repair_chat_agent import clear_session_memory
 from services.guardrails_service import validate_request
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 router = APIRouter()
 log = logging.getLogger(__name__)
@@ -59,7 +59,7 @@ async def ki_message(
         """Add a task event to timeline"""
         agent_steps.append({
             "task": task,  
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "status": status,
             "description": description,  
             "details": details,  
@@ -72,7 +72,7 @@ async def ki_message(
         agent_steps.append({
             "task": "internal",
             "agent": agent,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "status": status,
             "description": description,
             "event_type": event_type
@@ -114,6 +114,13 @@ async def ki_message(
         user_context['session_id'] = req.session_id
 
     try:
+        # Füge immer ein "Nachricht wird verarbeitet" Event hinzu
+        add_task("message_processing", "working", 
+                "Verarbeite Ihre Anfrage...", 
+                "Tom",
+                filtered_message[:50] + "..." if len(filtered_message) > 50 else filtered_message,
+                "task")
+        
         result = await anyio.to_thread.run_sync(
             route_message,
             filtered_message, 
@@ -127,6 +134,13 @@ async def ki_message(
         agent_changed = result.get("agent_changed", False)
         bot_response = result.get("response", "").lower()
         
+        # Schließe "Nachricht verarbeitet" ab
+        add_task("message_processing", "completed", 
+                "Antwort bereit", 
+                agent_type,
+                "Verarbeitung abgeschlossen",
+                "task")
+        
         completion_keywords = [
             "gern geschehen", "viel erfolg", "weitere fragen", 
             "weitere hilfe", "ich zu kontaktieren", "zögern sie nicht",
@@ -135,25 +149,31 @@ async def ki_message(
         task_completed = any(keyword in bot_response for keyword in completion_keywords)
         
        
-        if agent_changed or (agent_type != "chatbot" and not task_completed):
-           
+        if agent_changed:
             existing_tasks = [step.get("task") for step in agent_steps]
             
+            # Wechsel ZU einem spezialisierten Agenten
             if agent_type == "repair" and "werkstatt_suche" not in existing_tasks:
                 add_task("werkstatt_suche", "working", 
                         "Werkstatt Agent übernimmt", 
-                        agent_type,
+                        "repair",
                         "Suche nach passenden Werkstätten in Ihrer Nähe")
             elif agent_type == "lawyer" and "anwalt_suche" not in existing_tasks:
                 add_task("anwalt_suche", "working", 
                         "Lawyer Agent übernimmt", 
-                        agent_type,
+                        "lawyer",
                         "Suche nach qualifizierten Anwälten für rechtliche Beratung")
             elif agent_type == "insurance" and "versicherung_pruefung" not in existing_tasks:
                 add_task("versicherung_pruefung", "working", 
                         "Insurance Agent übernimmt", 
-                        agent_type,
+                        "insurance",
                         "Prüfung Ihrer Versicherungsangelegenheit")
+            # Wechsel ZURÜCK zu Tom
+            elif agent_type == "chatbot" and "tom_uebernimmt" not in existing_tasks:
+                add_task("tom_uebernimmt", "completed", 
+                        "Tom übernimmt wieder", 
+                        "Tom",
+                        "Bereit für neue Anfragen")
         if task_completed and agent_type != "chatbot":
             if agent_type == "repair":
                 add_task("werkstatt_suche", "completed", 

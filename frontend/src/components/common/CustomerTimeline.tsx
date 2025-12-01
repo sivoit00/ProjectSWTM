@@ -11,12 +11,10 @@ interface CustomerTimelineProps {
 }
 
 const isCustomerRelevant = (event: TimelineEvent): boolean => {
-  if (event.event_type === "internal") {
-    return false;
-  }
-
-  const internalTasks = ["guardrail", "validation", "safety_check"];
-  if (internalTasks.some(internal => event.task.toLowerCase().includes(internal))) {
+  // Filtere nur Guardrails-Agent aus
+  const agentLower = (event.agent || "").toLowerCase();
+  
+  if (agentLower.includes("guardrail")) {
     return false;
   }
 
@@ -29,7 +27,9 @@ export default function CustomerTimeline({ events: propEvents, onEventClick }: C
   const [events, setEvents] = useState<TimelineEvent[]>([]);
 
   useEffect(() => {
+    console.log("📊 Timeline: Received events:", propEvents);
     const filteredEvents = propEvents.filter(isCustomerRelevant);
+    console.log("📊 Timeline: After filtering:", filteredEvents);
     setEvents(filteredEvents);
   }, [propEvents]);
 

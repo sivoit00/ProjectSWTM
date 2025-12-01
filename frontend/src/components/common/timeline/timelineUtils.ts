@@ -50,8 +50,11 @@ export const getTaskColor = (taskName: string): string => {
 
 export const formatTime = (timestamp: string | Date) => {
   const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+  
+  // Stelle sicher, dass die Zeit in der lokalen Zeitzone angezeigt wird
   return date.toLocaleTimeString('de-DE', { 
     hour: '2-digit', 
-    minute: '2-digit'
+    minute: '2-digit',
+    timeZone: 'Europe/Berlin'  // Deutsche Zeitzone
   });
 };

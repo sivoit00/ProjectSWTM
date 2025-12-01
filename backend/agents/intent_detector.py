@@ -12,17 +12,21 @@ INTENT_KEYWORDS = {
     "repair": [
         "werkstatt", "reparatur", "service", "termin", "inspektion",
         "ölwechsel", "reifenwechsel", "bremsen", "motor", "werkstattsuche",
-        "empfehlung werkstatt", "wo kann ich", "suche werkstatt"
+        "empfehlung werkstatt", "wo kann ich", "suche werkstatt", "autowerkstatt",
+        "reparieren", "kaputt", "defekt", "wartung", "tüv", "hauptuntersuchung",
+        "auto reparatur", "mechaniker", "kfz", "autowerkstätten"
     ],
     "lawyer": [
         "anwalt", "rechtsanwalt", "rechtsfrage", "unfall", "bußgeld",
         "vertrag", "rechtlich", "klage", "gericht", "anzeige",
-        "jurist", "recht", "rechtshilfe"
+        "jurist", "recht", "rechtshilfe", "rechtsberatung", "anwälte",
+        "verkehrsunfall", "unfallgegner", "rechtsstreit", "rechtsbeistand"
     ],
     "insurance": [
         "versicherung", "police", "schaden", "schadensmeldung", "prämie",
         "deckung", "versichert", "kasko", "haftpflicht", "versicherungsfall",
-        "erstattung", "versicherungsstatus"
+        "erstattung", "versicherungsstatus", "versicherungen", "versicherungsschutz",
+        "schadensregulierung", "gutachten", "unfallschaden", "versicherter"
     ]
 }
 
@@ -74,13 +78,13 @@ def detect_intent_from_message(message: str) -> Optional[str]:
     # Wähle Intent mit höchstem Score
     best_intent = max(intent_scores.items(), key=lambda x: x[1])
     
-    # Nur wenn Score >= 2 (mindestens 2 Keywords), Intent zurückgeben
-    # Das verhindert false positives bei normalen Gesprächen
-    if best_intent[1] >= 2:
+    # Nur wenn Score >= 1 (mindestens 1 Keyword), Intent zurückgeben
+    # Reduziert von 2 auf 1 für bessere Erkennung
+    if best_intent[1] >= 1:
         log.info(f"Intent erkannt: '{best_intent[0]}' (Score: {best_intent[1]})")
         return best_intent[0]
     
-    log.debug(f"Intent-Score zu niedrig: {best_intent[0]} = {best_intent[1]} (benötigt >= 2)")
+    log.debug(f"Intent-Score zu niedrig: {best_intent[0]} = {best_intent[1]} (benötigt >= 1)")
     return None
 
 
