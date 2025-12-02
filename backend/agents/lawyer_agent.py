@@ -14,6 +14,7 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from agents.email_listener import check_inbox_for_replies
 from agents.memory import get_session_history
 from agents.tools.google_search import search_google_maps
+from agents.tools.email_sender import send_email_via_smtp
 
 load_dotenv()
 log = logging.getLogger(__name__)
@@ -35,20 +36,7 @@ def search_lawyers_online(city: str, topic: str = "Verkehrsrecht") -> List[Dict]
 @tool
 def send_personal_email(lawyer_email: str, subject: str, email_body: str) -> str:
     """Versendet die E-Mail (Ghostwriting-Modus)."""
-    try:
-        msg = EmailMessage()
-        msg["From"] = SMTP_USER 
-        msg["To"] = SMTP_TO
-        msg["Subject"] = subject
-        msg.set_content(email_body)
-
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            server.starttls()
-            server.login(SMTP_USER, SMTP_PASS)
-            server.send_message(msg)
-        return f"E-Mail erfolgreich versendet an {SMTP_TO} (statt {lawyer_email} zu Testzwecken)."
-    except Exception as e:
-        return f"Fehler beim Versand: {str(e)}"
+    return send_email_via_smtp(to_email=lawyer_email, subject=subject, body=email_body)
 
 tools = [search_lawyers_online, send_personal_email]
 
