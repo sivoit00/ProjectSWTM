@@ -55,8 +55,12 @@ def _keyword_override(decision: str, text: str) -> str:
     """Zwingt Entscheidung bei sehr eindeutigen Keywords"""
     text = text.lower()
     
-    if any(x in text for x in ["anwalt", "lawyer", "rechtsbeistand", "verklagen"]):
+    # Priorisierte Keywords für spezialisierte Agenten
+    if any(x in text for x in ["anwalt", "lawyer", "rechtsbeistand", "verklagen", "rechtsberatung"]):
         return "lawyer"
+    
+    if any(x in text for x in ["versicherung", "police", "schaden", "schadensmeldung", "kasko", "haftpflicht", "versichert"]):
+        return "insurance"
         
     if decision == "general":
         repair_keywords = ["werkstatt", "termin", "reparatur", "reifen", "ölwechsel", "inspektion"]
@@ -90,25 +94,31 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
     decision = _keyword_override(decision, user_message)
 
     active_agent = agent_session_state.get(session_id)
+    agent_changed = False
 
-    if active_agent and decision == "general":
-        log.info(f"Sticky Session: Bleibe bei Agent '{active_agent}'")
-        target_agent = active_agent
-    else:
-        if decision != "general":
+    # Entscheide Ziel-Agent
+    if decision != "general":
+        # User braucht einen spezialisierten Agenten
+        if active_agent != decision:
+            agent_changed = True
             log.info(f"Agent Wechsel/Start: {active_agent} -> {decision}")
-            agent_session_state[session_id] = decision
-            target_agent = decision
-        else:
-            target_agent = "general"
+        agent_session_state[session_id] = decision
+        target_agent = decision
+    else:
+        # User braucht keinen spezialisierten Agenten mehr -> zurück zu Tom
+        if active_agent and active_agent != "general":
+            agent_changed = True
+            log.info(f"Agent Wechsel zurück zu Tom: {active_agent} -> chatbot")
+            del agent_session_state[session_id]
+        target_agent = "general"
 
     
     def wrap_response(agent_name: str, result) -> Dict[str, Any]:
         if isinstance(result, dict):
             structured = result.get("structured") or {"intent": agent_name}
             resp = result.get("response") or result.get("output") or str(result)
-            return {"response": resp, "structured": structured, "agent": agent_name}
-        return {"response": str(result), "structured": {"intent": agent_name}, "agent": agent_name}
+            return {"response": resp, "structured": structured, "agent": agent_name, "agent_changed": agent_changed}
+        return {"response": str(result), "structured": {"intent": agent_name}, "agent": agent_name, "agent_changed": agent_changed}
 
     try:
         if target_agent == "lawyer":
@@ -126,9 +136,9 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
             res = run_repair_agent_with_memory(user_message, session_id)
             return wrap_response("repair", res)
 
-        else: # General
+        else: # General -> chatbot (Tom)
             res = handle_general_request(user_message)
-            return wrap_response("general", res)
+            return wrap_response("chatbot", res)
 
     except Exception as e:
         log.exception(f"Fehler im Agenten '{target_agent}': {e}")
