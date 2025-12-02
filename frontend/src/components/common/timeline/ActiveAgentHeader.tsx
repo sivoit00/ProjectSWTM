@@ -8,10 +8,10 @@ interface ActiveAgentHeaderProps {
 const getAgentDisplayName = (agentName: string): string => {
   const mapping: Record<string, string> = {
     chatbot: "Tom",
-    repair: "Werkstatt Agent",
+    repair: "Repair Agent",
     insurance: "Insurance Agent",
     lawyer: "Lawyer Agent",
-    user: "Sie",
+    user: "You",
   };
 
   const normalized = agentName.toLowerCase();
@@ -27,7 +27,7 @@ export default function ActiveAgentHeader({ currentAgent, hasActiveEvents }: Act
             <Bot size={12} className="text-white" />
           </div>
           <div>
-            <p className="text-[10px] text-gray-500">Aktiver Agent</p>
+            <p className="text-[10px] text-gray-500">Active Agent</p>
             <p className="text-xs font-semibold text-white">{getAgentDisplayName(currentAgent)}</p>
           </div>
         </div>
@@ -39,8 +39,8 @@ export default function ActiveAgentHeader({ currentAgent, hasActiveEvents }: Act
         )}
       </div>
       <div className="border-t border-gray-800 pt-2">
-        <h3 className="text-xs font-bold text-white">Auftrags-Verlauf</h3>
-        <p className="text-[10px] text-gray-400">Was wird gerade gemacht</p>
+        <h3 className="text-xs font-bold text-white">Activity Timeline</h3>
+        <p className="text-[10px] text-gray-400">What's happening right now</p>
       </div>
     </div>
   );

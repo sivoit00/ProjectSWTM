@@ -11,7 +11,6 @@ interface CustomerTimelineProps {
 }
 
 const isCustomerRelevant = (event: TimelineEvent): boolean => {
-  // Filtere nur Guardrails-Agent aus
   const agentLower = (event.agent || "").toLowerCase();
   
   if (agentLower.includes("guardrail")) {
@@ -36,7 +35,6 @@ export default function CustomerTimeline({ events: propEvents, onEventClick }: C
   const completedCount = events.filter(e => e.status === "completed").length;
   const totalCount = events.length;
   
-  // Zähle nur unique aktive Agenten (nicht Tasks)
   const activeAgents = new Set(
     events
       .filter(e => e.status === "working" || e.status === "active")
@@ -44,14 +42,12 @@ export default function CustomerTimeline({ events: propEvents, onEventClick }: C
   );
   const activeCount = activeAgents.size;
 
-  // Aktueller Agent ist der letzte mit "working" oder "active" Status
   const lastActiveEvent = [...events].reverse().find(e => e.status === "working" || e.status === "active");
   const currentAgent = lastActiveEvent?.agent || "Tom";
 
   const hasActiveEvents = events.some(e => e.status === "working" || e.status === "active");
   const lastTimestamp = events.length > 0 ? events[events.length - 1].timestamp : new Date();
 
-  // Auto-Collapse: Alte Events minimieren wenn mehr als 5 vorhanden
   const shouldAutoCollapse = (index: number) => {
     return events.length > 5 && index < events.length - 5;
   };
@@ -63,7 +59,6 @@ export default function CustomerTimeline({ events: propEvents, onEventClick }: C
         hasActiveEvents={hasActiveEvents} 
       />
 
-      {}
       <div className="flex-1 overflow-y-auto">
         {events.length === 0 ? (
           <EmptyState />
@@ -83,7 +78,6 @@ export default function CustomerTimeline({ events: propEvents, onEventClick }: C
         )}
       </div>
 
-      {}
       {events.length > 0 && (
         <TimelineFooter 
           completedCount={completedCount} 

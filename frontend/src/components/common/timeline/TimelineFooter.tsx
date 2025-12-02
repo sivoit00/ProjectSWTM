@@ -35,7 +35,7 @@ export default function TimelineFooter({
         <div className="mt-1.5 flex items-center justify-center gap-1.5 text-[10px] text-blue-400">
           <div className="w-1 h-1 rounded-full bg-blue-400 animate-pulse"></div>
           <span>
-            {activeCount} Agent(en) aktiv
+            {activeCount} Agent{activeCount > 1 ? 's' : ''} active
           </span>
         </div>
       )}

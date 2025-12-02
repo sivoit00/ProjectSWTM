@@ -7,9 +7,9 @@ export default function EmptyState() {
         <Clock size={24} className="mb-2 opacity-40" />
         <div className="absolute -top-1 -right-1 w-2 h-2 bg-gray-700 rounded-full animate-ping"></div>
       </div>
-      <p className="text-xs font-medium">Warte auf Aktivität</p>
+      <p className="text-xs font-medium">Waiting for Activity</p>
       <p className="text-[10px] mt-1 text-gray-600">
-        Agenten bereit für Ihre Anfrage
+        Agents ready for your request
       </p>
     </div>
   );

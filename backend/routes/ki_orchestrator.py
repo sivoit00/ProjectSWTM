@@ -110,7 +110,7 @@ async def ki_message(
 
     try:
         add_task("message_processing", "working", 
-                "Verarbeite Ihre Anfrage...", 
+                "Processing your request...", 
                 "Tom",
                 filtered_message[:50] + "..." if len(filtered_message) > 50 else filtered_message,
                 "task")
@@ -135,9 +135,9 @@ async def ki_message(
             bot_response = str(response_raw).lower()
         
         add_task("message_processing", "completed", 
-                "Antwort bereit", 
+                "Response ready", 
                 agent_type,
-                "Verarbeitung abgeschlossen",
+                "Processing completed",
                 "task")
         
         completion_keywords = [
@@ -157,35 +157,35 @@ async def ki_message(
                 # Update description
                 agent_name = step.get("agent", "").lower()
                 if "repair" in agent_name:
-                    step["description"] = "Werkstatt-Suche abgeschlossen"
+                    step["description"] = "Workshop search completed"
                 elif "lawyer" in agent_name:
-                    step["description"] = "Rechtsberatung abgeschlossen"
+                    step["description"] = "Legal consultation completed"
                 elif "insurance" in agent_name:
-                    step["description"] = "Versicherungsprüfung abgeschlossen"
+                    step["description"] = "Insurance review completed"
         
         if agent_changed:
             existing_tasks = [step.get("task") for step in agent_steps]
             
             if agent_type == "repair" and "werkstatt_suche" not in existing_tasks:
                 add_task("werkstatt_suche", "working", 
-                        "Werkstatt Agent übernimmt", 
+                        "Repair Agent taking over", 
                         "repair",
-                        "Suche nach passenden Werkstätten in Ihrer Nähe")
+                        "Searching for suitable workshops near you")
             elif agent_type == "lawyer" and "anwalt_suche" not in existing_tasks:
                 add_task("anwalt_suche", "working", 
-                        "Lawyer Agent übernimmt", 
+                        "Lawyer Agent taking over", 
                         "lawyer",
-                        "Suche nach qualifizierten Anwälten für rechtliche Beratung")
+                        "Searching for qualified lawyers for legal advice")
             elif agent_type == "insurance" and "versicherung_pruefung" not in existing_tasks:
                 add_task("versicherung_pruefung", "working", 
-                        "Insurance Agent übernimmt", 
+                        "Insurance Agent taking over", 
                         "insurance",
-                        "Prüfung Ihrer Versicherungsangelegenheit")
+                        "Reviewing your insurance matter")
             elif agent_type == "chatbot" and "tom_uebernimmt" not in existing_tasks:
                 add_task("tom_uebernimmt", "completed", 
-                        "Tom übernimmt wieder", 
+                        "Tom taking over again", 
                         "Tom",
-                        "Bereit für neue Anfragen")
+                        "Ready for new requests")
                         
         # Wenn Task abgeschlossen ist, setze working Tasks auf completed
         if task_completed and agent_type != "chatbot":

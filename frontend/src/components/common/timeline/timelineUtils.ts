@@ -25,11 +25,11 @@ export const getTaskIcon = (taskName: string) => {
 
 export const getStatusDisplay = (status: string): { label: string; color: string; icon: any } => {
   const statusMap: Record<string, { label: string; color: string; icon: any }> = {
-    pending: { label: "Wartend", color: "#9CA3AF", icon: Clock },
-    working: { label: "Läuft", color: "#3B82F6", icon: Loader },
-    sent: { label: "Gesendet", color: "#8B5CF6", icon: Send },
-    completed: { label: "Fertig", color: "#10B981", icon: CheckCircle2 },
-    active: { label: "Läuft", color: "#3B82F6", icon: Loader },
+    pending: { label: "Pending", color: "#9CA3AF", icon: Clock },
+    working: { label: "Running", color: "#3B82F6", icon: Loader },
+    sent: { label: "Sent", color: "#8B5CF6", icon: Send },
+    completed: { label: "Done", color: "#10B981", icon: CheckCircle2 },
+    active: { label: "Running", color: "#3B82F6", icon: Loader },
   };
 
   return statusMap[status] || statusMap.pending;

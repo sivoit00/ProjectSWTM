@@ -139,7 +139,7 @@ export default function TimelineItem({ event, index, totalCount, isAutoCollapsed
                 className="text-[10px] font-medium"
                 style={{ color: getAgentColor(event.agent) }}
               >
-                In Bearbeitung...
+                Processing...
               </span>
             </div>
           )}
@@ -148,7 +148,7 @@ export default function TimelineItem({ event, index, totalCount, isAutoCollapsed
             <div className="mt-1.5 flex items-center gap-1.5 animate-fadeIn">
               <CheckCircle2 size={12} className="text-green-400" />
               <span className="text-[10px] text-green-400 font-medium">
-                Abgeschlossen
+                Completed
               </span>
             </div>
           )}

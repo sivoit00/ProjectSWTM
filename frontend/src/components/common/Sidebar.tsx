@@ -73,7 +73,7 @@ export default function Sidebar({ onClearChat }: SidebarProps) {
             className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-red-600/20 hover:text-red-400 transition-colors w-full"
           >
             <Trash2 size={20} />
-            <span>Chat löschen</span>
+            <span>Clear Chat</span>
           </button>
         )}
         <button
