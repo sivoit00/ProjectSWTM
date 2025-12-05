@@ -25,7 +25,7 @@ export default function Sidebar({ onClearChat }: SidebarProps) {
     <div className="w-64 bg-gradient-to-b from-gray-800 to-gray-900 flex flex-col h-screen border-r border-gray-700">
       {/* Logo and title */}
       <div className="p-6 border-b border-gray-700">
-        <h1 className="text-2xl font-bold text-white">Tom'sClone</h1>
+        <h1 className="text-2xl font-bold text-white">MyClone</h1>
         <p className="text-sm text-gray-400 mt-1">AI-Powered Platform</p>
       </div>
 

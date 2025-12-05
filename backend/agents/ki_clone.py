@@ -14,6 +14,7 @@ llm = ChatOpenAI(temperature=0.0, model="gpt-5-mini")
 
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 
+# Globaler State für aktive Sessions
 agent_session_state = {}
 
 def _load_template(name: str) -> str:
@@ -62,6 +63,7 @@ def _keyword_override(decision: str, text: str) -> str:
     if any(x in text for x in ["versicherung", "police", "schaden", "schadensmeldung", "kasko", "haftpflicht", "versichert"]):
         return "insurance"
         
+    # Repair Override nur, wenn Entscheidung nicht schon Lawyer oder Insurance ist
     if decision == "general":
         repair_keywords = ["werkstatt", "termin", "reparatur", "reifen", "ölwechsel", "inspektion"]
         if any(k in text for k in repair_keywords):
@@ -70,7 +72,7 @@ def _keyword_override(decision: str, text: str) -> str:
     return decision
 
 def handle_general_request(user_message: str) -> Dict[str, Any]:
-    sys_msg = "Du bist ein hilfreicher Assistent. Antworte kurz und prägnant."
+    sys_msg = "Du bist ein hilfreicher Assistent namens Tom. Antworte kurz und prägnant."
     messages = [("system", sys_msg), ("human", user_message)]
     resp = llm.invoke(messages)
     return {"response": resp.content, "structured": {"intent": "general"}}
@@ -85,33 +87,53 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
     user_name = user_context.get("name", "User")
     log.info(f"Orchestrator Routing: '{user_message}' | User: {user_name} | Session: {session_id}")
 
-    if user_message.lower().strip() in ["stop", "abbruch", "ende", "reset", "neues thema"]:
+    # 1. HARD RESET LOGIK (Muss immer Vorrang haben)
+    if user_message.lower().strip() in ["stop", "abbruch", "ende", "reset", "neues thema", "exit"]:
         if session_id in agent_session_state:
             del agent_session_state[session_id]
-        return {"response": "Gespräch zurückgesetzt. Wie kann ich helfen?", "structured": {"intent": "reset"}, "agent": "reset"}
+        return {"response": "Gespräch zurückgesetzt. Ich bin wieder im allgemeinen Modus. Wie kann ich helfen?", "structured": {"intent": "reset"}, "agent": "reset", "agent_changed": True}
 
+    # 2. KI ENTSCHEIDUNG
     decision = _get_routing_decision(user_message)
     decision = _keyword_override(decision, user_message)
 
     active_agent = agent_session_state.get(session_id)
     agent_changed = False
+    target_agent = "general"
 
-    # Entscheide Ziel-Agent
-    if decision != "general":
-        # User braucht einen spezialisierten Agenten
-        if active_agent != decision:
+    # 3. ROUTING LOGIK (STICKY FIX)
+    
+    # FALL A: Wir haben bereits einen aktiven Agenten (z.B. Lawyer)
+    if active_agent:
+        # Wenn die KI sagt "general" (z.B. User sagt nur "Ja" oder "Gestern"),
+        # dann bleiben wir beim aktiven Agenten! (Sticky Behavior)
+        if decision == "general":
+            target_agent = active_agent
+            log.info(f"Sticky Session: Bleibe bei '{active_agent}' trotz KI-Entscheidung 'general'")
+        
+        # Wenn die KI explizit einen ANDEREN Agenten erkennt (z.B. "Ich brauche doch eine Werkstatt"),
+        # dann wechseln wir.
+        elif decision != active_agent:
+            target_agent = decision
+            agent_session_state[session_id] = decision
             agent_changed = True
-            log.info(f"Agent Wechsel/Start: {active_agent} -> {decision}")
-        agent_session_state[session_id] = decision
-        target_agent = decision
+            log.info(f"Agent Wechsel: {active_agent} -> {decision}")
+        
+        # Wenn die KI denselben Agenten erkennt, bleiben wir natürlich da.
+        else:
+            target_agent = active_agent
+
+    # FALL B: Kein aktiver Agent (Start)
     else:
-        # User braucht keinen spezialisierten Agenten mehr -> zurück zu Tom
-        if active_agent and active_agent != "general":
+        if decision != "general":
+            target_agent = decision
+            agent_session_state[session_id] = decision
             agent_changed = True
-            log.info(f"Agent Wechsel zurück zu Tom: {active_agent} -> chatbot")
-            del agent_session_state[session_id]
-        target_agent = "general"
+            log.info(f"Agent Start: {decision}")
+        else:
+            target_agent = "chatbot" # Tom
 
+    # --- DISPATCHER ---
     
     def wrap_response(agent_name: str, result) -> Dict[str, Any]:
         if isinstance(result, dict):
@@ -122,8 +144,8 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
 
     try:
         if target_agent == "lawyer":
+            # Session ID weitergeben für Lawyer-Gedächtnis
             user_context["session_id"] = session_id 
-            
             res = handle_lawyer_request(user_message, user_context)
             return wrap_response("lawyer", res)
 
@@ -136,7 +158,7 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
             res = run_repair_agent_with_memory(user_message, session_id)
             return wrap_response("repair", res)
 
-        else: # General -> chatbot (Tom)
+        else: # General -> chatbot
             res = handle_general_request(user_message)
             return wrap_response("chatbot", res)
 
