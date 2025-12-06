@@ -54,7 +54,7 @@ export const getAgentColor = (agentName: string | undefined): string => {
   const normalized = agentName.toLowerCase();
   
   // Agent-spezifische Farben
-  if (normalized.includes("tom") || normalized.includes("chatbot")) return "#3B82F6"; // Blau
+  if (normalized.includes("ki clone") || normalized.includes("chatbot")) return "#3B82F6"; // Blau
   if (normalized.includes("repair") || normalized.includes("werkstatt")) return "#10B981"; // Grün
   if (normalized.includes("lawyer") || normalized.includes("anwalt")) return "#8B5CF6"; // Lila
   if (normalized.includes("insurance") || normalized.includes("versicherung")) return "#F59E0B"; // Orange
