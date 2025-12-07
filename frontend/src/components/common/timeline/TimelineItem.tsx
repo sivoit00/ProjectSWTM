@@ -5,7 +5,7 @@ import { getTaskIcon, getStatusDisplay, getTaskColor, getAgentColor, formatTime 
 export interface TimelineEvent {
   task: string;
   timestamp: string | Date;
-  status: "pending" | "working" | "sent" | "completed" | "active";
+  status: "pending" | "working" | "sent" | "completed" | "active" | "standby" | "idle" | "disabled" | "done";
   description: string;
   details?: string;
   agent?: string;

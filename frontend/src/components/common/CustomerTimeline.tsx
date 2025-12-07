@@ -17,6 +17,10 @@ const isCustomerRelevant = (event: TimelineEvent): boolean => {
     return false;
   }
 
+  if (event.status === "standby" && (agentLower.includes("tom") || agentLower.includes("chatbot"))) {
+    return false;
+  }
+
   return true;
 };
 
@@ -35,17 +39,14 @@ export default function CustomerTimeline({ events: propEvents, onEventClick }: C
   const completedCount = events.filter(e => e.status === "completed").length;
   const totalCount = events.length;
   
-  const activeAgents = new Set(
-    events
-      .filter(e => e.status === "working" || e.status === "active")
-      .map(e => e.agent)
+  const activeAgents = events.filter(e => 
+    (e.status === "working" || e.status === "active") &&
+    e.event_type !== "internal"
   );
-  const activeCount = activeAgents.size;
-
-  const lastActiveEvent = [...events].reverse().find(e => e.status === "working" || e.status === "active");
+  
+  const lastActiveEvent = activeAgents.length > 0 ? activeAgents[activeAgents.length - 1] : null;
   const currentAgent = lastActiveEvent?.agent || "Tom";
-
-  const hasActiveEvents = events.some(e => e.status === "working" || e.status === "active");
+  const hasActiveEvents = activeAgents.length > 0;
   const lastTimestamp = events.length > 0 ? events[events.length - 1].timestamp : new Date();
 
   const shouldAutoCollapse = (index: number) => {
@@ -82,7 +83,7 @@ export default function CustomerTimeline({ events: propEvents, onEventClick }: C
         <TimelineFooter 
           completedCount={completedCount} 
           totalCount={totalCount} 
-          activeCount={activeCount} 
+          hasActiveAgent={hasActiveEvents} 
           lastTimestamp={lastTimestamp} 
         />
       )}

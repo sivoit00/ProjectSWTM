@@ -27,7 +27,7 @@ export default function ActiveAgentHeader({ currentAgent, hasActiveEvents }: Act
             <Bot size={12} className="text-white" />
           </div>
           <div>
-            <p className="text-[10px] text-gray-500">Active Agent</p>
+            <p className="text-[10px] text-gray-500">Aktiver Agent</p>
             <p className="text-xs font-semibold text-white">{getAgentDisplayName(currentAgent)}</p>
           </div>
         </div>

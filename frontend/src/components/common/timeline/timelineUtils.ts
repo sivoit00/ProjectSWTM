@@ -30,6 +30,10 @@ export const getStatusDisplay = (status: string): { label: string; color: string
     sent: { label: "Sent", color: "#8B5CF6", icon: Send },
     completed: { label: "Done", color: "#10B981", icon: CheckCircle2 },
     active: { label: "Running", color: "#3B82F6", icon: Loader },
+    standby: { label: "Standby", color: "#6B7280", icon: Clock },
+    idle: { label: "Idle", color: "#6B7280", icon: Clock },
+    disabled: { label: "Disabled", color: "#4B5563", icon: Clock },
+    done: { label: "Done", color: "#10B981", icon: CheckCircle2 },
   };
 
   return statusMap[status] || statusMap.pending;

@@ -4,13 +4,14 @@ routes/admin_guardrails.py
 Admin-Endpoints für das Support-Team zum Einsehen von Guardrails-Logs
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 from database import SessionLocal
 from models.guardrails_log import GuardrailsLog
 from sqlalchemy import desc
+from auth.dependencies import require_role
 
 router = APIRouter()
 
@@ -41,7 +42,8 @@ def get_guardrails_logs(
     severity: Optional[str] = Query(None, description="Filter by severity: LOW, MEDIUM, HIGH, CRITICAL"),
     reviewed: Optional[bool] = Query(None, description="Filter by reviewed status"),
     limit: int = Query(50, le=500, description="Max number of logs to return"),
-    skip: int = Query(0, description="Number of logs to skip")
+    skip: int = Query(0, description="Number of logs to skip"),
+    current_user: dict = Depends(require_role("admin"))
 ):
     """
     Abrufen aller Guardrails-Logs für das Support-Team.
@@ -70,7 +72,10 @@ def get_guardrails_logs(
 
 
 @router.get("/logs/{log_id}", response_model=GuardrailsLogResponse)
-def get_guardrails_log(log_id: int):
+def get_guardrails_log(
+    log_id: int,
+    current_user: dict = Depends(require_role("admin"))
+):
     """Einzelnen Guardrails-Log abrufen"""
     try:
         db = SessionLocal()
@@ -93,7 +98,11 @@ class ReviewLogRequest(BaseModel):
 
 
 @router.patch("/logs/{log_id}/review")
-def review_log(log_id: int, req: ReviewLogRequest):
+def review_log(
+    log_id: int,
+    req: ReviewLogRequest,
+    current_user: dict = Depends(require_role("admin"))
+):
     """
     Markiere einen Log als überprüft.
     Support-Team kann damit anzeigen, dass sie die Nachricht gesehen haben.
