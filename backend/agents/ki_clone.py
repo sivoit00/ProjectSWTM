@@ -52,7 +52,7 @@ def _get_routing_decision(text: str) -> str:
         return "general"
 
 def _keyword_override(decision: str, text: str) -> str:
-    """Zwingt Entscheidung bei sehr eindeutigen Keywords"""
+    """Zwingt Entscheidung bei sehr eindeutigen Keywords, WENN wir noch unsicher sind."""
     text = text.lower()
     
     if any(x in text for x in ["anwalt", "lawyer", "rechtsbeistand", "verklagen", "rechtsberatung"]):
@@ -69,7 +69,7 @@ def _keyword_override(decision: str, text: str) -> str:
     return decision
 
 def handle_general_request(user_message: str) -> Dict[str, Any]:
-    sys_msg = "Du bist ein hilfreicher Assistent namens Tom. Antworte kurz und prägnant."
+    sys_msg = "Du bist ein hilfreicher Assistent. Antworte kurz und prägnant."
     messages = [("system", sys_msg), ("human", user_message)]
     resp = llm.invoke(messages)
     return {"response": resp.content, "structured": {"intent": "general"}}
@@ -80,45 +80,52 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
 
     user_email = user_context.get("email")
     session_id = user_context.get("session_id") or user_email or "default_session"
-    
     user_name = user_context.get("name", "User")
-    log.info(f"Orchestrator Routing: '{user_message}' | User: {user_name} | Session: {session_id}")
+    
+    log.info(f"Orchestrator: '{user_message}' | User: {user_name} | Session: {session_id}")
 
     if user_message.lower().strip() in ["stop", "abbruch", "ende", "reset", "neues thema", "exit"]:
         if session_id in agent_session_state:
             del agent_session_state[session_id]
-        return {"response": "Gespräch zurückgesetzt. Ich bin wieder im allgemeinen Modus. Wie kann ich helfen?", "structured": {"intent": "reset"}, "agent": "reset", "agent_changed": True}
-
-    decision = _get_routing_decision(user_message)
-    decision = _keyword_override(decision, user_message)
+        return {"response": "Gespräch zurückgesetzt. Wie kann ich helfen?", "structured": {"intent": "reset"}, "agent": "reset", "agent_changed": True}
 
     active_agent = agent_session_state.get(session_id)
-    agent_changed = False
     target_agent = "general"
+    agent_changed = False
+
+    decision = _get_routing_decision(user_message)
+    
+    decision_with_keywords = _keyword_override(decision, user_message)
 
     if active_agent:
         if decision == "general":
+            log.info(f"Sticky: Bleibe bei '{active_agent}', da Router 'general' sagt.")
             target_agent = active_agent
-            log.info(f"Sticky Session: Bleibe bei '{active_agent}' trotz KI-Entscheidung 'general'")
-        
+            
         elif decision != active_agent:
-            target_agent = decision
-            agent_session_state[session_id] = decision
-            agent_changed = True
-            log.info(f"Agent Wechsel: {active_agent} -> {decision}")
+            if decision_with_keywords != decision: 
+                 log.info(f"Context Switch durch Keyword: {active_agent} -> {decision_with_keywords}")
+                 target_agent = decision_with_keywords
+                 agent_session_state[session_id] = target_agent
+                 agent_changed = True
+            else:
+                log.info(f"Context Switch durch KI: {active_agent} -> {decision}")
+                target_agent = decision
+                agent_session_state[session_id] = target_agent
+                agent_changed = True
         
         else:
             target_agent = active_agent
 
     else:
-        if decision != "general":
-            target_agent = decision
-            agent_session_state[session_id] = decision
+        target_agent = decision_with_keywords
+        
+        if target_agent != "general":
+            log.info(f"Neue Session gestartet: {target_agent}")
+            agent_session_state[session_id] = target_agent
             agent_changed = True
-            log.info(f"Agent Start: {decision}")
         else:
-            target_agent = "chatbot"
-
+            pass
     
     def wrap_response(agent_name: str, result) -> Dict[str, Any]:
         if isinstance(result, dict):
@@ -143,6 +150,8 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
             return wrap_response("repair", res)
 
         else:
+            if session_id in agent_session_state:
+                del agent_session_state[session_id]
             res = handle_general_request(user_message)
             return wrap_response("chatbot", res)
 
