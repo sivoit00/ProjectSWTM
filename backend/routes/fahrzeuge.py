@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import SessionLocal
-from models import Fahrzeug
+from models import Fahrzeug, Kunde
 from schemas import Fahrzeug as FahrzeugSchema, FahrzeugCreate
 from auth.dependencies import get_current_user
 
@@ -21,7 +21,15 @@ def get_fahrzeuge(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    return db.query(Fahrzeug).all()
+    if "admin" in current_user.get("roles", []):
+        return db.query(Fahrzeug).all()
+    
+    user_email = current_user.get("email")
+    if user_email:
+        kunde = db.query(Kunde).filter(Kunde.email == user_email).first()
+        if kunde:
+            return db.query(Fahrzeug).filter(Fahrzeug.kunde_id == kunde.id).all()
+    return []
 
 
 @router.post("", response_model=FahrzeugSchema)
