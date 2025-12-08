@@ -3,11 +3,12 @@ import { Bot } from "lucide-react";
 interface ActiveAgentHeaderProps {
   currentAgent: string;
   hasActiveEvents: boolean;
+  userName?: string;
 }
 
-const getAgentDisplayName = (agentName: string): string => {
+const getAgentDisplayName = (agentName: string, userName?: string): string => {
   const mapping: Record<string, string> = {
-    chatbot: "Tom",
+    chatbot: userName ? `${userName}'s Agent` : "Your Agent",
     repair: "Repair Agent",
     insurance: "Insurance Agent",
     lawyer: "Lawyer Agent",
@@ -18,7 +19,7 @@ const getAgentDisplayName = (agentName: string): string => {
   return mapping[normalized] || agentName;
 };
 
-export default function ActiveAgentHeader({ currentAgent, hasActiveEvents }: ActiveAgentHeaderProps) {
+export default function ActiveAgentHeader({ currentAgent, hasActiveEvents, userName }: ActiveAgentHeaderProps) {
   return (
     <div className="mb-3">
       <div className="flex items-center justify-between mb-2">
@@ -28,7 +29,7 @@ export default function ActiveAgentHeader({ currentAgent, hasActiveEvents }: Act
           </div>
           <div>
             <p className="text-[10px] text-gray-500">Active Agent</p>
-            <p className="text-xs font-semibold text-white">{getAgentDisplayName(currentAgent)}</p>
+            <p className="text-xs font-semibold text-white">{getAgentDisplayName(currentAgent, userName)}</p>
           </div>
         </div>
         {hasActiveEvents && (

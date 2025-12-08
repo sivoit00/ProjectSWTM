@@ -8,6 +8,7 @@ import "./CustomerTimeline.css";
 interface CustomerTimelineProps {
   events: TimelineEvent[];
   onEventClick?: (messageId: string) => void;
+  userName?: string;
 }
 
 const isCustomerRelevant = (event: TimelineEvent): boolean => {
@@ -17,12 +18,16 @@ const isCustomerRelevant = (event: TimelineEvent): boolean => {
     return false;
   }
 
+  if (event.status === "standby" && (agentLower.includes("tom") || agentLower.includes("chatbot"))) {
+    return false;
+  }
+
   return true;
 };
 
 export type { TimelineEvent };
 
-export default function CustomerTimeline({ events: propEvents, onEventClick }: CustomerTimelineProps) {
+export default function CustomerTimeline({ events: propEvents, onEventClick, userName }: CustomerTimelineProps) {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
 
   useEffect(() => {
@@ -35,17 +40,14 @@ export default function CustomerTimeline({ events: propEvents, onEventClick }: C
   const completedCount = events.filter(e => e.status === "completed").length;
   const totalCount = events.length;
   
-  const activeAgents = new Set(
-    events
-      .filter(e => e.status === "working" || e.status === "active")
-      .map(e => e.agent)
+  const activeAgents = events.filter(e => 
+    (e.status === "working" || e.status === "active") &&
+    e.event_type !== "internal"
   );
-  const activeCount = activeAgents.size;
-
-  const lastActiveEvent = [...events].reverse().find(e => e.status === "working" || e.status === "active");
-  const currentAgent = lastActiveEvent?.agent || "Tom";
-
-  const hasActiveEvents = events.some(e => e.status === "working" || e.status === "active");
+  
+  const lastActiveEvent = activeAgents.length > 0 ? activeAgents[activeAgents.length - 1] : null;
+  const currentAgent = lastActiveEvent?.agent || "chatbot";
+  const hasActiveEvents = activeAgents.length > 0;
   const lastTimestamp = events.length > 0 ? events[events.length - 1].timestamp : new Date();
 
   const shouldAutoCollapse = (index: number) => {
@@ -56,7 +58,8 @@ export default function CustomerTimeline({ events: propEvents, onEventClick }: C
     <div className="flex flex-col h-full bg-gray-900 p-3">
       <ActiveAgentHeader 
         currentAgent={currentAgent} 
-        hasActiveEvents={hasActiveEvents} 
+        hasActiveEvents={hasActiveEvents}
+        userName={userName}
       />
 
       <div className="flex-1 overflow-y-auto">
@@ -82,7 +85,7 @@ export default function CustomerTimeline({ events: propEvents, onEventClick }: C
         <TimelineFooter 
           completedCount={completedCount} 
           totalCount={totalCount} 
-          activeCount={activeCount} 
+          hasActiveAgent={hasActiveEvents} 
           lastTimestamp={lastTimestamp} 
         />
       )}

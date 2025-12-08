@@ -3,7 +3,7 @@ import { Loader2 } from "lucide-react";
 interface TimelineFooterProps {
   completedCount: number;
   totalCount: number;
-  activeCount: number;
+  hasActiveAgent: boolean;
   lastTimestamp: string | Date;
 }
 
@@ -18,7 +18,7 @@ const formatTime = (timestamp: string | Date) => {
 export default function TimelineFooter({ 
   completedCount, 
   totalCount, 
-  activeCount,
+  hasActiveAgent,
   lastTimestamp 
 }: TimelineFooterProps) {
   if (totalCount === 0) return null;
@@ -30,15 +30,6 @@ export default function TimelineFooter({
           {formatTime(lastTimestamp)}
         </span>
       </div>
-      
-      {activeCount > 0 && (
-        <div className="mt-1.5 flex items-center justify-center gap-1.5 text-[10px] text-blue-400">
-          <div className="w-1 h-1 rounded-full bg-blue-400 animate-pulse"></div>
-          <span>
-            {activeCount} Agent{activeCount > 1 ? 's' : ''} active
-          </span>
-        </div>
-      )}
     </div>
   );
 }

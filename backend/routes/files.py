@@ -1,9 +1,10 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from fastapi.responses import FileResponse
 from typing import List
 import os
 import uuid
 from datetime import datetime
+from auth.dependencies import get_current_user
 
 router = APIRouter(prefix="/files", tags=["files"])
 
@@ -19,7 +20,10 @@ def is_allowed_file(filename: str) -> bool:
     return ext in ALLOWED_EXTENSIONS
 
 @router.post("/upload")
-async def upload_files(files: List[UploadFile] = File(...)):
+async def upload_files(
+    files: List[UploadFile] = File(...),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Upload multiple files (images or PDFs)
     
