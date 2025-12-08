@@ -54,6 +54,16 @@ export interface Werkstatt {
   ort: string; 
 }
 
+export interface NotificationItem {
+  id: number;
+  title: string;
+  message: string;
+  type: string;
+  data: any; 
+  created_at: string;
+  is_read: boolean;
+}
+
 export const api = {
   customers: {
     getAll: () => apiClient.get<Kunde[]>('/kunden'),
@@ -102,6 +112,10 @@ export const api = {
     return apiClient.post<{ response: string; structured: any; agent?: string }>('/ki-orchestrator/message', body);
   },
 
+  notifications: {
+    getAll: (userId: string) => apiClient.get<NotificationItem[]>(`/notifications/list/${userId}`),
+    markRead: (id: number) => apiClient.post(`/notifications/mark-read/${id}`),
+  },
  
   getKunden: () => apiClient.get<Kunde[]>('/kunden'),
   createKunde: (kunde: Omit<Kunde, 'id'>) => apiClient.post<Kunde>('/kunden', kunde),
