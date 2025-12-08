@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from database import SessionLocal
 from models import Fahrzeug
 from schemas import Fahrzeug as FahrzeugSchema, FahrzeugCreate
+from auth.dependencies import get_current_user
 
 router = APIRouter()
 
@@ -16,12 +17,19 @@ def get_db():
 
 
 @router.get("", response_model=list[FahrzeugSchema])
-def get_fahrzeuge(db: Session = Depends(get_db)):
+def get_fahrzeuge(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     return db.query(Fahrzeug).all()
 
 
 @router.post("", response_model=FahrzeugSchema)
-def create_fahrzeug(fahrzeug: FahrzeugCreate, db: Session = Depends(get_db)):
+def create_fahrzeug(
+    fahrzeug: FahrzeugCreate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     neues_fahrzeug = Fahrzeug(**fahrzeug.dict())
     db.add(neues_fahrzeug)
     db.commit()
@@ -30,7 +38,11 @@ def create_fahrzeug(fahrzeug: FahrzeugCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/{fahrzeug_id}", response_model=FahrzeugSchema)
-def get_fahrzeug(fahrzeug_id: int, db: Session = Depends(get_db)):
+def get_fahrzeug(
+    fahrzeug_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     fahrzeug = db.query(Fahrzeug).filter(Fahrzeug.id == fahrzeug_id).first()
     if not fahrzeug:
         raise HTTPException(status_code=404, detail="Vehicle not found")

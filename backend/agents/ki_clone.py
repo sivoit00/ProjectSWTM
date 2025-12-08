@@ -71,8 +71,11 @@ def _keyword_override(decision: str, text: str) -> str:
             
     return decision
 
-def handle_general_request(user_message: str) -> Dict[str, Any]:
-    sys_msg = "Du bist ein hilfreicher Assistent namens Tom. Antworte kurz und prägnant."
+def handle_general_request(user_message: str, user_name: str = None) -> Dict[str, Any]:
+    if user_name:
+        sys_msg = f"Du bist der persönliche Assistent von {user_name}. Antworte kurz und prägnant."
+    else:
+        sys_msg = "Du bist ein hilfreicher Assistent. Antworte kurz und prägnant."
     messages = [("system", sys_msg), ("human", user_message)]
     resp = llm.invoke(messages)
     return {"response": resp.content, "structured": {"intent": "general"}}

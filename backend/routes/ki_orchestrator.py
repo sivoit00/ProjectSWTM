@@ -1,14 +1,14 @@
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Header, Depends
 from pydantic import BaseModel
 import anyio
 import logging
 from typing import Optional, Dict, Any, List
-from jose import jwt
 from agents.ki_clone import route_message 
 from agents.repair_chat_agent import clear_session_memory
 from services.guardrails_service import validate_request
 import uuid
 from datetime import datetime, timezone
+from auth.dependencies import get_optional_user
 
 router = APIRouter()
 log = logging.getLogger(__name__)
@@ -23,36 +23,16 @@ class AgentStep(BaseModel):
     status: str
     description: str
 
-def extract_user_from_header(auth_header: Optional[str]) -> Dict[str, Any]:
-    """
-    Liest Name und Email aus dem Keycloak-Token, falls vorhanden.
-    """
-    default_context = {"name": None, "email": None, "user_id": None}
-    
-    if not auth_header:
-        return default_context
-
-    try:
-        token = auth_header.split(" ")[1]
-        payload = jwt.get_unverified_claims(token)
-        
-        return {
-            "name": payload.get("name") or payload.get("preferred_username"),
-            "email": payload.get("email"),
-            "user_id": payload.get("sub")
-        }
-    except Exception as e:
-        log.warning(f"Konnte User-Token nicht lesen: {e}")
-        return default_context
-
 @router.post("/message")
 async def ki_message(
     req: KIMessage,
-    authorization: Optional[str] = Header(None) 
+    user_context: Optional[dict] = Depends(get_optional_user)
 ):
     log.info("KI-Orchestrator received message: %s", req.message)
-    user_context = extract_user_from_header(authorization)
+    if not user_context:
+        user_context = {"name": None, "email": None, "user_id": None}
     
+    user_name = user_context.get("name") or "Your"
     agent_steps: List[Dict[str, Any]] = []
     
     def add_task(task: str, status: str, description: str, agent: str = None, details: str = None, event_type: str = "task"):
@@ -134,11 +114,12 @@ async def ki_message(
         else:
             bot_response = str(response_raw).lower()
         
-        add_task("message_processing", "completed", 
-                "Response ready", 
-                agent_type,
-                "Processing completed",
-                "task")
+        if agent_changed:
+            add_task("message_processing", "completed", 
+                    "Agent handover completed", 
+                    agent_type,
+                    "Processing completed",
+                    "task")
         
         completion_keywords = [
             "gern geschehen", "viel erfolg", "weitere fragen", 
@@ -149,19 +130,18 @@ async def ki_message(
         ]
         task_completed = any(keyword in bot_response for keyword in completion_keywords)
         
-       
-        # Setze ALLE vorherigen working Tasks auf completed, außer vom aktuellen Agent
         for step in agent_steps:
             if step.get("status") == "working" and step.get("agent") != agent_type:
-                step["status"] = "completed"
-                # Update description
+                step["status"] = "standby"
                 agent_name = step.get("agent", "").lower()
                 if "repair" in agent_name:
-                    step["description"] = "Workshop search completed"
+                    step["description"] = "Workshop agent on standby"
                 elif "lawyer" in agent_name:
-                    step["description"] = "Legal consultation completed"
+                    step["description"] = "Lawyer agent on standby"
                 elif "insurance" in agent_name:
-                    step["description"] = "Insurance review completed"
+                    step["description"] = "Insurance agent on standby"
+                elif "tom" in agent_name or "chatbot" in agent_name:
+                    step["description"] = "Tom on standby"
         
         if agent_changed:
             existing_tasks = [step.get("task") for step in agent_steps]
@@ -183,26 +163,36 @@ async def ki_message(
                         "Reviewing your insurance matter")
             elif agent_type == "chatbot" and "tom_uebernimmt" not in existing_tasks:
                 add_task("tom_uebernimmt", "completed", 
-                        "Tom taking over again", 
-                        "Tom",
+                        f"{user_name}'s Agent taking over again", 
+                        "chatbot",
                         "Ready for new requests")
                         
-        # Wenn Task abgeschlossen ist, setze working Tasks auf completed
         if task_completed and agent_type != "chatbot":
-            # Finde den working Task des aktuellen Agenten und setze auf completed
             for step in agent_steps:
                 if step.get("agent") == agent_type and step.get("status") == "working":
-                    step["status"] = "completed"
-                    # Update description für abgeschlossene Tasks
+                    step["status"] = "standby"
                     if agent_type == "repair":
-                        step["description"] = "Werkstatt-Suche abgeschlossen"
-                        step["details"] = "Alle Informationen bereitgestellt"
+                        step["description"] = "Workshop search completed"
+                        step["details"] = "All information provided"
                     elif agent_type == "lawyer":
-                        step["description"] = "Rechtsberatung abgeschlossen"
-                        step["details"] = "Anwaltsinformationen bereitgestellt"
+                        step["description"] = "Legal consultation completed"
+                        step["details"] = "Lawyer information provided"
                     elif agent_type == "insurance":
-                        step["description"] = "Versicherungsprüfung abgeschlossen"
-                        step["details"] = "Prüfung erfolgreich durchgeführt"
+                        step["description"] = "Insurance review completed"
+                        step["details"] = "Review successfully completed"
+            
+            tom_active = False
+            for step in agent_steps:
+                if step.get("agent") in ["chatbot", "Tom"] and step.get("status") == "working":
+                    tom_active = True
+                    break
+            
+            if not tom_active:
+                add_task("tom_active", "working", 
+                        f"{user_name}'s Agent taking over", 
+                        "chatbot",
+                        "Ready for your next request",
+                        "task")
         
         # Stelle sicher, dass response ein String ist
         if isinstance(result.get("response"), dict):

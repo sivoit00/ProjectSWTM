@@ -3,6 +3,7 @@ import ChatHeader from "./components/ChatHeader";
 import MessageList from "./components/MessageList";
 import ChatInput from "./components/ChatInput";
 import { useChatState } from "./hooks/useChatState";
+import keycloak from "../../keycloak";
 
 
 export default function Chat() {
@@ -18,6 +19,8 @@ export default function Chat() {
     allAgentSteps,
     handleSend,
   } = useChatState();
+
+  const userName = keycloak.tokenParsed?.preferred_username || keycloak.tokenParsed?.name;
 
   const handleTimelineEventClick = (messageId: string) => {
     const element = document.getElementById(messageId);
@@ -50,7 +53,7 @@ export default function Chat() {
 
       {/* Rechte Spalte: Timeline */}
       <div className="w-2/5 bg-gray-900">
-        <CustomerTimeline events={allAgentSteps} onEventClick={handleTimelineEventClick} />
+        <CustomerTimeline events={allAgentSteps} onEventClick={handleTimelineEventClick} userName={userName} />
       </div>
     </div>
   );
