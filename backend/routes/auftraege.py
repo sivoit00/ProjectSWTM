@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import SessionLocal
-from models import Auftrag
+from models import Auftrag, Kunde
 from schemas import Auftrag as AuftragSchema, AuftragCreate
 from datetime import date
 from auth.dependencies import get_current_user
@@ -22,7 +22,15 @@ def get_auftraege(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    return db.query(Auftrag).all()
+    if "admin" in current_user.get("roles", []):
+        return db.query(Auftrag).all()
+    
+    user_email = current_user.get("email")
+    if user_email:
+        kunde = db.query(Kunde).filter(Kunde.email == user_email).first()
+        if kunde:
+            return db.query(Auftrag).filter(Auftrag.kunde_id == kunde.id).all()
+    return []
 
 
 @router.post("", response_model=AuftragSchema)

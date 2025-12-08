@@ -21,7 +21,13 @@ def get_kunden(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    return db.query(Kunde).all()
+    if "admin" in current_user.get("roles", []):
+        return db.query(Kunde).all()
+    
+    user_email = current_user.get("email")
+    if user_email:
+        return db.query(Kunde).filter(Kunde.email == user_email).all()
+    return []
 
 
 @router.post("", response_model=KundeSchema)
