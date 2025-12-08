@@ -23,7 +23,6 @@ export function useChatState() {
   
   const userId = keycloak.tokenParsed?.sub || "anonymous";
 
-  // Lade Chat-History und Timeline beim Start
   useEffect(() => {
     loadChatHistory();
     const savedSteps = localStorage.getItem(`timeline_${userId}`);
@@ -36,14 +35,12 @@ export function useChatState() {
     }
   }, [userId]);
 
-  // Clear Chat Trigger von Sidebar
   useEffect(() => {
     if (clearChatTrigger > 0) {
       handleClearChat();
     }
   }, [clearChatTrigger]);
 
-  // Speichere Timeline in localStorage
   useEffect(() => {
     if (allAgentSteps.length > 0) {
       localStorage.setItem(`timeline_${userId}`, JSON.stringify(allAgentSteps));
@@ -90,13 +87,14 @@ export function useChatState() {
     }
   };
 
-  const handleSend = async () => {
-    if ((!input.trim() && selectedFiles.length === 0) || loading) return;
+  const handleSend = async (overrideText?: string, isSystemInjection = false) => {
+    const textToSend = overrideText || input.trim();
+    if ((!textToSend && selectedFiles.length === 0) || loading) return;
 
-    const userMessage = input.trim();
     let uploadedFileNames: string[] = [];
-
     setLoading(true);
+
+    if (!overrideText) setInput("");
 
     try {
       if (selectedFiles.length > 0) {
@@ -106,42 +104,38 @@ export function useChatState() {
         setShowFileUpload(false);
       }
 
-      const messageText = userMessage || `[${selectedFiles.length} file(s) uploaded]`;
+      const displayText = isSystemInjection 
+        ? "📩 E-Mail Update: Analysiere eingegangene Antwort..." 
+        : (textToSend || `[${uploadedFileNames.length} file(s) uploaded]`);
+
       const userMsgId = `msg-${Date.now()}-user`;
-      setMessages((prev) => [...prev, { id: userMsgId, sender: "User", text: messageText, files: uploadedFileNames }]);
-      setInput("");
-
-      await saveMessageToHistory("User", messageText);
-
-      const res = await api.sendToKI({ message: userMessage });
       
+      const newUserMsg: Message = { 
+          id: userMsgId, 
+          sender: "User", 
+          text: displayText, 
+          files: uploadedFileNames 
+      };
+
+      setMessages((prev) => [...prev, newUserMsg]);
+      saveMessageToHistory("User", displayText);
+
+      const res = await api.sendToKI({ message: textToSend });
       const answer = res.data?.response ?? "No response received";
       const agentSteps = (res.data as any)?.agent_steps || [];
       
-      console.log("🔍 Backend Response:", res.data);
-      console.log("🔍 Agent Steps received:", agentSteps);
-      
+      console.log("KI Antwort erhalten:", answer);
+
       const botMsgId = `msg-${Date.now()}-bot`;
-      
-      // Verknüpfe Timeline-Events mit Message-ID
-      const stepsWithMsgId = agentSteps.map((step: any) => ({
-        ...step,
-        messageId: botMsgId
-      }));
-      
-      console.log("🔍 Steps with MsgId:", stepsWithMsgId);
+      const stepsWithMsgId = agentSteps.map((step: any) => ({ ...step, messageId: botMsgId }));
       
       setAllAgentSteps((prev) => [...prev, ...stepsWithMsgId]);
-      
       setMessages((prev) => [...prev, { id: botMsgId, sender: "Bot", text: answer, agentSteps }]);
-      
-      await saveMessageToHistory("Bot", answer);
+      saveMessageToHistory("Bot", answer);
 
     } catch (err) {
       console.error("Chat error:", err);
-      const errorMsg = "Sorry, I encountered an error. Please try again.";
-      setMessages((prev) => [...prev, { id: `msg-${Date.now()}-error`, sender: "Bot", text: errorMsg }]);
-      await saveMessageToHistory("Bot", errorMsg);
+      setMessages((prev) => [...prev, { id: `msg-err-${Date.now()}`, sender: "Bot", text: "Fehler: " + String(err) }]);
     } finally {
       setLoading(false);
     }

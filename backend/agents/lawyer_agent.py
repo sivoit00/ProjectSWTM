@@ -1,8 +1,6 @@
 import os
 import logging
-import smtplib
 from typing import Any, Dict, List
-from email.message import EmailMessage
 from dotenv import load_dotenv
 
 from langchain_openai import ChatOpenAI
@@ -18,12 +16,6 @@ from agents.tools.email_sender import send_email_via_smtp
 
 load_dotenv()
 log = logging.getLogger(__name__)
-
-SMTP_HOST = os.environ.get("SMTP_HOST")
-SMTP_PORT = int(os.environ.get("SMTP_PORT", 587))
-SMTP_USER = os.environ.get("SMTP_USER") 
-SMTP_PASS = os.environ.get("SMTP_PASS")
-SMTP_TO = os.environ.get("SMTP_TO") 
 
 llm = ChatOpenAI(temperature=0.0, model="gpt-5-mini") 
 
@@ -44,6 +36,8 @@ TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 
 def _load_template(name: str) -> str:
     path = os.path.join(TEMPLATES_DIR, name)
+    if not os.path.exists(path):
+        return "You are a lawyer agent. User ID: {user_id}. Always include [Ref: {user_id}] in email subjects."
     with open(path, "r", encoding="utf-8") as f:
         return f.read()
 
@@ -78,9 +72,10 @@ def handle_lawyer_request(user_message: str, user_context: Dict[str, Any] = None
 
     user_name = user_context.get("name", "Unbekannt")
     user_email = user_context.get("email")
-    session_id = f"LAWYER_{user_email}"
+    user_id = user_context.get("user_id", "anonymous") 
+    session_id = f"LAWYER_{user_id}"
 
-    log.info(f"LawyerAgent gestartet für: {user_name} (Session: {session_id})")
+    log.info(f"LawyerAgent gestartet für: {user_name} (ID: {user_id})")
 
     try:
         result = agent_with_chat_history.invoke(
@@ -88,6 +83,7 @@ def handle_lawyer_request(user_message: str, user_context: Dict[str, Any] = None
                 "user_message": user_message,
                 "user_name": user_name,
                 "user_email": user_email,
+                "user_id": user_id,
                 "session_id": session_id
             },
             config={"configurable": {"session_id": session_id}}
@@ -97,9 +93,10 @@ def handle_lawyer_request(user_message: str, user_context: Dict[str, Any] = None
             "response": result['output'], 
             "structured": {"intent": "lawyer"}
         }
+
     except Exception as e:
         log.exception("FEHLER IM LAWYER AGENT:")
         return {
-            "response": "Fehler: " + str(e),
+            "response": "Entschuldigung, es ist ein interner Fehler aufgetreten: " + str(e),
             "structured": {"error": str(e)}
         }

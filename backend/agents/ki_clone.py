@@ -3,7 +3,6 @@ import logging
 from typing import Any, Dict
 from langchain_openai import ChatOpenAI
 import os
-import re
 from agents.lawyer_agent import handle_lawyer_request
 from agents.insurance_agent import run_insurance_agent
 from agents.repair_chat_agent import run_repair_agent_with_memory 
@@ -44,6 +43,7 @@ def _safe_json_loads(s: str) -> dict:
         return {}
 
 def _get_routing_decision(text: str) -> str:
+    """Fragt das LLM, welcher Agent zuständig sein könnte."""
     try:
         response = llm.invoke(PROMPT_ROUTE.format(user_message=text))
         data = _safe_json_loads(response.content)
@@ -52,7 +52,10 @@ def _get_routing_decision(text: str) -> str:
         return "general"
 
 def _keyword_override(decision: str, text: str) -> str:
-    """Zwingt Entscheidung bei sehr eindeutigen Keywords, WENN wir noch unsicher sind."""
+    """
+    Zwingt Entscheidung bei sehr eindeutigen Keywords.
+    Dies hilft, wenn das LLM unsicher ist.
+    """
     text = text.lower()
     
     if any(x in text for x in ["anwalt", "lawyer", "rechtsbeistand", "verklagen", "rechtsberatung"]):
@@ -60,7 +63,7 @@ def _keyword_override(decision: str, text: str) -> str:
     
     if any(x in text for x in ["versicherung", "police", "schaden", "schadensmeldung", "kasko", "haftpflicht", "versichert"]):
         return "insurance"
-        
+    
     if decision == "general":
         repair_keywords = ["werkstatt", "termin", "reparatur", "reifen", "ölwechsel", "inspektion"]
         if any(k in text for k in repair_keywords):
@@ -69,12 +72,16 @@ def _keyword_override(decision: str, text: str) -> str:
     return decision
 
 def handle_general_request(user_message: str) -> Dict[str, Any]:
-    sys_msg = "Du bist ein hilfreicher Assistent. Antworte kurz und prägnant."
+    sys_msg = "Du bist ein hilfreicher Assistent namens Tom. Antworte kurz und prägnant."
     messages = [("system", sys_msg), ("human", user_message)]
     resp = llm.invoke(messages)
     return {"response": resp.content, "structured": {"intent": "general"}}
 
 def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dict[str, Any]:
+    """
+    Hauptfunktion: Entscheidet, welcher Agent die Nachricht bekommt.
+    Unterstützt Sticky Sessions (User bleibt beim Agenten).
+    """
     if user_context is None:
         user_context = {}
 
@@ -87,14 +94,17 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
     if user_message.lower().strip() in ["stop", "abbruch", "ende", "reset", "neues thema", "exit"]:
         if session_id in agent_session_state:
             del agent_session_state[session_id]
-        return {"response": "Gespräch zurückgesetzt. Wie kann ich helfen?", "structured": {"intent": "reset"}, "agent": "reset", "agent_changed": True}
+        return {
+            "response": "Gespräch zurückgesetzt. Ich bin wieder im allgemeinen Modus. Wie kann ich helfen?", 
+            "structured": {"intent": "reset"}, 
+            "agent": "reset", 
+            "agent_changed": True
+        }
 
     active_agent = agent_session_state.get(session_id)
     target_agent = "general"
     agent_changed = False
-
     decision = _get_routing_decision(user_message)
-    
     decision_with_keywords = _keyword_override(decision, user_message)
 
     if active_agent:
@@ -103,16 +113,19 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
             target_agent = active_agent
             
         elif decision != active_agent:
-            if decision_with_keywords != decision: 
+            if decision_with_keywords != decision and decision_with_keywords != "general": 
                  log.info(f"Context Switch durch Keyword: {active_agent} -> {decision_with_keywords}")
                  target_agent = decision_with_keywords
                  agent_session_state[session_id] = target_agent
                  agent_changed = True
-            else:
+   
+            elif decision != "general":
                 log.info(f"Context Switch durch KI: {active_agent} -> {decision}")
                 target_agent = decision
                 agent_session_state[session_id] = target_agent
                 agent_changed = True
+            else:
+                target_agent = active_agent
         
         else:
             target_agent = active_agent
@@ -124,9 +137,7 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
             log.info(f"Neue Session gestartet: {target_agent}")
             agent_session_state[session_id] = target_agent
             agent_changed = True
-        else:
-            pass
-    
+
     def wrap_response(agent_name: str, result) -> Dict[str, Any]:
         if isinstance(result, dict):
             structured = result.get("structured") or {"intent": agent_name}
@@ -149,7 +160,7 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
             res = run_repair_agent_with_memory(user_message, session_id)
             return wrap_response("repair", res)
 
-        else:
+        else: 
             if session_id in agent_session_state:
                 del agent_session_state[session_id]
             res = handle_general_request(user_message)
@@ -157,4 +168,4 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
 
     except Exception as e:
         log.exception(f"Fehler im Agenten '{target_agent}': {e}")
-        return {"response": "Sorry, interner Fehler.", "structured": {"error": str(e)}, "agent": target_agent}
+        return {"response": "Sorry, es gab einen internen Fehler.", "structured": {"error": str(e)}, "agent": target_agent}
