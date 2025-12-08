@@ -1,9 +1,4 @@
-"""
-services/insurance_service.py
-Sauberer Insurance-Service, der direkt mit der Datenbank arbeitet.
-"""
 
-import os
 import json
 from typing import Any, Dict
 from database import SessionLocal
@@ -21,10 +16,9 @@ def get_policy_details(customer_id: str) -> Dict[str, Any]:
         "status": "active"
     }
 
+
 def calculate_premium(vehicle_data: Any) -> Dict[str, Any]:
-    """
-    Einfacher Prämienrechner (Mock).
-    """
+   
     if isinstance(vehicle_data, str):
         try:
             vehicle = json.loads(vehicle_data)
@@ -54,9 +48,15 @@ def submit_claim(claim_data: dict) -> dict:
 
     try:
         event = DamageEvent(
-            damage_event_id=claim_data["claim_id"],
             customer_id=claim_data.get("customer_id"),
-            description=claim_data.get("description", ""),
+            description=claim_data.get("description"),
+            damage_type=claim_data.get("damage_type"),
+            damage_date=claim_data.get("damage_date"),
+            damage_location=claim_data.get("damage_location"),
+            vehicle=json.dumps(claim_data.get("vehicle")) if claim_data.get("vehicle") else None,
+            police_involved=claim_data.get("police_involved"),
+            third_party_involved=claim_data.get("third_party_involved"),
+            estimated_damage=claim_data.get("estimated_damage"),
             status="submitted"
         )
 
@@ -65,10 +65,12 @@ def submit_claim(claim_data: dict) -> dict:
         db.refresh(event)
 
         return {
-            "claim_id": event.damage_event_id,
-            "status": event.status,
-            "note": "DamageEvent stored in database"
-        }
+        "completed": True,
+        "claim_id": event.damage_event_id,
+        "location": event.damage_location,
+        "vehicle": claim_data.get("vehicle"),
+        "description": claim_data.get("description")
+    }
 
     except Exception as e:
         db.rollback()
@@ -80,8 +82,8 @@ def submit_claim(claim_data: dict) -> dict:
     finally:
         db.close()
 
+
 def get_claim_status(claim_id: str) -> dict:
-    
     db = SessionLocal()
 
     try:

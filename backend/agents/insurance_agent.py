@@ -1,180 +1,167 @@
 import os
 import json
 import time
-from typing import Dict, Any
+import logging
+from typing import Dict, Any, Optional
+
 from langchain_openai import ChatOpenAI
-from langchain_core.prompts import ChatPromptTemplate
-import os
+from langchain_core.messages import SystemMessage, HumanMessage
 
-from dotenv import load_dotenv
-load_dotenv()
-
-
-# service-functions
-from services.insurance_service import (
-    get_policy_details,
-    calculate_premium,
-    submit_claim,
-    get_claim_status,
+from agents.insurance_utils import (
+    get_or_create_memory,
+    load_state,
+    save_state,
+    load_template,
+    extract_json_from_text,
+    safe_string,
+    format_history,
+    REQUIRED_FIELDS,
+    OPTIONAL_FIELDS,
+    CAPTURE_FIELDS
 )
 
-def safe_string(x: Any):
-    if isinstance(x, (dict, list)):
-        try:
-            return json.dumps(x, indent=2, ensure_ascii=False)
-        except:
-            return str(x)
-    return str(x)
+from services.insurance_service import submit_claim
 
+log = logging.getLogger(__name__)
 
-# ----------------------------------------------------------
-# main function: Insurance Agent
-# ----------------------------------------------------------
+def extract_fields(system_prompt: str, history: str, user_input: str, llm):
+    extraction_call = [
+        SystemMessage(content=system_prompt),
+        HumanMessage(
+            content=f"{history}\n\n{user_input}\n\nCAPTURE_JSON"
+        )
+    ]
+    try:
+        res = llm.invoke(extraction_call)
+        json_obj = extract_json_from_text(res.content)
+        return json_obj or {}
+    except Exception as e:
+        log.error(f"Extraction failed: {e}")
+        return {}
 
-def run_insurance_agent(user_input: str, user_id: str = None, context: Dict[str, Any] = None) -> Dict[str, Any]:
+def run_insurance_agent(
+    user_input: str,
+    session_id: str = "default",
+    user_context: Optional[Dict[str, Any]] = None
+) -> str:
 
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        raise RuntimeError("OPENAI_API_KEY ist nicht gesetzt.")
+        return "API key missing"
 
     model_name = os.getenv("OPENAI_MODEL", "gpt-5-mini")
 
-    llm = ChatOpenAI(
-        api_key=api_key,
-        model=model_name,
-        temperature=0,
-        max_tokens=1500,
+    llm = ChatOpenAI(api_key=api_key, model=model_name, temperature=0)
+
+    memory = get_or_create_memory(session_id)
+    state = load_state(session_id, user_context)
+    fields = state["fields"]
+    asked = state["asked"]
+
+    chat_history_list = memory.load_memory_variables({}).get("chat_history", [])
+    chat_history_text = format_history(chat_history_list)
+
+    template_text = load_template("insurance_classifier.md")
+    system_prompt = (
+        template_text
+        .replace("{chat_history}", chat_history_text)
+        .replace("{user_input}", user_input)
     )
 
-    if context is None:
-        context = {}
+    # 1. JSON-Extraktion
+    extracted = extract_fields(system_prompt, chat_history_text, user_input, llm)
+    for key, val in extracted.items():
+        if key in CAPTURE_FIELDS and val not in [None, "", " "]:
+            fields[key] = val
 
-    # -------------------- Agent 1: Classification ---------------------
+    # 2. Fehlende Pflichtfelder → Fragen
+    for f in REQUIRED_FIELDS:
+        if not fields.get(f):
+            if not asked.get(f):
+                asked[f] = True
+                questions = {
+                    "customer_id": "Wie lautet deine Kundennummer?",
+                    "damage_type": "Worum handelt es sich für eine Art Schaden?",
+                    "damage_date": "Wann ist der Schaden passiert?",
+                    "damage_location": "Wo ist der Schaden passiert?",
+                    "description": "Was ist genau passiert?",
+                    "vehicle": "Welches Fahrzeug ist betroffen?"
+                }
+                reply = questions.get(f, "Kannst du mir diese Information bitte noch geben?")
+                memory.save_context({"user_input": user_input}, {"response": reply})
+                save_state(session_id, state)
+                return reply
 
-    templates_dir = os.path.join(os.path.dirname(__file__), "templates")
-    with open(os.path.join(templates_dir, "insurance_classifier.md"), "r", encoding="utf-8") as f:
-        classifier_template = f.read()
-    classifier_prompt = ChatPromptTemplate.from_template(classifier_template)
+    # 3. Adaptive Zusatzfragen
+    damage_type = (fields.get("damage_type") or "").lower()
 
-    agent1_messages = classifier_prompt.format_messages(
-        user_input=user_input,
-        context=str(context),
-    )
+    if "accident" in damage_type or "collision" in damage_type:
+        if fields.get("third_party_involved") is None and not asked.get("third_party_involved"):
+            asked["third_party_involved"] = True
+            reply = "War jemand anderes beteiligt oder ist es reiner Eigenschaden?"
+            memory.save_context({"user_input": user_input}, {"response": reply})
+            save_state(session_id, state)
+            return reply
 
-    agent1_out = llm.invoke(agent1_messages)
-    classification_text = agent1_out.content
+    if "theft" in damage_type:
+        if fields.get("police_involved") is None and not asked.get("police_involved"):
+            asked["police_involved"] = True
+            reply = "Wurde die Polizei informiert?"
+            memory.save_context({"user_input": user_input}, {"response": reply})
+            save_state(session_id, state)
+            return reply
 
-    print("\n=== AGENT 1 CLASSIFICATION ===")
-    print(classification_text)
+    if fields.get("estimated_damage") is None and not asked.get("estimated_damage"):
+        asked["estimated_damage"] = True
+        reply = "Hast du eine ungefähre Einschätzung der Schadenshöhe?"
+        memory.save_context({"user_input": user_input}, {"response": reply})
+        save_state(session_id, state)
+        return reply
 
-    # -------------------- Preparation ------------------------------
+    # 4. Claim vollständig → einreichen und Nutzer informieren
+    if not state.get("awaiting_submission"):
+        claim_id = fields.get("claim_id") or f"CLM-{int(time.time())}"
+        fields["claim_id"] = claim_id
+        payload = {k: fields.get(k) for k in CAPTURE_FIELDS}
 
-    extracted = extract_parameters_from_classification(classification_text, context)
-
-    if "WEITERLEITEN: NEIN" in classification_text:
-        return {
-            "ok": True,
-            "response": simple_general_answer(llm, user_input)
-        }
-
-    # -------------------- Agent 2: Tools --------------------------------
-
-    result = run_tool_logic_based_on_category(classification_text, extracted)
-
-    summary = llm.invoke([
-        {
-            "role": "system",
-            "content": "Fasse das folgende Tool-Ergebnis in natürlicher Sprache für einen Benutzer zusammen. "
-                       "Sei kurz, hilfreich und versicherungsbezogen."
-        },
-        {
-            "role": "user",
-            "content": f"Tool-Ergebnis: {result}"
-        }
-    ]).content
-
-    return {
-        "ok": True,
-        "category": extracted["category"],
-        "data_used": safe_string(extracted),
-        "tool_result_raw": safe_string(result),
-        "response": summary,
-    }
-# ----------------------------------------------------------
-# parameter extraction
-# ----------------------------------------------------------
-
-def extract_parameters_from_classification(text: str, context: Dict[str, Any]):
-    if "POLICY_INFO" in text:
-        category = "POLICY_INFO"
-    elif "PREMIUM_CALC" in text:
-        category = "PREMIUM_CALC"
-    elif "CLAIM_SUBMIT" in text:
-        category = "CLAIM_SUBMIT"
-    elif "CLAIM_STATUS" in text:
-        category = "CLAIM_STATUS"
-    elif "CLAIM_CAPTURE" in text:
-        category = "CLAIM_CAPTURE"
-    else:
-        category = "ANDERE"
-
-    claim_id = None
-    if "claim_id:" in text.lower():
         try:
-            claim_id = text.split("claim_id:")[1].split("\n")[0].strip()
-        except:
-            pass
+            result = submit_claim(payload)
+            state["awaiting_submission"] = True
+            state["last_claim_id"] = claim_id
+            state["awaiting_workshop_decision"] = True  # Flag für Orchestrator
 
-    return {
-        "category": category,
-        "context_customer": context.get("customer_id"),
-        "claim_id": claim_id,
-        "raw_classification": text,
-        "info_provided": text,
-    }
+            reply = (
+                f"Super — ich reiche den Schaden jetzt ein.\n\n"
+                f"Fertig. Deine Schadens-ID: {claim_id}\n\n"
+                f"Kurz zur Bestätigung:\n"
+                f"- Kundennummer: {fields.get('customer_id')}\n"
+                f"- Fahrzeug: {fields.get('vehicle')}\n"
+                f"- Schaden: {fields.get('description')}\n"
+                f"- Geschätzter Schaden: {fields.get('estimated_damage')} €\n"
+                f"- Zeitpunkt: {fields.get('damage_date')}\n"
+                f"- Ort: {fields.get('damage_location')}\n"
+                f"- Keine weiteren Beteiligten, Polizei nicht involviert\n\n"
+                "Möchtest du einen Werkstatttermin vereinbaren? (Ja/Nein)"
+            )
 
-# ----------------------------------------------------------
-# Agent 2: Tools
-# ----------------------------------------------------------
+        except Exception as e:
+            state["awaiting_submission"] = False
+            reply = "Der Schaden konnte wegen eines technischen Problems nicht gespeichert werden. Möchtest du es nochmal versuchen? (Ja/Nein)"
 
-def run_tool_logic_based_on_category(category_text: str, ext: Dict[str, Any]):
+        memory.save_context({"user_input": user_input}, {"response": reply})
+        save_state(session_id, state)
+        return reply
 
-    category = ext["category"]
+    # 5. Normale Konversation nach Einreichung
+    try:
+        answer = llm.invoke([
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_input)
+        ]).content
+    except Exception:
+        answer = "Ich kann dir gerade nicht antworten."
 
-    if category == "POLICY_INFO":
-        customer_id = ext["context_customer"] or "cust-1"
-        return get_policy_details(customer_id)
+    memory.save_context({"user_input": user_input}, {"response": answer})
+    save_state(session_id, state)
 
-    if category == "PREMIUM_CALC":
-        vehicle_data = {"brand": "BMW", "model": "320d", "year": 2020}
-        return calculate_premium(vehicle_data)
-
-    if category == "CLAIM_SUBMIT":
-        customer_id = int(ext["context_customer"]) if ext["context_customer"] else 1
-        claim_data = {
-            "customer_id": customer_id,
-            "claim_id": f"CLM-{int(time.time())}", 
-            "description": "Schaden gemeldet"
-        }
-        return submit_claim(claim_data)
-
-    if category == "CLAIM_STATUS":
-        if not ext["claim_id"]:
-            return {"error": "Keine claim_id erkannt."}
-        return get_claim_status(ext["claim_id"])
-    if category == "CLAIM_CAPTURE":
-        return {
-        "next_step": "CLAIM_SUBMIT",
-        "message": "Ich habe die notwendigen Informationen gesammelt. Willst du den Schaden jetzt einreichen?",
-        "captured_data": ext["info_provided"]
-        }
-
-    return "Ich habe deine Frage verstanden, aber keine passende Versicherungsfunktion gefunden."
-
-# ----------------------------------------------------------
-# fallback response
-# ----------------------------------------------------------
-
-def simple_general_answer(llm, text: str) -> str:
-    msg = [{"role": "user", "content": f"Antworte kurz und freundlich auf: {text}"}]
-    return llm.invoke(msg).content
+    return answer
