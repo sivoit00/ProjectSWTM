@@ -11,7 +11,7 @@ SMTP_HOST = os.environ.get("SMTP_HOST")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", 587))
 SMTP_USER = os.environ.get("SMTP_USER")
 SMTP_PASS = os.environ.get("SMTP_PASS")
-SMTP_TO = os.environ.get("SMTP_TO") # Test-Adresse
+
 
 def send_email_via_smtp(to_email: str, subject: str, body: str) -> str:
     """ Zentrale Funktion zum Versenden von E-Mails. """
@@ -21,7 +21,7 @@ def send_email_via_smtp(to_email: str, subject: str, body: str) -> str:
     try:
         msg = EmailMessage()
         msg["From"] = SMTP_USER
-        msg["To"] = SMTP_TO  # An Test-Adresse senden
+        msg["To"] = to_email 
         msg["Subject"] = subject
         msg.set_content(body)
 
@@ -30,7 +30,7 @@ def send_email_via_smtp(to_email: str, subject: str, body: str) -> str:
             server.login(SMTP_USER, SMTP_PASS)
             server.send_message(msg)
             
-        return f"E-Mail erfolgreich versendet an {SMTP_TO} (statt {to_email} zu Testzwecken)."
+        return f"E-Mail erfolgreich versendet an  {to_email}"
 
     except Exception as e:
         log.error(f"SMTP Fehler: {e}")

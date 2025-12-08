@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { api } from "../../services/api";
 import { Upload, X, FileText, Image as ImageIcon } from "lucide-react";
 
 interface FileUploadProps {
@@ -16,7 +17,14 @@ export default function FileUpload({
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string>("");
 
-  const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/bmp", "application/pdf"];
+  const allowedTypes = [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/bmp",
+    "application/pdf",
+    "text/plain",
+  ];
 
   const validateFile = (file: File): boolean => {
     // Check size
@@ -54,6 +62,26 @@ export default function FileUpload({
       const newFiles = [...selectedFiles, ...validFiles];
       setSelectedFiles(newFiles);
       onFilesSelected(newFiles);
+
+      // Upload to backend and inform agent with stored filenames
+      api.files.upload(validFiles)
+        .then((res) => {
+          const uploaded = (res.data?.files ?? []) as Array<{ stored_filename: string; filename: string }>;
+          if (uploaded.length > 0) {
+            const fileRefs = uploaded.map(f => `${f.stored_filename}`).join(", ");
+            const message = `Dateien hochgeladen: ${fileRefs}`;
+            // Persist chat message and notify orchestrator
+            const userId = typeof window !== 'undefined' ? (localStorage.getItem('sessionId') || 'anonymous') : 'anonymous';
+            api.chat.saveMessage({ user_id: userId, sender: 'user', message })
+              .catch(() => {/* non-blocking */});
+            api.sendToKI({ message })
+              .catch(() => {/* non-blocking */});
+          }
+        })
+        .catch((err) => {
+          console.error('Upload failed', err);
+          setError('Upload failed. Bitte erneut versuchen.');
+        });
     }
   };
 
@@ -111,7 +139,7 @@ export default function FileUpload({
         <input
           type="file"
           multiple
-          accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp"
+          accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.txt"
           onChange={handleFileInput}
           className="hidden"
           id="file-input"

@@ -4,12 +4,14 @@ from typing import List
 import os
 import uuid
 from datetime import datetime
+import subprocess
+import sys
 
 router = APIRouter(prefix="/files", tags=["files"])
 
 UPLOAD_DIR = "uploads"
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
-ALLOWED_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".gif", ".bmp"}
+ALLOWED_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".txt"}
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -21,11 +23,11 @@ def is_allowed_file(filename: str) -> bool:
 @router.post("/upload")
 async def upload_files(files: List[UploadFile] = File(...)):
     """
-    Upload multiple files (images or PDFs)
+    Upload multiple files (images, PDFs, or text files)
     
     - Maximum 5 files per request
     - Maximum 10MB per file
-    - Allowed types: PDF, JPG, PNG, GIF, BMP
+    - Allowed types: PDF, JPG, PNG, GIF, BMP, TXT
     """
     if len(files) > 5:
         raise HTTPException(400, "Maximum 5 files allowed per upload")
@@ -51,13 +53,24 @@ async def upload_files(files: List[UploadFile] = File(...)):
         with open(file_path, "wb") as f:
             f.write(content)
         
+       
+
         uploaded_files.append({
             "filename": file.filename,
             "stored_filename": unique_name,
             "size": len(content),
+
             "uploaded_at": datetime.now().isoformat()
         })
     
+    # Trigger batch builder to ensure DB is updated with any PDFs in DOCUMENTS_PATH
+    try:
+        root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        script_path = os.path.join(root_dir, "services", "build_vector_db.py")
+        subprocess.Popen([sys.executable, script_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
+
     return {
         "success": True,
         "files": uploaded_files

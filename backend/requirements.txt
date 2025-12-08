@@ -22,3 +22,8 @@ python-keycloak
 secure-smtplib
 
 APScheduler
+pydantic
+pydantic-ai-slim[openai]==0.0.19
+langchain_postgres
+psycopg[binary,pool]
+pypdf==4.2.0

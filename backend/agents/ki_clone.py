@@ -27,7 +27,7 @@ try:
     PROMPT_ROUTE = _load_template("orchestrator_route.md")
 except:
     PROMPT_ROUTE = """
-    Classify intent: lawyer, insurance, repair, general.
+    Classify intent: lawyer, insurance, repair, general.    
     JSON: {"agent": "..."}
     User: {user_message}
     """

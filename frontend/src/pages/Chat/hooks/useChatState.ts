@@ -10,7 +10,10 @@ export type Message = {
   text: string; 
   files?: string[]; 
   agentSteps?: TimelineEvent[] 
+  agent?: string;
+
 };
+
 
 export function useChatState() {
   const { clearChatTrigger } = useOutletContext<{ clearChatTrigger: number }>();
