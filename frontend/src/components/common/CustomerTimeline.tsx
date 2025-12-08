@@ -8,6 +8,7 @@ import "./CustomerTimeline.css";
 interface CustomerTimelineProps {
   events: TimelineEvent[];
   onEventClick?: (messageId: string) => void;
+  userName?: string;
 }
 
 const isCustomerRelevant = (event: TimelineEvent): boolean => {
@@ -26,7 +27,7 @@ const isCustomerRelevant = (event: TimelineEvent): boolean => {
 
 export type { TimelineEvent };
 
-export default function CustomerTimeline({ events: propEvents, onEventClick }: CustomerTimelineProps) {
+export default function CustomerTimeline({ events: propEvents, onEventClick, userName }: CustomerTimelineProps) {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
 
   useEffect(() => {
@@ -45,7 +46,7 @@ export default function CustomerTimeline({ events: propEvents, onEventClick }: C
   );
   
   const lastActiveEvent = activeAgents.length > 0 ? activeAgents[activeAgents.length - 1] : null;
-  const currentAgent = lastActiveEvent?.agent || "Tom";
+  const currentAgent = lastActiveEvent?.agent || "chatbot";
   const hasActiveEvents = activeAgents.length > 0;
   const lastTimestamp = events.length > 0 ? events[events.length - 1].timestamp : new Date();
 
@@ -57,7 +58,8 @@ export default function CustomerTimeline({ events: propEvents, onEventClick }: C
     <div className="flex flex-col h-full bg-gray-900 p-3">
       <ActiveAgentHeader 
         currentAgent={currentAgent} 
-        hasActiveEvents={hasActiveEvents} 
+        hasActiveEvents={hasActiveEvents}
+        userName={userName}
       />
 
       <div className="flex-1 overflow-y-auto">

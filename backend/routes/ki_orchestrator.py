@@ -32,6 +32,7 @@ async def ki_message(
     if not user_context:
         user_context = {"name": None, "email": None, "user_id": None}
     
+    user_name = user_context.get("name") or "Your"
     agent_steps: List[Dict[str, Any]] = []
     
     def add_task(task: str, status: str, description: str, agent: str = None, details: str = None, event_type: str = "task"):
@@ -162,8 +163,8 @@ async def ki_message(
                         "Reviewing your insurance matter")
             elif agent_type == "chatbot" and "tom_uebernimmt" not in existing_tasks:
                 add_task("tom_uebernimmt", "completed", 
-                        "Tom taking over again", 
-                        "Tom",
+                        f"{user_name}'s Agent taking over again", 
+                        "chatbot",
                         "Ready for new requests")
                         
         if task_completed and agent_type != "chatbot":
@@ -188,8 +189,8 @@ async def ki_message(
             
             if not tom_active:
                 add_task("tom_active", "working", 
-                        "Tom taking over", 
-                        "Tom",
+                        f"{user_name}'s Agent taking over", 
+                        "chatbot",
                         "Ready for your next request",
                         "task")
         
