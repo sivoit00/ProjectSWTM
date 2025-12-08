@@ -22,6 +22,17 @@ export default function Chat() {
 
   const userName = keycloak.tokenParsed?.preferred_username || keycloak.tokenParsed?.name;
 
+  const handleEmailNotification = (emailData: any) => {
+      const systemPrompt = `SYSTEM_UPDATE: Es ist eine neue E-Mail eingegangen.
+      Absender: ${emailData.sender}
+      Betreff: ${emailData.subject}
+      Inhalt: "${emailData.body}"
+      
+      Bitte analysiere diese E-Mail im Kontext unseres aktuellen Falls. Sag mir, was das bedeutet und was die nächsten Schritte sind.`;
+     
+      handleSend(systemPrompt, true);
+  };
+
   const handleTimelineEventClick = (messageId: string) => {
     const element = document.getElementById(messageId);
     if (element) {
@@ -37,7 +48,7 @@ export default function Chat() {
     <div className="flex h-screen bg-gray-800">
       {/* Linke Spalte: Chat */}
       <div className="w-3/5 flex flex-col border-r border-gray-700">
-        <ChatHeader />
+        <ChatHeader onNotificationClick={handleEmailNotification} />
         <MessageList messages={messages} loading={loading} />
         <ChatInput
           input={input}

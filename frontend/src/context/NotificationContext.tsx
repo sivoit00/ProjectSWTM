@@ -19,7 +19,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const fetchNotifications = async () => {
     if (!userId) return;
     try {
-      const res = await api.notifications.getUnread(userId);
+      const res = await api.notifications.getAll(userId);
       setNotifications(res.data);
     } catch (e) {
       console.error("Fehler beim Laden der Notifications", e);

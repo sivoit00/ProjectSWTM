@@ -113,7 +113,7 @@ export const api = {
   },
 
   notifications: {
-    getUnread: (userId: string) => apiClient.get<NotificationItem[]>(`/notifications/unread/${userId}`),
+    getAll: (userId: string) => apiClient.get<NotificationItem[]>(`/notifications/list/${userId}`),
     markRead: (id: number) => apiClient.post(`/notifications/mark-read/${id}`),
   },
  

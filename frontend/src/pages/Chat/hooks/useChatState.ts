@@ -9,11 +9,12 @@ export type Message = {
   sender: "User" | "Bot"; 
   text: string; 
   files?: string[]; 
-  agentSteps?: TimelineEvent[] 
+  agentSteps?: TimelineEvent[];
 };
 
 export function useChatState() {
   const { clearChatTrigger } = useOutletContext<{ clearChatTrigger: number }>();
+  
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,16 +30,12 @@ export function useChatState() {
     if (savedSteps) {
       try {
         setAllAgentSteps(JSON.parse(savedSteps));
-      } catch (e) {
-        console.error("Failed to load timeline from localStorage", e);
-      }
+      } catch (e) { console.error(e); }
     }
   }, [userId]);
 
   useEffect(() => {
-    if (clearChatTrigger > 0) {
-      handleClearChat();
-    }
+    if (clearChatTrigger > 0) handleClearChat();
   }, [clearChatTrigger]);
 
   useEffect(() => {
@@ -53,12 +50,7 @@ export function useChatState() {
     setInput("");
     setSelectedFiles([]);
     localStorage.removeItem(`timeline_${userId}`);
-    
-    try {
-      await api.chat.clearHistory(userId);
-    } catch (error) {
-      console.error("Failed to clear chat history:", error);
-    }
+    try { await api.chat.clearHistory(userId); } catch (e) { console.error(e); }
   };
 
   const loadChatHistory = async () => {
@@ -70,28 +62,22 @@ export function useChatState() {
         text: msg.message,
       }));
       setMessages(history);
-    } catch (error) {
-      console.error("Failed to load chat history:", error);
-    }
+    } catch (error) { console.error("History Load Error:", error); }
   };
 
   const saveMessageToHistory = async (sender: "User" | "Bot", message: string) => {
-    try {
-      await api.chat.saveMessage({
-        user_id: userId,
-        sender,
-        message,
-      });
-    } catch (error) {
-      console.error("Failed to save message:", error);
-    }
+    try { await api.chat.saveMessage({ user_id: userId, sender, message }); } 
+    catch (error) { console.error("Save Message Error:", error); }
   };
 
   const handleSend = async (overrideText?: string, isSystemInjection = false) => {
+    console.log("handleSend ausgelöst!", { overrideText, isSystemInjection });
+
     const textToSend = overrideText || input.trim();
     if ((!textToSend && selectedFiles.length === 0) || loading) return;
 
     let uploadedFileNames: string[] = [];
+    
     setLoading(true);
 
     if (!overrideText) setInput("");
@@ -105,37 +91,46 @@ export function useChatState() {
       }
 
       const displayText = isSystemInjection 
-        ? "📩 E-Mail Update: Analysiere eingegangene Antwort..." 
+        ? "E-Mail Update: Analysiere eingegangene Antwort..." 
         : (textToSend || `[${uploadedFileNames.length} file(s) uploaded]`);
 
       const userMsgId = `msg-${Date.now()}-user`;
       
-      const newUserMsg: Message = { 
+      setMessages((prev) => [...prev, { 
           id: userMsgId, 
           sender: "User", 
           text: displayText, 
           files: uploadedFileNames 
-      };
+      }]);
 
-      setMessages((prev) => [...prev, newUserMsg]);
       saveMessageToHistory("User", displayText);
 
+      console.log("Sende an Backend...");
       const res = await api.sendToKI({ message: textToSend });
-      const answer = res.data?.response ?? "No response received";
+      
+      const answer = res.data?.response ?? "Keine Antwort erhalten.";
       const agentSteps = (res.data as any)?.agent_steps || [];
       
-      console.log("KI Antwort erhalten:", answer);
+      console.log("Antwort erhalten:", answer);
 
       const botMsgId = `msg-${Date.now()}-bot`;
       const stepsWithMsgId = agentSteps.map((step: any) => ({ ...step, messageId: botMsgId }));
-      
       setAllAgentSteps((prev) => [...prev, ...stepsWithMsgId]);
-      setMessages((prev) => [...prev, { id: botMsgId, sender: "Bot", text: answer, agentSteps }]);
+   
+      setMessages((prev) => [
+          ...prev, 
+          { id: botMsgId, sender: "Bot", text: answer, agentSteps }
+      ]);
+      
       saveMessageToHistory("Bot", answer);
 
     } catch (err) {
       console.error("Chat error:", err);
-      setMessages((prev) => [...prev, { id: `msg-err-${Date.now()}`, sender: "Bot", text: "Fehler: " + String(err) }]);
+      setMessages((prev) => [...prev, { 
+          id: `msg-err-${Date.now()}`, 
+          sender: "Bot", 
+          text: "Entschuldigung, ein Fehler ist aufgetreten." 
+      }]);
     } finally {
       setLoading(false);
     }
