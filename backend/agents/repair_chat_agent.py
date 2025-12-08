@@ -111,7 +111,6 @@ def run_repair_agent_with_memory(user_query: str, session_id: str = "REPAIR_DEFA
                 "user_name": user_name,
                 "user_email": user_email,
                 "session_id": sess_id,
-                # Optional fields to satisfy escaped variables; they render as literals if empty
                 "phone": user_context.get("phone", ""),
                 "vehicle": user_context.get("vehicle", ""),
                 "service": user_context.get("service", ""),
