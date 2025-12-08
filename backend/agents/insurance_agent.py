@@ -128,7 +128,8 @@ def run_insurance_agent(
             result = submit_claim(payload)
             state["awaiting_submission"] = True
             state["last_claim_id"] = claim_id
-            state["awaiting_workshop_decision"] = True  # Flag für Orchestrator
+            state["awaiting_workshop_decision"] = True 
+            save_state(session_id, state)  
 
             reply = (
                 f"Super — ich reiche den Schaden jetzt ein.\n\n"

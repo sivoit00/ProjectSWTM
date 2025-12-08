@@ -26,7 +26,7 @@ try:
 except:
     PROMPT_ROUTE = """
     Classify intent: lawyer, insurance, repair, general.
-    JSON: {"agent": "..."}
+    JSON: {"agent": "..." }
     User: {user_message}
     """
 
@@ -91,10 +91,6 @@ def handle_general_request(user_message: str, user_name: str = None) -> Dict[str
     return {"response": resp.content, "structured": {"intent": "general"}}
 
 def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dict[str, Any]:
-    """
-    Hauptfunktion: Entscheidet, welcher Agent die Nachricht bekommt.
-    Unterstützt Sticky Sessions (User bleibt beim Agenten).
-    """
     if user_context is None:
         user_context = {}
     user_email = user_context.get("email")
@@ -107,9 +103,9 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
         if session_id in agent_session_state:
             del agent_session_state[session_id]
         return {
-            "response": "Gespräch zurückgesetzt. Ich bin wieder im allgemeinen Modus. Wie kann ich helfen?", 
-            "structured": {"intent": "reset"}, 
-            "agent": "reset", 
+            "response": "Gespräch zurückgesetzt. Ich bin wieder im allgemeinen Modus. Wie kann ich helfen?",
+            "structured": {"intent": "reset"},
+            "agent": "reset",
             "agent_changed": True
         }
 
@@ -121,32 +117,24 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
 
     if active_agent:
         if decision == "general":
-            log.info(f"Sticky: Bleibe bei '{active_agent}', da Router 'general' sagt.")
             target_agent = active_agent
-            
         elif decision != active_agent:
-            if decision_with_keywords != decision and decision_with_keywords != "general": 
-                 log.info(f"Context Switch durch Keyword: {active_agent} -> {decision_with_keywords}")
+            if decision_with_keywords != decision and decision_with_keywords != "general":
                  target_agent = decision_with_keywords
                  agent_session_state[session_id] = target_agent
                  agent_changed = True
-   
             elif decision != "general":
-                log.info(f"Context Switch durch KI: {active_agent} -> {decision}")
                 target_agent = decision
                 agent_session_state[session_id] = target_agent
                 agent_changed = True
             else:
                 target_agent = active_agent
-        
         else:
             target_agent = active_agent
 
     else:
         target_agent = decision_with_keywords
-        
         if target_agent != "general":
-            log.info(f"Neue Session gestartet: {target_agent}")
             agent_session_state[session_id] = target_agent
             agent_changed = True
 
@@ -158,6 +146,27 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
         return {"response": str(result), "structured": {"intent": agent_name}, "agent": agent_name, "agent_changed": agent_changed}
 
     try:
+        state = load_state(session_id, user_context)
+        if state.get("awaiting_workshop_decision") and target_agent == "insurance":
+            if user_message.strip().lower() in ["ja", "yes", "jo", "okay", "ok"]:
+                state["awaiting_workshop_decision"] = False
+                save_state(session_id, state)
+
+                agent_session_state[session_id] = "repair"
+
+                claim_data = state.get("fields", {})
+                res = run_repair_agent_with_memory(
+                    f"Bitte starte einen Werkstattprozess für diesen Schadensfall:\n{json.dumps(claim_data)}",
+                    session_id
+                )
+                return wrap_response("repair", res)
+
+            elif user_message.strip().lower() in ["nein", "no"]:
+                state["awaiting_workshop_decision"] = False
+                save_state(session_id, state)
+                reply = "Alles klar. Wenn du später einen Termin brauchst, sag einfach Bescheid."
+                return wrap_response("insurance", reply)
+
         if target_agent == "lawyer":
             user_context["session_id"] = session_id 
             res = handle_lawyer_request(user_message, user_context)
@@ -169,7 +178,7 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
             res = run_repair_agent_with_memory(user_message, session_id)
             return wrap_response("repair", res)
 
-        else: 
+        else:
             if session_id in agent_session_state:
                 del agent_session_state[session_id]
             res = handle_general_request(user_message)
