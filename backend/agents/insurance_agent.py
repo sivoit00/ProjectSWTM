@@ -1,152 +1,109 @@
 import os
-from typing import Dict, Any
+import logging
+from typing import Dict, Any, Optional
 from langchain_openai import ChatOpenAI
-from langchain_core.prompts import ChatPromptTemplate
-import os
+from langchain_core.messages import SystemMessage, HumanMessage
+from services.insurance_utils import get_or_create_memory, save_state, load_state
+from services.insurance_service import get_user_context
 
-from dotenv import load_dotenv
-load_dotenv()
+log = logging.getLogger(__name__)
 
+PROMPT_TEMPLATE_PATH = "templates/insurance_agent.md"
 
-# service-functions
-from services.insurance_service import (
-    get_policy_details,
-    calculate_premium,
-    submit_claim,
-    get_claim_status,
-)
+def _load_prompt() -> str:
+    with open(PROMPT_TEMPLATE_PATH, "r", encoding="utf-8") as f:
+        return f.read()
 
-# ----------------------------------------------------------
-# main function: Insurance Agent
-# ----------------------------------------------------------
-
-def run_insurance_agent(user_input: str, user_id: str = None, context: Dict[str, Any] = None) -> Dict[str, Any]:
+def run_insurance_agent(
+    user_input: str,
+    session_id: str = "default",
+    user_context: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
 
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        raise RuntimeError("OPENAI_API_KEY ist nicht gesetzt.")
-
-    model_name = os.getenv("OPENAI_MODEL", "gpt-5-mini")
+        return {"response": "API key missing", "structured": {}, "agent": "insurance"}
 
     llm = ChatOpenAI(
         api_key=api_key,
-        model=model_name,
-        temperature=0,
-        max_tokens=1500,
+        model=os.getenv("OPENAI_MODEL", "gpt-5-mini"),
+        temperature=0
     )
 
-    if context is None:
-        context = {}
+    memory = get_or_create_memory(session_id)
 
-    # -------------------- Agent 1: Classification ---------------------
+    if not user_context or not user_context.get("customer_id"):
+        db_context = get_user_context(session_id)
+        if db_context:
+            if user_context:
+                user_context.update(db_context)
+            else:
+                user_context = db_context
 
-    templates_dir = os.path.join(os.path.dirname(__file__), "templates")
-    with open(os.path.join(templates_dir, "insurance_classifier.md"), "r", encoding="utf-8") as f:
-        classifier_template = f.read()
-    classifier_prompt = ChatPromptTemplate.from_template(classifier_template)
+    state = load_state(session_id, user_context)
 
-    agent1_messages = classifier_prompt.format_messages(
-        user_input=user_input,
-        context=str(context),
+    chat_history_list = memory.load_memory_variables({}).get("chat_history", [])
+    chat_history_text = "\n".join([f"{m.type}: {m.content}" for m in chat_history_list])
+
+    prompt_template = _load_prompt()
+    prompt_text = (
+        prompt_template
+        .replace("{chat_history}", chat_history_text)
+        .replace("{user_input}", user_input)
     )
 
-    agent1_out = llm.invoke(agent1_messages)
-    classification_text = agent1_out.content
+    try:
+        res = llm.invoke([
+            SystemMessage(content=prompt_text),
+            HumanMessage(content=user_input)
+        ])
 
-    print("\n=== AGENT 1 CLASSIFICATION ===")
-    print(classification_text)
+        import json
+        content = res.content.strip()
 
-    # -------------------- Preparation ------------------------------
+        start = content.find("{")
+        end = content.rfind("}") + 1
+        json_data = {}
 
-    extracted = extract_parameters_from_classification(classification_text, context)
+        if start != -1 and end != -1:
+            try:
+                json_data = json.loads(content[start:end])
+            except Exception as e:
+                log.warning(f"JSON parsing failed: {e}")
 
-    if "WEITERLEITEN: NEIN" in classification_text:
-        return {
-            "ok": True,
-            "response": simple_general_answer(llm, user_input)
+        handover = None
+        claim_data = None
+
+        if isinstance(json_data, dict) and json_data.get("handover") == "repair":
+            handover = "repair"
+            claim_data = {
+                "customer_id": json_data.get("customer_id"),
+                "vehicle": json_data.get("vehicle"),
+                "description": json_data.get("description"),
+                "damage_date": json_data.get("damage_date"),
+                "damage_location": json_data.get("damage_location"),
+                "estimated_damage": json_data.get("estimated_damage"),
+            }
+
+        memory.save_context({"user_input": user_input}, {"response": content})
+        save_state(session_id, state)
+
+        return_data = {
+            "response": content,
+            "structured": json_data,
+            "agent": "insurance"
         }
 
-    # -------------------- Agent 2: Tools --------------------------------
+        if handover == "repair":
+            return_data["handover"] = "repair"
+            return_data["claim_data"] = claim_data
 
-    result = run_tool_logic_based_on_category(classification_text, extracted)
+        return return_data
 
-    return {
-        "ok": True,
-        "category": extracted["category"],
-        "data_used": extracted,
-        "response": result,
-    }
-
-# ----------------------------------------------------------
-# parameter extraction
-# ----------------------------------------------------------
-
-def extract_parameters_from_classification(text: str, context: Dict[str, Any]):
-    if "POLICY_INFO" in text:
-        category = "POLICY_INFO"
-    elif "PREMIUM_CALC" in text:
-        category = "PREMIUM_CALC"
-    elif "CLAIM_SUBMIT" in text:
-        category = "CLAIM_SUBMIT"
-    elif "CLAIM_STATUS" in text:
-        category = "CLAIM_STATUS"
-    elif "CLAIM_CAPTURE" in text:
-        category = "CLAIM_CAPTURE"
-    else:
-        category = "ANDERE"
-
-    claim_id = None
-    if "claim_id:" in text.lower():
-        try:
-            claim_id = text.split("claim_id:")[1].split("\n")[0].strip()
-        except:
-            pass
-
-    return {
-        "category": category,
-        "context_customer": context.get("customer_id"),
-        "claim_id": claim_id,
-        "raw_classification": text,
-        "info_provided": text,
-    }
-
-# ----------------------------------------------------------
-# Agent 2: Tools
-# ----------------------------------------------------------
-
-def run_tool_logic_based_on_category(category_text: str, ext: Dict[str, Any]):
-
-    category = ext["category"]
-
-    if category == "POLICY_INFO":
-        customer_id = ext["context_customer"] or "cust-1"
-        return get_policy_details(customer_id)
-
-    if category == "PREMIUM_CALC":
-        vehicle_data = {"brand": "BMW", "model": "320d", "year": 2020}
-        return calculate_premium(vehicle_data)
-
-    if category == "CLAIM_SUBMIT":
-        claim_data = {"customer_id": ext["context_customer"], "details": "Schaden gemeldet"}
-        return submit_claim(claim_data)
-
-    if category == "CLAIM_STATUS":
-        if not ext["claim_id"]:
-            return {"error": "Keine claim_id erkannt."}
-        return get_claim_status(ext["claim_id"])
-    if category == "CLAIM_CAPTURE":
+    except Exception as e:
+        log.exception(f"Error in insurance agent: {e}")
         return {
-        "next_step": "CLAIM_SUBMIT",
-        "message": "Ich habe die notwendigen Informationen gesammelt. Willst du den Schaden jetzt einreichen?",
-        "captured_data": ext["info_provided"]
+            "response": "Sorry, es gab einen internen Fehler.",
+            "structured": {},
+            "agent": "insurance"
         }
-
-    return "Ich habe deine Frage verstanden, aber keine passende Versicherungsfunktion gefunden."
-
-# ----------------------------------------------------------
-# fallback response
-# ----------------------------------------------------------
-
-def simple_general_answer(llm, text: str) -> str:
-    msg = [{"role": "user", "content": f"Antworte kurz und freundlich auf: {text}"}]
-    return llm.invoke(msg).content
