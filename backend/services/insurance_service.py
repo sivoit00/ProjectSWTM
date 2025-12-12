@@ -1,13 +1,14 @@
-
 import json
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from database import SessionLocal
 from models.DamageEvent import DamageEvent
-
+from models.kunde import Kunde
+from models.fahrzeug import Fahrzeug
+from models.insurance import Insurance
 
 def get_policy_details(customer_id: str) -> Dict[str, Any]:
     """
-    Placeholder: Gibt Fake-Daten zurück, bis du ein Policy-Modell hast.
+    Placeholder: Gibt Fake-Daten zurück, bis ein Policy-Modell existiert.
     """
     return {
         "customer_id": customer_id,
@@ -18,7 +19,6 @@ def get_policy_details(customer_id: str) -> Dict[str, Any]:
 
 
 def calculate_premium(vehicle_data: Any) -> Dict[str, Any]:
-   
     if isinstance(vehicle_data, str):
         try:
             vehicle = json.loads(vehicle_data)
@@ -43,9 +43,7 @@ def calculate_premium(vehicle_data: Any) -> Dict[str, Any]:
 
 
 def submit_claim(claim_data: dict) -> dict:
-    
     db = SessionLocal()
-
     try:
         event = DamageEvent(
             customer_id=claim_data.get("customer_id"),
@@ -65,12 +63,12 @@ def submit_claim(claim_data: dict) -> dict:
         db.refresh(event)
 
         return {
-        "completed": True,
-        "claim_id": event.damage_event_id,
-        "location": event.damage_location,
-        "vehicle": claim_data.get("vehicle"),
-        "description": claim_data.get("description")
-    }
+            "completed": True,
+            "claim_id": event.damage_event_id,
+            "location": event.damage_location,
+            "vehicle": claim_data.get("vehicle"),
+            "description": claim_data.get("description")
+        }
 
     except Exception as e:
         db.rollback()
@@ -85,7 +83,6 @@ def submit_claim(claim_data: dict) -> dict:
 
 def get_claim_status(claim_id: str) -> dict:
     db = SessionLocal()
-
     try:
         event = db.query(DamageEvent).filter_by(damage_event_id=claim_id).first()
 
@@ -101,6 +98,51 @@ def get_claim_status(claim_id: str) -> dict:
             "status": event.status,
             "note": ""
         }
+
+    finally:
+        db.close()
+
+
+
+def get_user_context(customer_id: str) -> Dict[str, Any]:
+   
+    db = SessionLocal()
+    context: Dict[str, Any] = {}
+
+    try:
+        
+        kunde: Optional[Kunde] = db.query(Kunde).filter_by(id=customer_id).first()
+        if not kunde:
+            return context
+
+        context["customer_id"] = str(kunde.id)
+        context["customer_name"] = kunde.name
+        context["customer_email"] = kunde.email
+        context["customer_phone"] = kunde.telefon
+
+        
+        fahrzeuge: list = []
+        for f in kunde.fahrzeuge:
+            fahrzeuge.append({
+                "id": f.id,
+                "marke": f.marke,
+                "modell": f.modell,
+                "baujahr": f.baujahr
+            })
+        context["vehicles"] = fahrzeuge
+
+        
+        insurance: Optional[Insurance] = db.query(Insurance).filter_by(user_id=str(kunde.id)).first()
+        if insurance:
+            context["insurance"] = {
+                "name": insurance.name,
+                "email": insurance.email,
+                "phone": insurance.phone,
+                "postcode": insurance.postcode,
+                "city": insurance.city
+            }
+
+        return context
 
     finally:
         db.close()

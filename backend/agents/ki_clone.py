@@ -146,26 +146,6 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
         return {"response": str(result), "structured": {"intent": agent_name}, "agent": agent_name, "agent_changed": agent_changed}
 
     try:
-        state = load_state(session_id, user_context)
-        if state.get("awaiting_workshop_decision") and target_agent == "insurance":
-            if user_message.strip().lower() in ["ja", "yes", "jo", "okay", "ok"]:
-                state["awaiting_workshop_decision"] = False
-                save_state(session_id, state)
-
-                agent_session_state[session_id] = "repair"
-
-                claim_data = state.get("fields", {})
-                res = run_repair_agent_with_memory(
-                    f"Bitte starte einen Werkstattprozess für diesen Schadensfall:\n{json.dumps(claim_data)}",
-                    session_id
-                )
-                return wrap_response("repair", res)
-
-            elif user_message.strip().lower() in ["nein", "no"]:
-                state["awaiting_workshop_decision"] = False
-                save_state(session_id, state)
-                reply = "Alles klar. Wenn du später einen Termin brauchst, sag einfach Bescheid."
-                return wrap_response("insurance", reply)
 
         if target_agent == "lawyer":
             user_context["session_id"] = session_id 
@@ -173,9 +153,27 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
             return wrap_response("lawyer", res)
         elif target_agent == "insurance":
             res = run_insurance_agent(user_message, session_id, user_context)
+
+            # Prüfen, ob Insurance-Agent Handover möchte
+            if isinstance(res, dict) and res.get("handover") == "repair":
+                # Daten speichern für den Repair-Agenten
+                agent_session_state[session_id] = "repair"
+        
+                # claim_data in user_context speichern
+                if "claim_data" in res:
+                    user_context["claim_data"] = res["claim_data"]
+
+                return {
+                    "response": res.get("response", ""),
+                    "structured": {"intent": "insurance"},
+                    "agent": "insurance",
+                    "agent_changed": True  # sehr wichtig!
+                }
+
             return wrap_response("insurance", res)
+        
         elif target_agent == "repair":
-            res = run_repair_agent_with_memory(user_message, session_id)
+            res = run_repair_agent_with_memory(user_message, session_id, user_context)
             return wrap_response("repair", res)
 
         else:
