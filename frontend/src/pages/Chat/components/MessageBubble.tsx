@@ -18,11 +18,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
             : "bg-gray-800 text-gray-200 rounded-bl-none border border-gray-700"
         }`}
       >
-        <p className="text-sm whitespace-pre-wrap">
-          {typeof message.text === "string"
-            ? message.text
-            : JSON.stringify(message.text, null, 2)}
-        </p>
+        <p className="text-sm whitespace-pre-wrap">{message.text}</p>
         
         {message.files && message.files.length > 0 && (
           <div className="mt-2 space-y-1">

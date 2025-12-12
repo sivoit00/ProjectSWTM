@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import { api } from "../../../services/api";
@@ -65,32 +66,15 @@ export function useChatState() {
     } catch (error) { console.error("History Load Error:", error); }
   };
 
-  const saveMessageToHistory = async (
-    sender: "User" | "Bot",
-    message: string
-  ) => {
-    try {
-      await api.chat.saveMessage({ user_id: userId, sender, message });
-    } catch (error) {
-      console.error("Save Message Error:", error);
-    }
-  };
-
-  const cleanInput = (value: any): string => {
-    if (typeof value === "string") return value;
-    console.warn("⚠️ Event oder Objekt als Input erkannt, setze auf leeren String.");
-    return "";
+  const saveMessageToHistory = async (sender: "User" | "Bot", message: string) => {
+    try { await api.chat.saveMessage({ user_id: userId, sender, message }); } 
+    catch (error) { console.error("Save Message Error:", error); }
   };
 
   const handleSend = async (overrideText?: string, isSystemInjection = false) => {
     console.log("handleSend ausgelöst!", { overrideText, isSystemInjection });
 
-    // Event-Abfangroutine → fix für den White Screen
-    let safeOverride = cleanInput(overrideText);
-    let safeInput = cleanInput(input);
-
-    const textToSend = safeOverride || safeInput.trim();
-
+    const textToSend = overrideText || input.trim();
     if ((!textToSend && selectedFiles.length === 0) || loading) return;
 
     let uploadedFileNames: string[] = [];
@@ -100,7 +84,6 @@ export function useChatState() {
     if (!overrideText) setInput("");
 
     try {
-      // Falls Dateien ausgewählt wurden → hochladen
       if (selectedFiles.length > 0) {
         const uploadResponse = await api.files.upload(selectedFiles);
         uploadedFileNames = uploadResponse.data.files.map((f: any) => f.stored_filename);
@@ -114,30 +97,17 @@ export function useChatState() {
 
       const userMsgId = `msg-${Date.now()}-user`;
       
-      setMessages((prev) => [
-        ...prev,
-        { 
+      setMessages((prev) => [...prev, { 
           id: userMsgId, 
           sender: "User", 
           text: displayText, 
           files: uploadedFileNames 
-        }
-      ]);
+      }]);
 
       saveMessageToHistory("User", displayText);
 
-      // Backend Call (jetzt sicher!)
       console.log("Sende an Backend...");
-
-      // garantiert dass 'message' IMMER ein string ist
-      const safeMessage =
-      textToSend && textToSend.trim().length > 0
-        ? textToSend
-        : `[${uploadedFileNames.length} Datei(en) hochgeladen]`;
-
-      const res = await api.sendToKI({
-      message: safeMessage
-      });
+      const res = await api.sendToKI({ message: textToSend });
       
       const answer = res.data?.response ?? "Keine Antwort erhalten.";
       const agentSteps = (res.data as any)?.agent_steps || [];
@@ -149,22 +119,19 @@ export function useChatState() {
       setAllAgentSteps((prev) => [...prev, ...stepsWithMsgId]);
    
       setMessages((prev) => [
-        ...prev, 
-        { id: botMsgId, sender: "Bot", text: answer, agentSteps }
+          ...prev, 
+          { id: botMsgId, sender: "Bot", text: answer, agentSteps }
       ]);
       
       saveMessageToHistory("Bot", answer);
 
     } catch (err) {
       console.error("Chat error:", err);
-      setMessages((prev) => [
-        ...prev,
-        { 
+      setMessages((prev) => [...prev, { 
           id: `msg-err-${Date.now()}`, 
           sender: "Bot", 
           text: "Entschuldigung, ein Fehler ist aufgetreten." 
-        }
-      ]);
+      }]);
     } finally {
       setLoading(false);
     }
