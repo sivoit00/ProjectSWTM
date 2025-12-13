@@ -22,8 +22,8 @@ interface TimelineItemProps {
   onEventClick?: (messageId: string) => void;
 }
 
-export default function TimelineItem({ event, index, totalCount, isAutoCollapsed = false, onEventClick }: TimelineItemProps) {
-  const [isExpanded, setIsExpanded] = useState(!isAutoCollapsed);
+export default function TimelineItem({ event, index, totalCount, onEventClick }: TimelineItemProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   
   const Icon = getTaskIcon(event.task);
