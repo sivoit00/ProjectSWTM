@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { BellIcon } from '@heroicons/react/24/outline'; 
+import { Bell } from 'lucide-react'; 
 import { useNotifications } from '../../context/NotificationContext';
 
 interface Props {
@@ -38,7 +38,7 @@ export default function NotificationBell({ onProcessEmail }: Props) {
         onClick={() => setIsOpen(!isOpen)} 
         className="p-2 text-gray-300 hover:text-white relative focus:outline-none transition-colors"
       >
-        <BellIcon className={`h-6 w-6 ${unreadCount > 0 ? 'text-white' : 'text-gray-400'}`} />
+        <Bell className={`h-6 w-6 ${unreadCount > 0 ? 'text-white' : 'text-gray-400'}`} />
         {unreadCount > 0 && (
           <span className="absolute top-0 right-0 h-4 w-4 bg-red-500 rounded-full text-xs flex items-center justify-center text-white font-bold animate-pulse">
             {unreadCount}

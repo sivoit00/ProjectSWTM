@@ -33,7 +33,14 @@ def run_insurance_agent(
     memory = get_or_create_memory(session_id)
 
     if not user_context or not user_context.get("customer_id"):
-        db_context = get_user_context(session_id)
+        identifier = None
+        if user_context:
+            identifier = (
+                user_context.get("customer_id")
+                or user_context.get("email")
+                or user_context.get("user_id")
+            )
+        db_context = get_user_context(identifier or session_id)
         if db_context:
             if user_context:
                 user_context.update(db_context)

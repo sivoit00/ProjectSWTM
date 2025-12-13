@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
-import { getTaskIcon, getStatusDisplay, getTaskColor, getAgentColor, formatTime } from "./timelineUtils";
+import { getTaskIcon, getStatusDisplay, getAgentColor, formatTime } from "./timelineUtils";
 
 export interface TimelineEvent {
   task: string;
@@ -9,8 +9,9 @@ export interface TimelineEvent {
   description: string;
   details?: string;
   agent?: string;
-  event_type?: "task" | "user_request" | "internal";
+  event_type?: "task" | "user_request" | "internal" | "agent_session";
   messageId?: string;
+  sessionId?: string;
 }
 
 interface TimelineItemProps {
@@ -122,6 +123,32 @@ export default function TimelineItem({ event, index, totalCount, isAutoCollapsed
             </span>
           </div>
 
+          {/* Details Toggle */}
+          {hasDetails && (
+            <div className="mt-1 flex items-center justify-end">
+              <button
+                type="button"
+                className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-white transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsExpanded((v) => !v);
+                }}
+              >
+                {isExpanded ? (
+                  <>
+                    <ChevronUp size={12} />
+                    Hide details
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown size={12} />
+                    Show details
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
           {/* Status Indicators */}
           {isActive && (
             <div className="mt-1.5 flex items-center gap-1.5 animate-pulse">
@@ -144,12 +171,35 @@ export default function TimelineItem({ event, index, totalCount, isAutoCollapsed
             </div>
           )}
           
-          {isCompleted && isHovered && (
-            <div className="mt-1.5 flex items-center gap-1.5 animate-fadeIn">
+          {isCompleted && (
+            <div className="mt-1.5 flex items-center gap-1.5">
               <CheckCircle2 size={12} className="text-green-400" />
               <span className="text-[10px] text-green-400 font-medium">
-                Completed
+                Done
               </span>
+            </div>
+          )}
+          
+          {event.status === "pending" && (
+            <div className="mt-1.5 flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-yellow-400"></div>
+              <span className="text-[10px] text-yellow-400 font-medium">
+                Waiting...
+              </span>
+            </div>
+          )}
+
+          {/* Details (nur beim Aufklappen) */}
+          {hasDetails && isExpanded && (
+            <div className="mt-2 border-t border-gray-700/50 pt-2 space-y-1">
+              {String(event.details)
+                .split("\n")
+                .filter((l) => l.trim().length > 0)
+                .map((line, i) => (
+                  <div key={i} className="text-[10px] text-gray-300 leading-snug">
+                    {line}
+                  </div>
+                ))}
             </div>
           )}
         </div>
