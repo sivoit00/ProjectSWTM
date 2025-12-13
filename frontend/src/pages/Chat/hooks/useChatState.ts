@@ -11,6 +11,7 @@ export type Message = {
   text: string; 
   files?: string[]; 
   agentSteps?: TimelineEvent[];
+  agent?: string;
 };
 
 export function useChatState() {
@@ -194,7 +195,7 @@ export function useChatState() {
    
       setMessages((prev) => [
           ...prev, 
-          { id: botMsgId, sender: "Bot", text: answer, agentSteps }
+          { id: botMsgId, sender: "Bot", text: answer, agentSteps, agent: currentAgent }
       ]);
       
       saveMessageToHistory("Bot", answer);

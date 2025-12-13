@@ -1,6 +1,7 @@
 import { FileText, Image as ImageIcon } from "lucide-react";
 import { api } from "../../../services/api";
 import type { Message } from "../hooks/useChatState";
+import { getAgentColor } from "../../../components/common/timeline/timelineUtils";
 
 interface MessageBubbleProps {
   message: Message;
@@ -8,6 +9,7 @@ interface MessageBubbleProps {
 
 export default function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.sender === "User";
+  const agentColor = getAgentColor(message.agent);
 
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
@@ -15,8 +17,16 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
         className={`px-4 py-3 rounded-2xl max-w-[70%] shadow-md ${
           isUser
             ? "bg-blue-600 text-white rounded-br-none"
-            : "bg-gray-800 text-gray-200 rounded-bl-none border border-gray-700"
+            : "text-gray-200 rounded-bl-none border"
         }`}
+        style={
+          isUser
+            ? undefined
+            : {
+                backgroundColor: `${agentColor}15`,
+                borderColor: `${agentColor}50`,
+              }
+        }
       >
         <p className="text-sm whitespace-pre-wrap">{message.text}</p>
         
