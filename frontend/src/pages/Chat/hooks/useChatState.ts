@@ -11,6 +11,7 @@ export type Message = {
   text: string; 
   files?: string[]; 
   agentSteps?: TimelineEvent[];
+  agent?: string;
 };
 
 export function useChatState() {
@@ -30,7 +31,11 @@ export function useChatState() {
     const savedSteps = localStorage.getItem(`timeline_${userId}`);
     if (savedSteps) {
       try {
-        setAllAgentSteps(JSON.parse(savedSteps));
+        const parsed = JSON.parse(savedSteps);
+        // Migration: wir zeigen nur Agent-Session-Events (alte noisy Events werden ignoriert)
+        if (Array.isArray(parsed)) {
+          setAllAgentSteps(parsed.filter((e: any) => e?.event_type === "agent_session"));
+        }
       } catch (e) { console.error(e); }
     }
   }, [userId]);
@@ -44,6 +49,68 @@ export function useChatState() {
       localStorage.setItem(`timeline_${userId}`, JSON.stringify(allAgentSteps));
     }
   }, [allAgentSteps, userId]);
+
+  const getAgentDisplayName = (agent?: string) => {
+    const a = (agent || "chatbot").toLowerCase();
+    if (a === "lawyer") return "Lawyer Agent";
+    if (a === "repair") return "Repair Agent";
+    if (a === "insurance") return "Insurance Agent";
+    return `${keycloak.tokenParsed?.preferred_username || "Your"} Agent`;
+  };
+
+  const appendSessionStep = (
+    steps: TimelineEvent[], 
+    agent: string,
+    userText: string,
+    botText: string,
+    agentChanged: boolean
+  ): TimelineEvent[] => {
+    const now = new Date().toISOString();
+    const normalizedAgent = (agent || "chatbot").toLowerCase();
+    const displayName = getAgentDisplayName(normalizedAgent);
+
+    const next = [...steps];
+    const last = next.length > 0 ? next[next.length - 1] : null;
+    const lastAgent = (last?.agent || "").toLowerCase();
+
+    const shouldStartNewSession = !last || agentChanged || lastAgent !== normalizedAgent;
+
+    // Wenn neuer Agent startet: vorherige aktive Session abschließen
+    if (shouldStartNewSession && last && last.status === "working") {
+      next[next.length - 1] = { ...last, status: "completed", timestamp: now } as any;
+    }
+
+    const stepLines: string[] = [];
+    if (userText?.trim()) stepLines.push(`User: ${userText.trim()}`);
+    if (botText?.trim()) stepLines.push(`Agent: ${botText.trim()}`);
+
+    if (shouldStartNewSession) {
+      const sessionId = `sess-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      next.push({
+        task: "agent_session",
+        timestamp: now,
+        status: "working",
+        description: displayName,
+        agent: normalizedAgent,
+        event_type: "agent_session",
+        details: stepLines.join("\n"),
+        messageId: undefined,
+        sessionId,
+      } as any);
+      return next;
+    }
+
+    // gleiche Session: Details anhängen + Timestamp aktualisieren
+    const mergedDetails = [last?.details, stepLines.join("\n")].filter(Boolean).join("\n");
+    next[next.length - 1] = {
+      ...(last as any),
+      timestamp: now,
+      description: displayName,
+      details: mergedDetails,
+      status: "working",
+    };
+    return next;
+  };
 
   const handleClearChat = async () => {
     setMessages([]);
@@ -111,16 +178,24 @@ export function useChatState() {
       
       const answer = res.data?.response ?? "Keine Antwort erhalten.";
       const agentSteps = (res.data as any)?.agent_steps || [];
+      const currentAgent = ((res.data as any)?.agent || "chatbot") as string;
+      const agentChanged = Boolean((res.data as any)?.agent_changed);
       
       console.log("Antwort erhalten:", answer);
 
       const botMsgId = `msg-${Date.now()}-bot`;
-      const stepsWithMsgId = agentSteps.map((step: any) => ({ ...step, messageId: botMsgId }));
-      setAllAgentSteps((prev) => [...prev, ...stepsWithMsgId]);
+      // Session-basierte Timeline: ein Eintrag pro Agent, Updates werden gesammelt
+      setAllAgentSteps((prev) => appendSessionStep(
+        prev,
+        currentAgent,
+        displayText,
+        answer,
+        agentChanged
+      ));
    
       setMessages((prev) => [
           ...prev, 
-          { id: botMsgId, sender: "Bot", text: answer, agentSteps }
+          { id: botMsgId, sender: "Bot", text: answer, agentSteps, agent: currentAgent }
       ]);
       
       saveMessageToHistory("Bot", answer);

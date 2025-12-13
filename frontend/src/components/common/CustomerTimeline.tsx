@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState } from "react";
 import ActiveAgentHeader from "./timeline/ActiveAgentHeader";
 import EmptyState from "./timeline/EmptyState";
-import TimelineItem, { TimelineEvent } from "./timeline/TimelineItem";
+import TimelineItem, { type TimelineEvent } from "./timeline/TimelineItem";
 import TimelineFooter from "./timeline/TimelineFooter";
 import "./CustomerTimeline.css";
 
@@ -13,14 +13,12 @@ interface CustomerTimelineProps {
 
 const isCustomerRelevant = (event: TimelineEvent): boolean => {
   const agentLower = (event.agent || "").toLowerCase();
-  
-  if (agentLower.includes("guardrail")) {
-    return false;
-  }
 
-  if (event.status === "standby" && (agentLower.includes("tom") || agentLower.includes("chatbot"))) {
-    return false;
-  }
+  // Neue UX: Wir zeigen nur Agent-Session-Einträge (ein Eintrag pro Agent-Session)
+  if (event.event_type !== "agent_session") return false;
+
+  // Guardrails und rein interne Agenten ausblenden
+  if (agentLower.includes("guardrail")) return false;
 
   return true;
 };

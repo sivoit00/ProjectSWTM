@@ -104,14 +104,26 @@ def get_claim_status(claim_id: str) -> dict:
 
 
 
-def get_user_context(customer_id: str) -> Dict[str, Any]:
-   
+def get_user_context(customer_id: Optional[str]) -> Dict[str, Any]:
+
     db = SessionLocal()
     context: Dict[str, Any] = {}
 
     try:
-        
-        kunde: Optional[Kunde] = db.query(Kunde).filter_by(id=customer_id).first()
+
+        if not customer_id:
+            return context
+
+        kunde: Optional[Kunde] = None
+
+        # customer_id can be either the numeric DB id (as string) or an email address.
+        # Avoid querying an Integer column with a non-numeric value (psycopg2 DataError).
+        customer_id_str = str(customer_id).strip()
+        if customer_id_str.isdigit():
+            kunde = db.query(Kunde).filter_by(id=int(customer_id_str)).first()
+        else:
+            kunde = db.query(Kunde).filter_by(email=customer_id_str).first()
+
         if not kunde:
             return context
 

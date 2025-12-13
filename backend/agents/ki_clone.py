@@ -1,5 +1,7 @@
 import json
 import logging
+import re
+import unicodedata
 from typing import Any, Dict
 from langchain_openai import ChatOpenAI
 import os
@@ -14,6 +16,9 @@ llm = ChatOpenAI(temperature=0.0, model="gpt-5-mini")
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 agent_session_state = {}
 
+ALLOWED_AGENTS = {"lawyer", "insurance", "repair", "general", "reset"}
+CONFIDENCE_THRESHOLD = 0.7
+
 def _load_template(name: str) -> str:
     path = os.path.join(TEMPLATES_DIR, name)
     if not os.path.exists(path):
@@ -26,7 +31,7 @@ try:
 except:
     PROMPT_ROUTE = """
     Classify intent: lawyer, insurance, repair, general.
-    JSON: {"agent": "..." }
+    JSON: {{"agent": "...", "confidence": 0.0 }}
     User: {user_message}
     """
 
@@ -54,32 +59,117 @@ def load_state(session_id: str, user_context: Dict[str, Any] = None) -> Dict[str
 def save_state(session_id: str, state: Dict[str, Any]):
     state_storage[session_id] = state
 
-def _get_routing_decision(text: str) -> str:
-    """Fragt das LLM, welcher Agent zuständig sein könnte."""
+def _normalize_text(text: str) -> str:
+    text = text.strip().lower()
+    text = text.replace("ß", "ss")
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    return text
+
+def _clamp_confidence(value: Any, default: float = 0.0) -> float:
+    try:
+        c = float(value)
+    except (TypeError, ValueError):
+        return default
+    if c < 0.0:
+        return 0.0
+    if c > 1.0:
+        return 1.0
+    return c
+
+def _sanitize_agent(agent: Any, default: str = "general") -> str:
+    if not isinstance(agent, str):
+        return default
+    agent = agent.strip().lower()
+    return agent if agent in ALLOWED_AGENTS else default
+
+def _check_explicit_triggers(text: str) -> tuple[bool, str]:
+    """Prüft ob User explizit einen Agenten-Wechsel wünscht."""
+    t = _normalize_text(text)
+
+    request_words = r"(?:bitte|bitte\s+mal|kannst\s*du|koennen\s*wir|kann\s*ich|ich\s*(?:will|moechte|mochte|brauch|brauche)|verbinde|wechsel|leite\s*mich\s*weiter|sprich\s*(?:mit|zu))"
+
+    lawyer_kw = r"(?:anwalt|rechtsanwalt|rechtsberatung|rechtliche\s*hilfe|rechtshilfe|juristisch)"
+    insurance_kw = r"(?:versicherung|schadensmeldung|schaden\s*melden|schadenfall|claim)"
+    repair_kw = r"(?:werkstatt|werkstatttermin|reparatur|termin\s*(?:bei|in)\s*der\s*werkstatt|inspektion|olwechsel|service)"
+
+    patterns: list[tuple[str, str]] = [
+        ("lawyer", rf"\b{request_words}\b.*\b{lawyer_kw}\b|\b{lawyer_kw}\b.*\b(?:bitte|verbinde|wechsel)\b"),
+        ("insurance", rf"\b(?:schadensmeldung|schaden\s*melden)\b|\b{request_words}\b.*\b{insurance_kw}\b|\b{insurance_kw}\b.*\b(?:bitte|verbinde|wechsel)\b"),
+        ("repair", rf"\b(?:werkstatttermin)\b|\b{request_words}\b.*\b{repair_kw}\b|\b{repair_kw}\b.*\b(?:bitte|verbinde|wechsel)\b"),
+    ]
+
+    for agent, pat in patterns:
+        if re.search(pat, t, flags=re.IGNORECASE):
+            return (True, agent)
+
+    return (False, "general")
+
+def _should_switch_agent(current_agent: str, user_message: str) -> tuple[bool, str, float]:
+    """
+    Entscheidet kontext-bewusst ob Agent gewechselt werden soll.
+    
+    Returns: (should_switch, target_agent, confidence)
+    """
+    current_agent = _sanitize_agent(current_agent, default="general")
+
+    # 1) Explizite Trigger haben höchste Priorität (Override)
+    has_trigger, trigger_agent = _check_explicit_triggers(user_message)
+    if has_trigger and trigger_agent != current_agent:
+        return (True, trigger_agent, 0.95)
+    
+    # 2) LLM mit Kontext-Awareness (semantisch, nicht keyword-basiert)
+    context_prompt = f"""
+You are an intelligent agent router. Analyze if the user wants to switch to a different agent.
+
+Current Active Agent: {current_agent}
+User Message: {user_message}
+
+Available Agents:
+- lawyer: Legal advice, accident support, legal questions
+- repair: Workshop appointments, car repairs, maintenance
+- insurance: Insurance claims, damage reports, insurance questions
+- general: General conversation, greetings, other topics
+
+Rules:
+1. STAY with current agent if the user is continuing the same topic or only mentioning other domains.
+2. SWITCH only when the user is clearly asking for help in a different domain NOW.
+3. If uncertain, set should_switch=false and confidence<0.7.
+4. Examples (German):
+    - "ich muss noch mit der versicherung sprechen" (lawyer context) → STAY
+    - "hilf mir mit der versicherung" → SWITCH insurance
+    - "die werkstatt hat gesagt..." (insurance context) → STAY
+    - "ich brauche einen werkstatttermin" → SWITCH repair
+
+Return ONLY valid JSON:
+{{"should_switch": boolean, "target_agent": "lawyer|repair|insurance|general", "confidence": 0.0-1.0, "reason": "short explanation"}}
+"""
+    
+    try:
+        response = llm.invoke(context_prompt)
+        result = _safe_json_loads(response.content)
+        
+        should_switch = bool(result.get("should_switch", False))
+        target_agent = _sanitize_agent(result.get("target_agent", "general"), default="general")
+        confidence = _clamp_confidence(result.get("confidence", 0.5), default=0.5)
+        
+        log.info(f"Agent Switch Decision: switch={should_switch}, target={target_agent}, confidence={confidence}, reason={result.get('reason', 'N/A')}")
+        
+        return (should_switch, target_agent, confidence)
+    except Exception as e:
+        log.error(f"Error in agent switch decision: {e}")
+        return (False, current_agent, 0.0)
+
+def _get_routing_decision(text: str) -> tuple[str, float]:
+    """Fragt das LLM, welcher Agent zuständig sein könnte (für neue Sessions)."""
     try:
         response = llm.invoke(PROMPT_ROUTE.format(user_message=text))
         data = _safe_json_loads(response.content)
-        return data.get("agent", "general")
+        agent = _sanitize_agent(data.get("agent", "general"), default="general")
+        confidence = _clamp_confidence(data.get("confidence", 0.5), default=0.5)
+        return (agent, confidence)
     except Exception:
-        return "general"
-
-def _keyword_override(decision: str, text: str) -> str:
-    text = text.lower()
-    if any(x in text for x in ["anwalt", "lawyer", "rechtsbeistand", "verklagen"]):
-        return "lawyer"
-
-    insurance_keywords = [
-        "schaden", "schadensmeldung", "claim", "damage",
-        "insurance", "versicher", "accident", "crash", "bump"
-    ]
-    if any(k in text for k in insurance_keywords):
-        return "insurance"
-
-    if decision == "general":
-        repair_keywords = ["werkstatt", "termin", "reparatur", "reifen", "ölwechsel", "inspektion"]
-        if any(k in text for k in repair_keywords):
-            return "repair"
-    return decision
+        return ("general", 0.0)
 
 def handle_general_request(user_message: str, user_name: str = None) -> Dict[str, Any]:
     if user_name:
@@ -112,31 +202,53 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
     active_agent = agent_session_state.get(session_id)
     target_agent = "general"
     agent_changed = False
-    decision = _get_routing_decision(user_message)
-    decision_with_keywords = _keyword_override(decision, user_message)
 
     if active_agent:
-        if decision == "general":
-            target_agent = active_agent
-        elif decision != active_agent:
-            if decision_with_keywords != decision and decision_with_keywords != "general":
-                 target_agent = decision_with_keywords
-                 agent_session_state[session_id] = target_agent
-                 agent_changed = True
-            elif decision != "general":
-                target_agent = decision
+        # Es gibt bereits einen aktiven Agenten
+        # Prüfe kontext-bewusst ob gewechselt werden soll
+        should_switch, new_agent, confidence = _should_switch_agent(active_agent, user_message)
+        
+        if should_switch and confidence >= CONFIDENCE_THRESHOLD:
+            # Hohe Confidence → Wechsel durchführen
+            target_agent = new_agent
+            if target_agent != "general":
                 agent_session_state[session_id] = target_agent
-                agent_changed = True
             else:
-                target_agent = active_agent
+                # Wechsel zu general = Session beenden
+                if session_id in agent_session_state:
+                    del agent_session_state[session_id]
+            agent_changed = True
+            log.info(f"Agent switch: {active_agent} → {target_agent} (confidence: {confidence})")
         else:
+            # Kein Wechsel, bleibe beim aktuellen Agenten
             target_agent = active_agent
-
+            log.info(f"Staying with current agent: {active_agent} (confidence: {confidence})")
     else:
-        target_agent = decision_with_keywords
+        # Keine aktive Session → Neue Intent-Erkennung
+        log.info(f"No active session for {session_id}, detecting intent...")
+        
+        # Prüfe zuerst explizite Trigger
+        has_trigger, trigger_agent = _check_explicit_triggers(user_message)
+        
+        if has_trigger:
+            target_agent = trigger_agent
+            log.info(f"Explicit trigger detected: {target_agent}")
+        else:
+            # Fallback auf LLM-basierte Entscheidung
+            routed_agent, confidence = _get_routing_decision(user_message)
+            log.info(f"LLM routing decision: {routed_agent} (confidence: {confidence})")
+            if routed_agent != "general" and confidence >= CONFIDENCE_THRESHOLD:
+                target_agent = routed_agent
+            else:
+                target_agent = "general"
+                log.info("LLM confidence too low -> staying in general")
+        
         if target_agent != "general":
             agent_session_state[session_id] = target_agent
             agent_changed = True
+            log.info(f"✅ New session started with agent: {target_agent}, agent_changed=True")
+        else:
+            log.info(f"Starting general chatbot, agent_changed=False")
 
     def wrap_response(agent_name: str, result) -> Dict[str, Any]:
         if isinstance(result, dict):
