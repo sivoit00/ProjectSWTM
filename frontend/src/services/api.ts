@@ -1,4 +1,4 @@
-import axios, { type AxiosRequestConfig, type InternalAxiosRequestConfig } from 'axios';
+import axios, { type InternalAxiosRequestConfig } from 'axios';
 import keycloak from '../keycloak';
 
 export const API_URL = ((import.meta as any).env?.VITE_API_URL as string) || 'http://localhost:8000';
@@ -8,6 +8,7 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 120000,
 });
 
 apiClient.interceptors.request.use(
@@ -102,6 +103,11 @@ export const api = {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
     },
+    transcribe: (storedFilename: string, language?: string) =>
+      apiClient.post<{ success: boolean; text: string; model?: string }>(
+        '/files/transcribe',
+        { stored_filename: storedFilename, language }
+      ),
     getFileUrl: (filename: string) => `${API_URL}/files/uploads/${filename}`,
   },
 

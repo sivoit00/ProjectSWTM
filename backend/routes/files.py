@@ -1,16 +1,35 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from fastapi.responses import FileResponse
-from typing import List
+from typing import List, Optional
 import os
 import uuid
 from datetime import datetime
 from auth.dependencies import get_current_user
+from pydantic import BaseModel
+import asyncio
+import requests
 
 router = APIRouter(prefix="/files", tags=["files"])
 
 UPLOAD_DIR = "uploads"
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
-ALLOWED_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".gif", ".bmp"}
+ALLOWED_EXTENSIONS = {
+    ".pdf",
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".gif",
+    ".bmp",
+    ".webm",
+    ".wav",
+    ".mp3",
+    ".m4a",
+    ".aac",
+    ".ogg",
+    ".mp4",
+}
+
+AUDIO_EXTENSIONS = {".webm", ".wav", ".mp3", ".m4a", ".aac", ".ogg", ".mp4"}
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -18,6 +37,67 @@ def is_allowed_file(filename: str) -> bool:
     """Check if file extension is allowed"""
     ext = os.path.splitext(filename)[1].lower()
     return ext in ALLOWED_EXTENSIONS
+
+def is_audio_file(filename: str) -> bool:
+    ext = os.path.splitext(filename)[1].lower()
+    return ext in AUDIO_EXTENSIONS
+
+
+class TranscribeRequest(BaseModel):
+    stored_filename: str
+    language: Optional[str] = None
+
+
+def _transcribe_with_openai(file_path: str, model: str, language: Optional[str]) -> str:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY ist nicht konfiguriert")
+
+    url = "https://api.openai.com/v1/audio/transcriptions"
+    headers = {"Authorization": f"Bearer {api_key}"}
+
+    data: dict = {"model": model}
+    if language:
+        data["language"] = language
+
+    with open(file_path, "rb") as f:
+        files = {"file": (os.path.basename(file_path), f)}
+        resp = requests.post(url, headers=headers, data=data, files=files, timeout=90)
+
+    if resp.status_code >= 400:
+        raise RuntimeError(f"Transcription failed: {resp.status_code} {resp.text}")
+
+    payload = resp.json()
+    text = (payload.get("text") or "").strip()
+    if not text:
+        raise RuntimeError("Empty transcription result")
+    return text
+
+
+@router.post("/transcribe")
+async def transcribe_file(
+    req: TranscribeRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """Transcribe an already uploaded audio file and return its text."""
+
+    stored = (req.stored_filename or "").strip()
+    if not stored:
+        raise HTTPException(400, "stored_filename is required")
+
+    if not is_audio_file(stored):
+        raise HTTPException(400, "Only audio files can be transcribed")
+
+    file_path = os.path.join(UPLOAD_DIR, stored)
+    if not os.path.exists(file_path):
+        raise HTTPException(404, "File not found")
+
+    model = os.getenv("OPENAI_TRANSCRIBE_MODEL", "whisper-1")
+    try:
+        text = await asyncio.to_thread(_transcribe_with_openai, file_path, model, req.language)
+        return {"success": True, "text": text, "model": model}
+    except Exception as e:
+        raise HTTPException(500, str(e))
 
 @router.post("/upload")
 async def upload_files(
@@ -29,7 +109,7 @@ async def upload_files(
     
     - Maximum 5 files per request
     - Maximum 10MB per file
-    - Allowed types: PDF, JPG, PNG, GIF, BMP
+    - Allowed types: PDF, Images, and common Audio formats
     """
     if len(files) > 5:
         raise HTTPException(400, "Maximum 5 files allowed per upload")

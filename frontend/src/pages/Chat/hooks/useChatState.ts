@@ -58,6 +58,16 @@ export function useChatState() {
     return `${keycloak.tokenParsed?.preferred_username || "Your"} Agent`;
   };
 
+  function asText(value: any, fallback = ""): string {
+    if (typeof value === "string") return value;
+    if (value === null || value === undefined) return fallback;
+    try {
+      return typeof value === "object" ? JSON.stringify(value) : String(value);
+    } catch {
+      return fallback;
+    }
+  }
+
   const appendSessionStep = (
     steps: TimelineEvent[], 
     agent: string,
@@ -80,9 +90,12 @@ export function useChatState() {
       next[next.length - 1] = { ...last, status: "completed", timestamp: now } as any;
     }
 
+    const safeUserText = asText(userText, "");
+    const safeBotText = asText(botText, "");
+
     const stepLines: string[] = [];
-    if (userText?.trim()) stepLines.push(`User: ${userText.trim()}`);
-    if (botText?.trim()) stepLines.push(`Agent: ${botText.trim()}`);
+    if (safeUserText.trim()) stepLines.push(`User: ${safeUserText.trim()}`);
+    if (safeBotText.trim()) stepLines.push(`Agent: ${safeBotText.trim()}`);
 
     if (shouldStartNewSession) {
       const sessionId = `sess-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -139,16 +152,17 @@ export function useChatState() {
   };
 
   const handleSend = async (overrideText?: string, isSystemInjection = false) => {
-    console.log("handleSend ausgelöst!", { overrideText, isSystemInjection });
+    const override = typeof overrideText === "string" ? overrideText : undefined;
+    console.log("handleSend ausgelöst!", { overrideText: override, isSystemInjection });
 
-    const textToSend = overrideText || input.trim();
+    const textToSend = override || input.trim();
     if ((!textToSend && selectedFiles.length === 0) || loading) return;
 
     let uploadedFileNames: string[] = [];
     
     setLoading(true);
 
-    if (!overrideText) setInput("");
+    if (!override) setInput("");
 
     try {
       if (selectedFiles.length > 0) {
@@ -158,9 +172,36 @@ export function useChatState() {
         setShowFileUpload(false);
       }
 
+      const audioFiles = uploadedFileNames.filter((n: string) => /\.(webm|wav|mp3|m4a|aac|ogg|mp4)$/i.test(n));
+      let finalTextToSend = textToSend;
+
+      // If user sent only an audio file, transcribe it and send transcript to KI.
+      if (!isSystemInjection && !finalTextToSend && audioFiles.length > 0) {
+        try {
+          const tRes = await api.files.transcribe(audioFiles[0]);
+          finalTextToSend = (tRes.data?.text || "").trim();
+        } catch (e) {
+          console.error("Transcription error:", e);
+          const errText = "Sprachnachricht konnte nicht transkribiert werden.";
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `msg-${Date.now()}-user`,
+              sender: "User",
+              text: `[${uploadedFileNames.length} file(s) uploaded]`,
+              files: uploadedFileNames,
+            },
+            { id: `msg-err-${Date.now()}`, sender: "Bot", text: errText },
+          ]);
+          saveMessageToHistory("User", `[${uploadedFileNames.length} file(s) uploaded]`);
+          saveMessageToHistory("Bot", errText);
+          return;
+        }
+      }
+
       const displayText = isSystemInjection 
         ? "E-Mail Update: Analysiere eingegangene Antwort..." 
-        : (textToSend || `[${uploadedFileNames.length} file(s) uploaded]`);
+        : (finalTextToSend || `[${uploadedFileNames.length} file(s) uploaded]`);
 
       const userMsgId = `msg-${Date.now()}-user`;
       
@@ -173,10 +214,15 @@ export function useChatState() {
 
       saveMessageToHistory("User", displayText);
 
+      // If the user only sent non-audio files (and no text), don't force an AI response.
+      if (!finalTextToSend && uploadedFileNames.length > 0 && !isSystemInjection) {
+        return;
+      }
+
       console.log("Sende an Backend...");
-      const res = await api.sendToKI({ message: textToSend });
+      const res = await api.sendToKI({ message: finalTextToSend });
       
-      const answer = res.data?.response ?? "Keine Antwort erhalten.";
+      const answer = asText(res.data?.response, "Keine Antwort erhalten.");
       const agentSteps = (res.data as any)?.agent_steps || [];
       const currentAgent = ((res.data as any)?.agent || "chatbot") as string;
       const agentChanged = Boolean((res.data as any)?.agent_changed);

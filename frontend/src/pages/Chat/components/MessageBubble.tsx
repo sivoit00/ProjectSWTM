@@ -36,6 +36,24 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
               const fileUrl = api.files.getFileUrl(filename);
               const isPdf = filename.toLowerCase().endsWith('.pdf');
               const isImage = /\.(jpg|jpeg|png|gif|bmp)$/i.test(filename);
+              const isAudio = /\.(webm|wav|mp3|m4a|aac|ogg|mp4)$/i.test(filename);
+
+              if (isAudio) {
+                return (
+                  <div
+                    key={idx}
+                    className={`p-2 rounded-lg text-xs ${
+                      isUser ? "bg-blue-700" : "bg-gray-700"
+                    }`}
+                  >
+                    <audio
+                      controls
+                      src={fileUrl}
+                      className="w-full chat-audio"
+                    />
+                  </div>
+                );
+              }
               
               return (
                 <a
