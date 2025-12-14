@@ -1,10 +1,9 @@
 import json
 from typing import Any, Dict, Optional
 from database import SessionLocal
-from models.DamageEvent import DamageEvent
-from models.kunde import Kunde
-from models.fahrzeug import Fahrzeug
-from models.insurance import Insurance
+from models import Kunde, Fahrzeug, Insurance, DamageEvent
+from typing import Dict, Any, Optional
+from sqlalchemy.orm import Session
 
 def get_policy_details(customer_id: str) -> Dict[str, Any]:
     """
@@ -102,47 +101,45 @@ def get_claim_status(claim_id: str) -> dict:
     finally:
         db.close()
 
-
-
 def get_user_context(customer_id: str) -> Dict[str, Any]:
-   
-    db = SessionLocal()
-    context: Dict[str, Any] = {}
-
+    
+    db: Session = SessionLocal()
+    context: Dict[str, Any] = {
+        "customer_id": None,
+        "customer_name": None,
+        "customer_email": None,
+        "customer_phone": None,
+        "vehicle": None,
+        "insurance": {
+            "name": None,
+            "email": None,
+            "phone": None,
+            "postcode": None,
+            "city": None
+        }
+    }
     try:
         
         kunde: Optional[Kunde] = db.query(Kunde).filter_by(id=customer_id).first()
-        if not kunde:
-            return context
+        if kunde:
+            context["customer_id"] = str(kunde.id)
+            context["customer_name"] = kunde.name
+            context["customer_email"] = kunde.email
+            context["customer_phone"] = kunde.telefon
 
-        context["customer_id"] = str(kunde.id)
-        context["customer_name"] = kunde.name
-        context["customer_email"] = kunde.email
-        context["customer_phone"] = kunde.telefon
+            if kunde.fahrzeuge:
+                f = kunde.fahrzeuge[0]
+                context["vehicle"] = f"{f.marke} {f.modell} ({f.baujahr})"
 
-        
-        fahrzeuge: list = []
-        for f in kunde.fahrzeuge:
-            fahrzeuge.append({
-                "id": f.id,
-                "marke": f.marke,
-                "modell": f.modell,
-                "baujahr": f.baujahr
-            })
-        context["vehicles"] = fahrzeuge
-
-        
-        insurance: Optional[Insurance] = db.query(Insurance).filter_by(user_id=str(kunde.id)).first()
-        if insurance:
-            context["insurance"] = {
-                "name": insurance.name,
-                "email": insurance.email,
-                "phone": insurance.phone,
-                "postcode": insurance.postcode,
-                "city": insurance.city
-            }
-
+            insurance: Optional[Insurance] = db.query(Insurance).filter_by(user_id=str(kunde.id)).first()
+            if insurance:
+                context["insurance"] = {
+                    "name": insurance.name,
+                    "email": insurance.email,
+                    "phone": insurance.phone,
+                    "postcode": insurance.postcode,
+                    "city": insurance.city
+                }
         return context
-
     finally:
         db.close()

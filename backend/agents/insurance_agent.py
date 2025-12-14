@@ -31,7 +31,7 @@ def run_insurance_agent(
     )
 
     memory = get_or_create_memory(session_id)
-
+    
     if not user_context or not user_context.get("customer_id"):
         db_context = get_user_context(session_id)
         if db_context:
@@ -39,7 +39,7 @@ def run_insurance_agent(
                 user_context.update(db_context)
             else:
                 user_context = db_context
-
+    
     state = load_state(session_id, user_context)
 
     chat_history_list = memory.load_memory_variables({}).get("chat_history", [])
