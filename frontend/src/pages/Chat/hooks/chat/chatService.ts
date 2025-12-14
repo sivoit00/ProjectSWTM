@@ -9,13 +9,12 @@ type StreamCallbacks = {
 };
 
 export const chatService = {
- 
   async processUploads(files: File[]): Promise<{ fileNames: string[]; transcribedText?: string }> {
     if (files.length === 0) return { fileNames: [] };
 
     const uploadResponse = await api.files.upload(files);
     const fileNames = uploadResponse.data.files.map((f: any) => f.stored_filename);
-  
+
     const audioFiles = fileNames.filter((n: string) => /\.(webm|wav|mp3|m4a|aac|ogg|mp4)$/i.test(n));
     let transcribedText: string | undefined;
 
@@ -51,7 +50,7 @@ export const chatService = {
       const decoder = new TextDecoder("utf-8");
       
       let fullText = "";
-      let currentAgent = "chatbot";
+      let currentAgent = "chatbot"; 
       let agentChanged = false;
 
       while (true) {
@@ -71,6 +70,10 @@ export const chatService = {
 
               if (data.delta) {
                 fullText += data.delta;
+                callbacks.onDelta(fullText);
+              } 
+              else if (data.response && (data.blocked || !fullText)) {
+                fullText = data.response;
                 callbacks.onDelta(fullText);
               }
 
