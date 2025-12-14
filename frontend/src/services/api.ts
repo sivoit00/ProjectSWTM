@@ -82,9 +82,6 @@ export const api = {
   },
 
   chat: {
-    sendMessage: (message: { message: string }) =>
-      apiClient.post<{ response: string }>('/langchain/chat', message),
-    
     saveMessage: (data: { user_id: string; sender: string; message: string }) =>
       apiClient.post('/chat/save', data),
     
@@ -93,6 +90,12 @@ export const api = {
     
     clearHistory: (userId: string) =>
       apiClient.delete(`/chat/history/${userId}`),
+
+    createSession: () => 
+      apiClient.post<{ ok: boolean; session_id: string; message: string }>('/ki-orchestrator/session/new'),
+      
+    clearSession: (sessionId: string) => 
+      apiClient.delete(`/ki-orchestrator/session/${sessionId}`),
   },
 
   files: {
@@ -111,23 +114,8 @@ export const api = {
     getFileUrl: (filename: string) => `${API_URL}/files/uploads/${filename}`,
   },
 
-  sendToKI: (payload: { message: string }) => {
-    // attach session_id from localStorage if present so backend agents can use per-session memory
-    const sessionId = typeof window !== 'undefined' ? localStorage.getItem('sessionId') : null;
-    const body = sessionId ? { ...payload, session_id: sessionId } : payload;
-    return apiClient.post<{ response: string; structured: any; agent?: string }>('/ki-orchestrator/message', body);
-  },
-
   notifications: {
     getAll: (userId: string) => apiClient.get<NotificationItem[]>(`/notifications/list/${userId}`),
     markRead: (id: number) => apiClient.post(`/notifications/mark-read/${id}`),
   },
- 
-  getKunden: () => apiClient.get<Kunde[]>('/kunden'),
-  createKunde: (kunde: Omit<Kunde, 'id'>) => apiClient.post<Kunde>('/kunden', kunde),
-  getFahrzeuge: () => apiClient.get<Fahrzeug[]>('/fahrzeuge'),
-  createFahrzeug: (fahrzeug: Omit<Fahrzeug, 'id'>) => apiClient.post<Fahrzeug>('/fahrzeuge', fahrzeug),
-  getWerkstatt: () => apiClient.get<Werkstatt[]>('/werkstatt'),
-  createWerkstatt: (werkstatt: Omit<Werkstatt, 'id'>) => apiClient.post<Werkstatt>('/werkstatt', werkstatt),
-  sendToOpenAI: (message: { message: string }) => apiClient.post<{ response: string }>('/langchain/chat', message),
 };
