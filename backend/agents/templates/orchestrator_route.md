@@ -55,7 +55,7 @@ Failure Handling
 - If the user asks for actions beyond your tools (e.g., contacting third parties), provide guidance and templates rather than claiming you performed the action.
 
 Output format: pure JSON only:
-{"agent": "<lawyer|insurance|repair|general|reset>", "brief": {"entities":[], "key_terms":[], "incident":{}, "ids":{}, "assets":{}, "deadlines":{}, "location":{}, "language": "de|en", "goal": "", "constraints": []}}
+{{"agent": "<lawyer|insurance|repair|general|reset>", "confidence": 0.0, "brief": {{"entities":[], "key_terms":[], "incident":{{}}, "ids":{{}}, "assets":{{}}, "deadlines":{{}}, "location":{{}}, "language": "de|en", "goal": "", "constraints": []}}}}
 
 No analysis, no extra keys, no text outside JSON.
 
