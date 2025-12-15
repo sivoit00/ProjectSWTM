@@ -63,7 +63,7 @@ export default function ChatInput({
           className="flex-1 px-4 py-3 text-white placeholder-gray-400 rounded-xl border border-gray-600 bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
         />
         <button
-          onClick={onSend}
+          onClick={() => onSend()}
           disabled={loading || (!input.trim() && selectedFiles.length === 0)}
           className="p-3 bg-blue-600 rounded-xl shadow-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
