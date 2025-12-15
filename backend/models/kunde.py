@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, String
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -6,7 +6,7 @@ from database import Base
 class Kunde(Base):
     __tablename__ = "kunde"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(String(200), primary_key=True, index=True)
     name = Column(String(100))
     email = Column(String(100))
     telefon = Column(String(20))

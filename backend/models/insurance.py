@@ -5,7 +5,7 @@ class Insurance(Base):
     __tablename__ = "insurance"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(String, index=True, nullable=False)
+    user_id = Column(String(200), index=True, nullable=False)
 
     name = Column(String(200))
     email = Column(String(200))
