@@ -122,7 +122,7 @@ def get_user_context(customer_id: str) -> Dict[str, Any]:
         
         kunde: Optional[Kunde] = db.query(Kunde).filter_by(id=customer_id).first()
         if kunde:
-            context["customer_id"] = str(kunde.id)
+            context["customer_id"] = kunde.id
             context["customer_name"] = kunde.name
             context["customer_email"] = kunde.email
             context["customer_phone"] = kunde.telefon
@@ -142,4 +142,4 @@ def get_user_context(customer_id: str) -> Dict[str, Any]:
                 }
         return context
     finally:
-        db.close()
+        db.close()  

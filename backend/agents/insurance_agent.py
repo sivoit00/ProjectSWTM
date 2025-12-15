@@ -1,18 +1,35 @@
 import os
 import logging
 from typing import Dict, Any, Optional
+from datetime import datetime
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from services.insurance_utils import get_or_create_memory, save_state, load_state
-from services.insurance_service import get_user_context
-
+from services.insurance_service import get_user_context, get_claim_status, submit_claim, calculate_premium, get_policy_details
+  
 log = logging.getLogger(__name__)
 
-PROMPT_TEMPLATE_PATH = "templates/insurance_agent.md"
+templates_dir = os.path.join(os.path.dirname(__file__), "templates")
+PROMPT_TEMPLATE_PATH = os.path.join(templates_dir, "insurance_classifier.md")
 
 def _load_prompt() -> str:
     with open(PROMPT_TEMPLATE_PATH, "r", encoding="utf-8") as f:
         return f.read()
+
+def _build_agent_step(response_text: str, agent_name: str = "insurance") -> Dict[str, Any]:
+    """Erstellt ein Timeline-kompatibles, flaches Event für den Frontend-Chat"""
+    now = datetime.utcnow().isoformat()
+    return {
+        "task": "agent_session",
+        "timestamp": now,
+        "status": "working",
+        "description": f"{agent_name.capitalize()} Agent",
+        "agent": agent_name,
+        "event_type": "agent_session",
+        "details": response_text,
+        "messageId": None,
+        "sessionId": f"sess-{int(datetime.utcnow().timestamp() * 1000)}"
+    }
 
 def run_insurance_agent(
     user_input: str,
@@ -22,7 +39,7 @@ def run_insurance_agent(
 
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        return {"response": "API key missing", "structured": {}, "agent": "insurance"}
+        return {"response": "API key missing", "structured": {}, "agent": "insurance", "agent_steps": []}
 
     llm = ChatOpenAI(
         api_key=api_key,
@@ -49,15 +66,12 @@ def run_insurance_agent(
     
     state = load_state(session_id, user_context)
 
+    
     chat_history_list = memory.load_memory_variables({}).get("chat_history", [])
-    chat_history_text = "\n".join([f"{m.type}: {m.content}" for m in chat_history_list])
+    chat_history_text = "\n".join([f"{getattr(m, 'type', 'user')}: {getattr(m, 'content', str(m))}" for m in chat_history_list])
 
     prompt_template = _load_prompt()
-    prompt_text = (
-        prompt_template
-        .replace("{chat_history}", chat_history_text)
-        .replace("{user_input}", user_input)
-    )
+    prompt_text = prompt_template.replace("{chat_history}", chat_history_text).replace("{user_input}", user_input)
 
     try:
         res = llm.invoke([
@@ -65,13 +79,11 @@ def run_insurance_agent(
             HumanMessage(content=user_input)
         ])
 
-        import json
         content = res.content.strip()
-
+        json_data = {}
+        import json
         start = content.find("{")
         end = content.rfind("}") + 1
-        json_data = {}
-
         if start != -1 and end != -1:
             try:
                 json_data = json.loads(content[start:end])
@@ -80,25 +92,22 @@ def run_insurance_agent(
 
         handover = None
         claim_data = None
-
         if isinstance(json_data, dict) and json_data.get("handover") == "repair":
             handover = "repair"
-            claim_data = {
-                "customer_id": json_data.get("customer_id"),
-                "vehicle": json_data.get("vehicle"),
-                "description": json_data.get("description"),
-                "damage_date": json_data.get("damage_date"),
-                "damage_location": json_data.get("damage_location"),
-                "estimated_damage": json_data.get("estimated_damage"),
-            }
+            claim_data = {k: json_data.get(k) for k in ["customer_id", "vehicle", "description", "damage_date", "damage_location", "estimated_damage"]}
 
-        memory.save_context({"user_input": user_input}, {"response": content})
+        
+        agent_step = _build_agent_step(content)
+
+        
+        memory.save_context({"user_input": user_input}, {"response": content, "agent_steps": [agent_step]})
         save_state(session_id, state)
 
         return_data = {
             "response": content,
             "structured": json_data,
-            "agent": "insurance"
+            "agent": "insurance",
+            "agent_steps": [agent_step]
         }
 
         if handover == "repair":
@@ -112,5 +121,6 @@ def run_insurance_agent(
         return {
             "response": "Sorry, es gab einen internen Fehler.",
             "structured": {},
-            "agent": "insurance"
+            "agent": "insurance",
+            "agent_steps": []
         }
