@@ -6,10 +6,16 @@ import keycloak from "./keycloak";
 import "./index.css";
 
 keycloak
-  .init({ onLoad: "login-required", checkLoginIframe: false })
+  .init({
+    onLoad: "login-required",
+    checkLoginIframe: false,
+    redirectUri: window.location.origin + "/",
+  })
   .then((authenticated) => {
     if (!authenticated) {
-      keycloak.login();
+      keycloak.login({
+        redirectUri: window.location.origin + "/",
+      });
     } else {
       console.log("Authenticated");
       createRoot(document.getElementById("root")!).render(

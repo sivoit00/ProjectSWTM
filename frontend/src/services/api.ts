@@ -33,41 +33,95 @@ apiClient.interceptors.request.use(
 
 export interface Kunde {
   id?: number;
-  name: string;
+  firstName: string;
+  lastName: string;
+  username: string;
   email: string;
-  telefon: string;
+  phone: string;
+  postcode: string;
+  city: string;
+  address: string;
 }
 
 export interface Fahrzeug {
   id?: number;
-  marke: string;
-  modell: string;
-  baujahr: number;
-  kunde_id: number;
+  brand: string;
+  model: string;
+  year: number;
+  numberplate: string;
 }
 
 export interface Werkstatt {
   id?: number;
   name: string;
-  adresse: string;
-  plz: string;
-  ort: string; 
+  email: string;
+  phone: string;
+  postcode: string;
+  city: string;
+  address: string;
+}
+
+export interface Anwalt {
+  id?: number;
+  firstName: string;
+  lastName: string;
+  company: string;
+  email: string;
+  phone: string;
+  postcode: string;
+  city: string;
+  address: string;
+}
+
+export interface Versicherung {
+  id?: number;
+  name: string;
+  number: string;
+  email: string;
+  phone: string;
+  postcode: string;
+  city: string;
+  contact: string;
+  address: string;
 }
 
 export const api = {
   customers: {
     getAll: () => apiClient.get<Kunde[]>('/kunden'),
     create: (kunde: Omit<Kunde, 'id'>) => apiClient.post<Kunde>('/kunden', kunde),
+    update: (id: number, kunde: Partial<Omit<Kunde, 'id'>>) =>
+      apiClient.put<Kunde>(`/kunden/${id}`, kunde),
   },
 
   vehicles: {
     getAll: () => apiClient.get<Fahrzeug[]>('/fahrzeuge'),
-    create: (fahrzeug: Omit<Fahrzeug, 'id'>) => apiClient.post<Fahrzeug>('/fahrzeuge', fahrzeug),
+    create: (fahrzeug: Omit<Fahrzeug, 'id'>) =>
+      apiClient.post<Fahrzeug>('/fahrzeuge', fahrzeug),
+    update: (id: number, fahrzeug: Partial<Omit<Fahrzeug, 'id'>>) =>
+      apiClient.put<Fahrzeug>(`/fahrzeuge/${id}`, fahrzeug),
   },
+
 
   workshops: {
     getAll: () => apiClient.get<Werkstatt[]>('/werkstatt'),
     create: (werkstatt: Omit<Werkstatt, 'id'>) => apiClient.post<Werkstatt>('/werkstatt', werkstatt),
+    update: (id: number, werkstatt: Partial<Omit<Werkstatt, 'id'>>) =>
+      apiClient.put<Werkstatt>(`/werkstatt/${id}`, werkstatt),
+  },
+
+  lawyers: {
+    getAll: () => apiClient.get<Anwalt[]>('/rechtsanwalt'),
+    create: (anwalt: Omit<Anwalt, 'id'>) => apiClient.post<Anwalt>('/rechtsanwalt', anwalt),
+    update: (id: number, anwalt: Partial<Omit<Anwalt, 'id'>>) => 
+      apiClient.put<Anwalt>(`/rechtsanwalt/${id}`, anwalt),
+  },
+
+  insurances: {
+    getAll: () => apiClient.get<Versicherung[]>('/versicherung'),
+    create: (versicherung: Omit<Versicherung, 'id'>) =>
+      apiClient.post<Versicherung>('/versicherung', versicherung),
+    update: (id: number, versicherung: Partial<Omit<Versicherung, 'id'>>) =>
+      apiClient.put<Versicherung>(`/versicherung/${id}`, versicherung),
   },
 
   chat: {
@@ -96,18 +150,11 @@ export const api = {
   },
 
   sendToKI: (payload: { message: string }) => {
-    // attach session_id from localStorage if present so backend agents can use per-session memory
     const sessionId = typeof window !== 'undefined' ? localStorage.getItem('sessionId') : null;
     const body = sessionId ? { ...payload, session_id: sessionId } : payload;
-    return apiClient.post<{ response: string; structured: any; agent?: string }>('/ki-orchestrator/message', body);
+    return apiClient.post<{ response: string; structured: any; agent?: string }>(
+      '/ki-orchestrator/message',
+      body
+    );
   },
-
- 
-  getKunden: () => apiClient.get<Kunde[]>('/kunden'),
-  createKunde: (kunde: Omit<Kunde, 'id'>) => apiClient.post<Kunde>('/kunden', kunde),
-  getFahrzeuge: () => apiClient.get<Fahrzeug[]>('/fahrzeuge'),
-  createFahrzeug: (fahrzeug: Omit<Fahrzeug, 'id'>) => apiClient.post<Fahrzeug>('/fahrzeuge', fahrzeug),
-  getWerkstatt: () => apiClient.get<Werkstatt[]>('/werkstatt'),
-  createWerkstatt: (werkstatt: Omit<Werkstatt, 'id'>) => apiClient.post<Werkstatt>('/werkstatt', werkstatt),
-  sendToOpenAI: (message: { message: string }) => apiClient.post<{ response: string }>('/langchain/chat', message),
 };

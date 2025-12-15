@@ -2,10 +2,10 @@ from pydantic import BaseModel
 
 
 class FahrzeugBase(BaseModel):
-    marke: str
-    modell: str
-    baujahr: int
-    kunde_id: int
+    brand: str
+    model: str
+    year: int
+    numberplate: str
 
 
 class FahrzeugCreate(FahrzeugBase):

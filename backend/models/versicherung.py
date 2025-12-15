@@ -1,19 +1,18 @@
 from sqlalchemy import Column, Integer, String, ForeignKey
-from sqlalchemy.orm import relationship
 from database import Base
 
 
-class Werkstatt(Base):
-    __tablename__ = "werkstatt"
-    
+class Versicherung(Base):
+    __tablename__ = "versicherung"
+
     id = Column(Integer, primary_key=True, index=True)
     kunde_id = Column(Integer, ForeignKey("kunde.id"))
 
-    name = Column(String(100))
-    email = Column(String(100))
+    name = Column(String(150))
+    number = Column(String(100))
+    contact = Column(String(150))
+    email = Column(String(150))
     phone = Column(String(50))
-    address = Column(String(200))
+    address = Column(String(150))
     postcode = Column(String(20))
     city = Column(String(100))
-
-    auftraege = relationship("Auftrag", back_populates="werkstatt")

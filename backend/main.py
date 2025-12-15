@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine
 from models import Base
-from routes import kunden, fahrzeuge, werkstaetten, auftraege, ki, openai_route, chat_history, files, ki_orchestrator, insurance, guardrails, admin_guardrails
+from routes import kunden, fahrzeuge, werkstaetten, auftraege, ki, openai_route, chat_history, files, ki_orchestrator, insurance, guardrails, admin_guardrails, rechtsanwalt, versicherung
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.background import BackgroundScheduler
 from agents.email_listener import check_inbox_for_replies
@@ -57,6 +57,8 @@ app.include_router(ki_orchestrator.router, prefix="/ki-orchestrator", tags=["KI 
 app.include_router(insurance.router, prefix="/ki", tags=["Insurance"])
 app.include_router(guardrails.router, prefix="/guardrails", tags=["GuardRails"])
 app.include_router(admin_guardrails.router, prefix="/admin/guardrails", tags=["GuardRails Admin"])
+app.include_router(rechtsanwalt.router, prefix="/rechtsanwalt", tags=["Lawyers"])
+app.include_router(versicherung.router, prefix="/versicherung", tags=["Insurances"])
 
 @app.get("/", tags=["Root"])
 def home():

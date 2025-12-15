@@ -1,10 +1,10 @@
 from pydantic import BaseModel
 
 
-class KundeBase(BaseModel):
-    firstName: str
-    lastName: str
-    username: str
+class VersicherungBase(BaseModel):
+    name: str
+    number: str
+    contact: str
     email: str
     phone: str
     address: str
@@ -12,13 +12,12 @@ class KundeBase(BaseModel):
     city: str
 
 
-class KundeCreate(KundeBase):
+class VersicherungCreate(VersicherungBase):
     pass
 
 
-class Kunde(KundeBase):
+class Versicherung(VersicherungBase):
     id: int
-    user_id: str
 
     class Config:
         orm_mode = True

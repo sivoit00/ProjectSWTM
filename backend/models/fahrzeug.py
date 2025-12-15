@@ -7,9 +7,10 @@ class Fahrzeug(Base):
     __tablename__ = "fahrzeug"
 
     id = Column(Integer, primary_key=True, index=True)
-    marke = Column(String(50))
-    modell = Column(String(50))
-    baujahr = Column(Integer)
+    brand = Column(String(50))
+    model = Column(String(50))
+    year = Column(Integer)
+    numberplate = Column(String(50))
     kunde_id = Column(Integer, ForeignKey("kunde.id"))
 
     kunde = relationship("Kunde", back_populates="fahrzeuge")

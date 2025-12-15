@@ -1,24 +1,20 @@
 from pydantic import BaseModel
 
-
-class KundeBase(BaseModel):
+class RechtsanwaltBase(BaseModel):
     firstName: str
     lastName: str
-    username: str
+    company: str
     email: str
     phone: str
     address: str
     postcode: str
     city: str
 
-
-class KundeCreate(KundeBase):
+class RechtsanwaltCreate(RechtsanwaltBase):
     pass
 
-
-class Kunde(KundeBase):
+class Rechtsanwalt(RechtsanwaltBase):
     id: int
-    user_id: str
 
     class Config:
         orm_mode = True

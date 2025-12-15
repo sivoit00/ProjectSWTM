@@ -3,9 +3,11 @@ from pydantic import BaseModel
 
 class WerkstattBase(BaseModel):
     name: str
-    adresse: str
-    plz: str
-    ort: str
+    email: str
+    phone: str
+    address: str
+    postcode: str
+    city: str
 
 
 class WerkstattCreate(WerkstattBase):
