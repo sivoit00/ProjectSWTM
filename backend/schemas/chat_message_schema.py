@@ -1,10 +1,11 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 class ChatMessageBase(BaseModel):
     sender: str  # "User" or "Bot"
     message: str
+    conversation_id: Optional[str] = "default"
 
 class ChatMessageCreate(ChatMessageBase):
     user_id: str

@@ -65,6 +65,14 @@ export interface NotificationItem {
   is_read: boolean;
 }
 
+export interface ChatConversationSummary {
+  user_id: string;
+  conversation_id: string;
+  title?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export const api = {
   customers: {
     getAll: () => apiClient.get<Kunde[]>('/kunden'),
@@ -82,14 +90,27 @@ export const api = {
   },
 
   chat: {
-    saveMessage: (data: { user_id: string; sender: string; message: string }) =>
+    saveMessage: (data: { user_id: string; sender: string; message: string; conversation_id?: string }) =>
       apiClient.post('/chat/save', data),
     
-    getHistory: (userId: string) =>
-      apiClient.get(`/chat/history/${userId}`),
+    getHistory: (userId: string, conversationId?: string) =>
+      apiClient.get(`/chat/history/${userId}`, {
+        params: conversationId ? { conversation_id: conversationId } : {},
+      }),
+
+    listConversations: (userId: string) =>
+      apiClient.get<ChatConversationSummary[]>(`/chat/conversations/${userId}/details`),
+
+    renameConversation: (userId: string, conversationId: string, title: string | null) =>
+      apiClient.patch<ChatConversationSummary>(`/chat/conversations/${userId}/${conversationId}`, { title }),
+
+    deleteConversation: (userId: string, conversationId: string) =>
+      apiClient.delete(`/chat/conversations/${userId}/${conversationId}`),
     
-    clearHistory: (userId: string) =>
-      apiClient.delete(`/chat/history/${userId}`),
+    clearHistory: (userId: string, conversationId?: string) =>
+      apiClient.delete(`/chat/history/${userId}`, {
+        params: conversationId ? { conversation_id: conversationId } : {},
+      }),
 
     createSession: () => 
       apiClient.post<{ ok: boolean; session_id: string; message: string }>('/ki-orchestrator/session/new'),

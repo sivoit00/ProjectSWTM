@@ -4,7 +4,9 @@ interface ChatHeaderProps {
   onNotificationClick: (emailData: any) => void;
 }
 
-export default function ChatHeader({ onNotificationClick }: ChatHeaderProps) {
+export default function ChatHeader({
+  onNotificationClick,
+}: ChatHeaderProps) {
   return (
     <div className="p-4 border-b border-gray-700 bg-gray-800 relative">
       <h2 className="text-xl font-bold text-white">AI Chat</h2>
