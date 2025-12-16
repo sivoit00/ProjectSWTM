@@ -14,7 +14,7 @@ class WorkshopCreate(WorkshopBase):
     pass
 
 
-class Workshop(workshopBase):
+class Workshop(WorkshopBase):
     id: int
 
     class Config:

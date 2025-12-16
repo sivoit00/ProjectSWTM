@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from database import SessionLocal
-from models import Insurane, Customer
+from models import Insurance, Customer
 from schemas import Insurance as InsuranceSchema, InsuranceCreate
 from auth.dependencies import get_current_user
 from routes.customers import get_or_create_customer
