@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import engine
 from models import Base
 from models.notifications import Notification
-from routes import kunden, fahrzeuge, werkstaetten, auftraege, ki, openai_route, chat_history, files, ki_orchestrator, insurance, guardrails, admin_guardrails, notifications
+from routes import customers, vehicles, workshops, ki, openai_route, chat_history, files, ki_orchestrator, insurance, guardrails, admin_guardrails, notifications, lawyers, insurances
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.background import BackgroundScheduler
 from agents.email_listener import check_inbox_for_replies
