@@ -41,7 +41,7 @@ def search_vector_db(query: str, top_k: int = 3) -> List[Dict[str, Any]]:
         log.error(f"Vector DB fetch failed: {e}")
         return [{"error": f"Vector DB fetch failed: {e}"}]
 
-    # If the query looks like a stored filename, try using its text content as the query
+    
     query_text = query
     try:
         base_uploads = os.path.abspath(os.path.join(BACKEND_DIR, "uploads"))

@@ -120,6 +120,7 @@ export function useChatState() {
       
       const answer = res.data?.response ?? "No response received";
       const agentSteps = (res.data as any)?.agent_steps || [];
+      const activeAgent = (res.data as any)?.agent || (agentSteps?.[0]?.agent);
       
       console.log("🔍 Backend Response:", res.data);
       console.log("🔍 Agent Steps received:", agentSteps);
@@ -136,7 +137,10 @@ export function useChatState() {
       
       setAllAgentSteps((prev) => [...prev, ...stepsWithMsgId]);
       
-      setMessages((prev) => [...prev, { id: botMsgId, sender: "Bot", text: answer, agentSteps }]);
+      setMessages((prev) => [
+        ...prev,
+        { id: botMsgId, sender: "Bot", text: answer, agentSteps, agent: activeAgent }
+      ]);
       
       await saveMessageToHistory("Bot", answer);
 

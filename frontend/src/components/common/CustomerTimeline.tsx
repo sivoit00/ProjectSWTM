@@ -1,7 +1,8 @@
 ﻿import { useEffect, useState } from "react";
 import ActiveAgentHeader from "./timeline/ActiveAgentHeader";
 import EmptyState from "./timeline/EmptyState";
-import TimelineItem, { TimelineEvent } from "./timeline/TimelineItem";
+import TimelineItem from "./timeline/TimelineItem";
+import type { TimelineEvent } from "./timeline/TimelineItem";
 import TimelineFooter from "./timeline/TimelineFooter";
 import "./CustomerTimeline.css";
 
