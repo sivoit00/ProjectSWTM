@@ -1,6 +1,6 @@
 import { FileText, Image as ImageIcon } from "lucide-react";
 import { api } from "../../../services/api";
-import type { Message } from "../hooks/useChatState";
+import type { Message } from "../hooks/chat/chatTypes";
 import { getAgentColor } from "../../../components/common/timeline/timelineUtils";
 import LoadingIndicator from "./LoadingIndicator";
 
@@ -16,7 +16,8 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
-        className={`px-4 py-3 rounded-2xl max-w-[70%] shadow-md ${
+        
+        className={`relative px-4 py-3 rounded-2xl max-w-[70%] shadow-md ${
           isUser
             ? "bg-blue-600 text-white rounded-br-none"
             : "text-gray-200 rounded-bl-none border"
@@ -30,6 +31,12 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
               }
         }
       >
+        {/* Active Agent Badge (top-left) */}
+        {!isUser && message.agent && (
+          <span className="absolute -top-2 -left-2 text-[10px] px-2 py-1 rounded-full bg-purple-600 text-white shadow">
+            {message.agent}
+          </span>
+        )}
         {isThinking ? (
            <LoadingIndicator />
         ) : (

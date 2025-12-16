@@ -35,7 +35,7 @@ class GuardrailsService:
             (r'\b\d{16}\b', 'KREDITKARTE'),  # Kreditkartennummer
             (r'\b[A-Z]{2}\d{2}\s?\d{4}\s?\d{4}\s?\d{4}\s?\d{4}\s?\d{2}\b', 'IBAN'),
             (r'\b\d{3}-\d{2}-\d{4}\b', 'SSN'),  # US Social Security
-            (r'\b(?:\+49|0)\d{10,11}\b', 'TELEFON'),  # Deutsche Telefonnummer
+         
         ]
         
         # Verbotene Themen

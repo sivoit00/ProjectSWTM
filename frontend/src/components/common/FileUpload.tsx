@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { api } from "../../services/api";
 import { Upload, X, FileText, Image as ImageIcon } from "lucide-react";
 
 interface FileUploadProps {
@@ -16,7 +17,7 @@ export default function FileUpload({
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string>("");
 
-  const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/bmp", "application/pdf"];
+  const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/bmp", "application/pdf","text/plain"];
 
   const validateFile = (file: File): boolean => {
     // Check size
@@ -61,6 +62,24 @@ export default function FileUpload({
     const newFiles = selectedFiles.filter((_, i) => i !== index);
     setSelectedFiles(newFiles);
     onFilesSelected(newFiles);
+     // Upload to backend and inform agent with stored filenames
+      api.files.upload(newFiles)
+        .then((res) => {
+          const uploaded = (res.data?.files ?? []) as Array<{ stored_filename: string; filename: string }>;
+          if (uploaded.length > 0) {
+            const fileRefs = uploaded.map(f => `${f.stored_filename}`).join(", ");
+            const message = `Dateien hochgeladen: ${fileRefs}`;
+            // Persist chat message and notify orchestrator
+            const userId = typeof window !== 'undefined' ? (localStorage.getItem('sessionId') || 'anonymous') : 'anonymous';
+            api.chat.saveMessage({ user_id: userId, sender: 'user', message })
+              .catch(() => {/* non-blocking */});
+            
+          }
+        })
+        .catch((err) => {
+          console.error('Upload failed', err);
+          setError('Upload failed. Bitte erneut versuchen.');
+        });
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -106,7 +125,7 @@ export default function FileUpload({
           Drag and drop files here, or click to browse
         </p>
         <p className="text-sm text-gray-500 mb-4">
-          PDF, JPG, PNG, GIF, BMP (max {maxSizeMB}MB per file)
+          PDF, JPG, PNG, GIF, BMP, TXT (max {maxSizeMB}MB per file)
         </p>
         <input
           type="file"

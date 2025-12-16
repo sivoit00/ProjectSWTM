@@ -30,6 +30,15 @@ services:
       - TAVILY_API_KEY=${TAVILY_API_KEY}
       - LANGSMITH_PROJECT=${LANGSMITH_PROJECT}
       - LANGSMITH_TRACING_V2=${LANGSMITH_TRACING_V2}
+      - DATABASE_HOST=projectswtm.c9gqueuwynyt.eu-north-1.rds.amazonaws.com
+      - DATABASE_PORT=5432
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=Aasal22!!
+      - DATABASE_NAME=fahrzeugservice
+      - DATABASE_SCHEMA=postgresql+psycopg
+      - DATABASE_SSLMODE=require
+      - EMBEDDING_COLLECTION_NAME=documents
+      - DOCUMENTS_PATH=/app/uploads
       - SERPAPI_KEY=${SERPAPI_KEY}
       - SMTP_HOST=${SMTP_HOST}
       - SMTP_PORT=${SMTP_PORT}
