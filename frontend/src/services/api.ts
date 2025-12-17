@@ -32,27 +32,58 @@ apiClient.interceptors.request.use(
   }
 );
 
-export interface Kunde {
+export interface Customer {
+  id?: number;
+  firstName: string;
+  lastName: string;
+  username: string;
+  email: string;
+  phone: string;
+  postcode: string;
+  city: string;
+  address: string;
+}
+
+export interface Vehicle {
+  id?: number;
+  brand: string;
+  model: string;
+  year: number;
+  numberplate: string;
+}
+
+export interface Workshop {
   id?: number;
   name: string;
   email: string;
-  telefon: string;
+  phone: string;
+  postcode: string;
+  city: string;
+  address: string;
 }
 
-export interface Fahrzeug {
+export interface Lawyer {
   id?: number;
-  marke: string;
-  modell: string;
-  baujahr: number;
-  kunde_id: number;
+  firstName: string;
+  lastName: string;
+  company: string;
+  email: string;
+  phone: string;
+  postcode: string;
+  city: string;
+  address: string;
 }
 
-export interface Werkstatt {
+export interface Insurance {
   id?: number;
   name: string;
-  adresse: string;
-  plz: string;
-  ort: string; 
+  number: string;
+  email: string;
+  phone: string;
+  postcode: string;
+  city: string;
+  contact: string;
+  address: string;
 }
 
 export interface NotificationItem {
@@ -67,18 +98,41 @@ export interface NotificationItem {
 
 export const api = {
   customers: {
-    getAll: () => apiClient.get<Kunde[]>('/kunden'),
-    create: (kunde: Omit<Kunde, 'id'>) => apiClient.post<Kunde>('/kunden', kunde),
+    getAll: () => apiClient.get<Customer[]>('/customers'),
+    create: (customer: Omit<Customer, 'id'>) => apiClient.post<Customer>('/customers', customer),
+    update: (id: number, customer: Partial<Omit<Customer, 'id'>>) =>
+      apiClient.put<Customer>(`/customers/${id}`, customer),
   },
 
   vehicles: {
-    getAll: () => apiClient.get<Fahrzeug[]>('/fahrzeuge'),
-    create: (fahrzeug: Omit<Fahrzeug, 'id'>) => apiClient.post<Fahrzeug>('/fahrzeuge', fahrzeug),
+    getAll: () => apiClient.get<Vehicle[]>('/vehicle'),
+    create: (vehicle: Omit<Vehicle, 'id'>) =>
+      apiClient.post<Vehicle>('/vehicle', vehicle),
+    update: (id: number, vehicle: Partial<Omit<Vehicle, 'id'>>) =>
+      apiClient.put<Vehicle>(`/vehicle/${id}`, vehicle),
   },
 
+
   workshops: {
-    getAll: () => apiClient.get<Werkstatt[]>('/werkstatt'),
-    create: (werkstatt: Omit<Werkstatt, 'id'>) => apiClient.post<Werkstatt>('/werkstatt', werkstatt),
+    getAll: () => apiClient.get<Workshop[]>('/workshop'),
+    create: (workshop: Omit<Workshop, 'id'>) => apiClient.post<Workshop>('/workshop', workshop),
+    update: (id: number, workshop: Partial<Omit<Workshop, 'id'>>) =>
+      apiClient.put<Workshop>(`/werkstatt/${id}`, workshop),
+  },
+
+  lawyers: {
+    getAll: () => apiClient.get<Lawyer[]>('/lawyer'),
+    create: (lawyer: Omit<Lawyer, 'id'>) => apiClient.post<Lawyer>('/lawyer', lawyer),
+    update: (id: number, lawyer: Partial<Omit<Lawyer, 'id'>>) => 
+      apiClient.put<Lawyer>(`/lawyer/${id}`, lawyer),
+  },
+
+  insurances: {
+    getAll: () => apiClient.get<Insurance[]>('/insurance'),
+    create: (insurance: Omit<Insurance, 'id'>) =>
+      apiClient.post<Insurance>('/insurance', insurance),
+    update: (id: number, insurance: Partial<Omit<Insurance, 'id'>>) =>
+      apiClient.put<Insurance>(`/insurance/${id}`, insurance),
   },
 
   chat: {
