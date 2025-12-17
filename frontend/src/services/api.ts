@@ -1,4 +1,4 @@
-import axios, { type AxiosRequestConfig, type InternalAxiosRequestConfig } from 'axios';
+import axios, { type InternalAxiosRequestConfig } from 'axios';
 import keycloak from '../keycloak';
 
 export const API_URL = ((import.meta as any).env?.VITE_API_URL as string) || 'http://localhost:8000';
@@ -8,6 +8,7 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 120000,
 });
 
 apiClient.interceptors.request.use(
@@ -31,27 +32,58 @@ apiClient.interceptors.request.use(
   }
 );
 
-export interface Kunde {
+export interface Customer {
+  id?: number;
+  firstName: string;
+  lastName: string;
+  username: string;
+  email: string;
+  phone: string;
+  postcode: string;
+  city: string;
+  address: string;
+}
+
+export interface Vehicle {
+  id?: number;
+  brand: string;
+  model: string;
+  year: number;
+  numberplate: string;
+}
+
+export interface Workshop {
   id?: number;
   name: string;
   email: string;
-  telefon: string;
+  phone: string;
+  postcode: string;
+  city: string;
+  address: string;
 }
 
-export interface Fahrzeug {
+export interface Lawyer {
   id?: number;
-  marke: string;
-  modell: string;
-  baujahr: number;
-  kunde_id: number;
+  firstName: string;
+  lastName: string;
+  company: string;
+  email: string;
+  phone: string;
+  postcode: string;
+  city: string;
+  address: string;
 }
 
-export interface Werkstatt {
+export interface Insurance {
   id?: number;
   name: string;
-  adresse: string;
-  plz: string;
-  ort: string; 
+  number: string;
+  email: string;
+  phone: string;
+  postcode: string;
+  city: string;
+  contact: string;
+  address: string;
 }
 
 export interface NotificationItem {
@@ -66,24 +98,44 @@ export interface NotificationItem {
 
 export const api = {
   customers: {
-    getAll: () => apiClient.get<Kunde[]>('/kunden'),
-    create: (kunde: Omit<Kunde, 'id'>) => apiClient.post<Kunde>('/kunden', kunde),
+    getAll: () => apiClient.get<Customer[]>('/customers'),
+    create: (customer: Omit<Customer, 'id'>) => apiClient.post<Customer>('/customers', customer),
+    update: (id: number, customer: Partial<Omit<Customer, 'id'>>) =>
+      apiClient.put<Customer>(`/customers/${id}`, customer),
   },
 
   vehicles: {
-    getAll: () => apiClient.get<Fahrzeug[]>('/fahrzeuge'),
-    create: (fahrzeug: Omit<Fahrzeug, 'id'>) => apiClient.post<Fahrzeug>('/fahrzeuge', fahrzeug),
+    getAll: () => apiClient.get<Vehicle[]>('/vehicle'),
+    create: (vehicle: Omit<Vehicle, 'id'>) =>
+      apiClient.post<Vehicle>('/vehicle', vehicle),
+    update: (id: number, vehicle: Partial<Omit<Vehicle, 'id'>>) =>
+      apiClient.put<Vehicle>(`/vehicle/${id}`, vehicle),
   },
 
+
   workshops: {
-    getAll: () => apiClient.get<Werkstatt[]>('/werkstatt'),
-    create: (werkstatt: Omit<Werkstatt, 'id'>) => apiClient.post<Werkstatt>('/werkstatt', werkstatt),
+    getAll: () => apiClient.get<Workshop[]>('/workshop'),
+    create: (workshop: Omit<Workshop, 'id'>) => apiClient.post<Workshop>('/workshop', workshop),
+    update: (id: number, workshop: Partial<Omit<Workshop, 'id'>>) =>
+      apiClient.put<Workshop>(`/werkstatt/${id}`, workshop),
+  },
+
+  lawyers: {
+    getAll: () => apiClient.get<Lawyer[]>('/lawyer'),
+    create: (lawyer: Omit<Lawyer, 'id'>) => apiClient.post<Lawyer>('/lawyer', lawyer),
+    update: (id: number, lawyer: Partial<Omit<Lawyer, 'id'>>) => 
+      apiClient.put<Lawyer>(`/lawyer/${id}`, lawyer),
+  },
+
+  insurances: {
+    getAll: () => apiClient.get<Insurance[]>('/insurance'),
+    create: (insurance: Omit<Insurance, 'id'>) =>
+      apiClient.post<Insurance>('/insurance', insurance),
+    update: (id: number, insurance: Partial<Omit<Insurance, 'id'>>) =>
+      apiClient.put<Insurance>(`/insurance/${id}`, insurance),
   },
 
   chat: {
-    sendMessage: (message: { message: string }) =>
-      apiClient.post<{ response: string }>('/langchain/chat', message),
-    
     saveMessage: (data: { user_id: string; sender: string; message: string }) =>
       apiClient.post('/chat/save', data),
     
@@ -92,6 +144,12 @@ export const api = {
     
     clearHistory: (userId: string) =>
       apiClient.delete(`/chat/history/${userId}`),
+
+    createSession: () => 
+      apiClient.post<{ ok: boolean; session_id: string; message: string }>('/ki-orchestrator/session/new'),
+      
+    clearSession: (sessionId: string) => 
+      apiClient.delete(`/ki-orchestrator/session/${sessionId}`),
   },
 
   files: {
@@ -102,26 +160,16 @@ export const api = {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
     },
+    transcribe: (storedFilename: string, language?: string) =>
+      apiClient.post<{ success: boolean; text: string; model?: string }>(
+        '/files/transcribe',
+        { stored_filename: storedFilename, language }
+      ),
     getFileUrl: (filename: string) => `${API_URL}/files/uploads/${filename}`,
-  },
-
-  sendToKI: (payload: { message: string }) => {
-    // attach session_id from localStorage if present so backend agents can use per-session memory
-    const sessionId = typeof window !== 'undefined' ? localStorage.getItem('sessionId') : null;
-    const body = sessionId ? { ...payload, session_id: sessionId } : payload;
-    return apiClient.post<{ response: string; structured: any; agent?: string }>('/ki-orchestrator/message', body);
   },
 
   notifications: {
     getAll: (userId: string) => apiClient.get<NotificationItem[]>(`/notifications/list/${userId}`),
     markRead: (id: number) => apiClient.post(`/notifications/mark-read/${id}`),
   },
- 
-  getKunden: () => apiClient.get<Kunde[]>('/kunden'),
-  createKunde: (kunde: Omit<Kunde, 'id'>) => apiClient.post<Kunde>('/kunden', kunde),
-  getFahrzeuge: () => apiClient.get<Fahrzeug[]>('/fahrzeuge'),
-  createFahrzeug: (fahrzeug: Omit<Fahrzeug, 'id'>) => apiClient.post<Fahrzeug>('/fahrzeuge', fahrzeug),
-  getWerkstatt: () => apiClient.get<Werkstatt[]>('/werkstatt'),
-  createWerkstatt: (werkstatt: Omit<Werkstatt, 'id'>) => apiClient.post<Werkstatt>('/werkstatt', werkstatt),
-  sendToOpenAI: (message: { message: string }) => apiClient.post<{ response: string }>('/langchain/chat', message),
 };

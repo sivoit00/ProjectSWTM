@@ -7,7 +7,7 @@ def generate_claim_id():
     return f"CLM-{uuid.uuid4().hex[:10].upper()}"
 
 class DamageEvent(Base):
-    __tablename__ = "DamageEvents"
+    __tablename__ = "damage_event"
 
     id = Column(Integer, primary_key=True, index=True)
 

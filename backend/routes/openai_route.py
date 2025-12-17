@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import SessionLocal
-from models import KIAktion
 from pydantic import BaseModel
 from services.werkstatt_web_agent import run_werkstatt_agent_sequential
 import traceback

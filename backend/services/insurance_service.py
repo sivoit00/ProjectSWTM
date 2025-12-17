@@ -1,9 +1,10 @@
 import json
 from typing import Any, Dict, Optional
 from database import SessionLocal
-from models import Kunde, Fahrzeug, Insurance, DamageEvent
-from typing import Dict, Any, Optional
-from sqlalchemy.orm import Session
+from models.damage_event import DamageEvent
+from models.customer import Customer
+from models.vehicle import Vehicle
+from models.insurance import Insurance
 
 def get_policy_details(customer_id: str) -> Dict[str, Any]:
     """

@@ -1,3 +1,3 @@
-from . import kunden, fahrzeuge, werkstaetten, auftraege, ki, openai_route
+from . import customers, vehicles, workshops, openai_route, lawyers, insurances
 
-__all__ = ["kunden", "fahrzeuge", "werkstaetten", "auftraege", "ki", "openai_route"]
+__all__ = ["customers", "vehicles", "workshops", "openai_route", "lawyers", "insurances"]

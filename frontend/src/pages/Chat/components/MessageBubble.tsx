@@ -2,6 +2,7 @@ import { FileText, Image as ImageIcon } from "lucide-react";
 import { api } from "../../../services/api";
 import type { Message } from "../hooks/useChatState";
 import { getAgentColor } from "../../../components/common/timeline/timelineUtils";
+import LoadingIndicator from "./LoadingIndicator";
 
 interface MessageBubbleProps {
   message: Message;
@@ -10,6 +11,7 @@ interface MessageBubbleProps {
 export default function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.sender === "User";
   const agentColor = getAgentColor(message.agent);
+  const isThinking = !isUser && !message.text;
 
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
@@ -28,7 +30,13 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
               }
         }
       >
-        <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+        {isThinking ? (
+           <LoadingIndicator />
+        ) : (
+           <p className="text-sm whitespace-pre-wrap leading-relaxed">
+             {message.text}
+           </p>
+        )}
         
         {message.files && message.files.length > 0 && (
           <div className="mt-2 space-y-1">
@@ -36,6 +44,24 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
               const fileUrl = api.files.getFileUrl(filename);
               const isPdf = filename.toLowerCase().endsWith('.pdf');
               const isImage = /\.(jpg|jpeg|png|gif|bmp)$/i.test(filename);
+              const isAudio = /\.(webm|wav|mp3|m4a|aac|ogg|mp4)$/i.test(filename);
+
+              if (isAudio) {
+                return (
+                  <div
+                    key={idx}
+                    className={`p-2 rounded-lg text-xs ${
+                      isUser ? "bg-blue-700" : "bg-gray-700"
+                    }`}
+                  >
+                    <audio
+                      controls
+                      src={fileUrl}
+                      className="w-full chat-audio"
+                    />
+                  </div>
+                );
+              }
               
               return (
                 <a

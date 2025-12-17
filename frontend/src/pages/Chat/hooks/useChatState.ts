@@ -1,22 +1,15 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useOutletContext } from "react-router-dom";
 import { api } from "../../../services/api";
 import keycloak from "../../../keycloak";
 import type { TimelineEvent } from "../../../components/common/CustomerTimeline";
-
-export type Message = { 
-  id: string;
-  sender: "User" | "Bot"; 
-  text: string; 
-  files?: string[]; 
-  agentSteps?: TimelineEvent[];
-  agent?: string;
-};
+import type { Message } from "./chat/chatTypes";
+import { appendSessionStep } from "./chat/chatUtils";
+import { chatService } from "./chat/chatService";
 
 export function useChatState() {
   const { clearChatTrigger } = useOutletContext<{ clearChatTrigger: number }>();
-  
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,6 +17,7 @@ export function useChatState() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [allAgentSteps, setAllAgentSteps] = useState<TimelineEvent[]>([]);
   
+  const abortControllerRef = useRef<AbortController | null>(null);
   const userId = keycloak.tokenParsed?.sub || "anonymous";
 
   useEffect(() => {
@@ -32,7 +26,6 @@ export function useChatState() {
     if (savedSteps) {
       try {
         const parsed = JSON.parse(savedSteps);
-        // Migration: wir zeigen nur Agent-Session-Events (alte noisy Events werden ignoriert)
         if (Array.isArray(parsed)) {
           setAllAgentSteps(parsed.filter((e: any) => e?.event_type === "agent_session"));
         }
@@ -50,165 +43,110 @@ export function useChatState() {
     }
   }, [allAgentSteps, userId]);
 
-  const getAgentDisplayName = (agent?: string) => {
-    const a = (agent || "chatbot").toLowerCase();
-    if (a === "lawyer") return "Lawyer Agent";
-    if (a === "repair") return "Repair Agent";
-    if (a === "insurance") return "Insurance Agent";
-    return `${keycloak.tokenParsed?.preferred_username || "Your"} Agent`;
-  };
-
-  const appendSessionStep = (
-    steps: TimelineEvent[], 
-    agent: string,
-    userText: string,
-    botText: string,
-    agentChanged: boolean
-  ): TimelineEvent[] => {
-    const now = new Date().toISOString();
-    const normalizedAgent = (agent || "chatbot").toLowerCase();
-    const displayName = getAgentDisplayName(normalizedAgent);
-
-    const next = [...steps];
-    const last = next.length > 0 ? next[next.length - 1] : null;
-    const lastAgent = (last?.agent || "").toLowerCase();
-
-    const shouldStartNewSession = !last || agentChanged || lastAgent !== normalizedAgent;
-
-    // Wenn neuer Agent startet: vorherige aktive Session abschließen
-    if (shouldStartNewSession && last && last.status === "working") {
-      next[next.length - 1] = { ...last, status: "completed", timestamp: now } as any;
-    }
-
-    const stepLines: string[] = [];
-    if (userText?.trim()) stepLines.push(`User: ${userText.trim()}`);
-    if (botText?.trim()) stepLines.push(`Agent: ${botText.trim()}`);
-
-    if (shouldStartNewSession) {
-      const sessionId = `sess-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-      next.push({
-        task: "agent_session",
-        timestamp: now,
-        status: "working",
-        description: displayName,
-        agent: normalizedAgent,
-        event_type: "agent_session",
-        details: stepLines.join("\n"),
-        messageId: undefined,
-        sessionId,
-      } as any);
-      return next;
-    }
-
-    // gleiche Session: Details anhängen + Timestamp aktualisieren
-    const mergedDetails = [last?.details, stepLines.join("\n")].filter(Boolean).join("\n");
-    next[next.length - 1] = {
-      ...(last as any),
-      timestamp: now,
-      description: displayName,
-      details: mergedDetails,
-      status: "working",
-    };
-    return next;
+  const loadChatHistory = async () => {
+    try {
+      const response = await api.chat.getHistory(userId);
+      setMessages(response.data.messages.map((msg: any, idx: number) => ({
+        id: `msg-history-${idx}`,
+        sender: msg.sender,
+        text: msg.message,
+      })));
+    } catch (e) { console.error(e); }
   };
 
   const handleClearChat = async () => {
+    if (abortControllerRef.current) abortControllerRef.current.abort();
     setMessages([]);
     setAllAgentSteps([]);
     setInput("");
     setSelectedFiles([]);
     localStorage.removeItem(`timeline_${userId}`);
-    try { await api.chat.clearHistory(userId); } catch (e) { console.error(e); }
-  };
-
-  const loadChatHistory = async () => {
-    try {
-      const response = await api.chat.getHistory(userId);
-      const history = response.data.messages.map((msg: any, idx: number) => ({
-        id: `msg-history-${idx}`,
-        sender: msg.sender as "User" | "Bot",
-        text: msg.message,
-      }));
-      setMessages(history);
-    } catch (error) { console.error("History Load Error:", error); }
-  };
-
-  const saveMessageToHistory = async (sender: "User" | "Bot", message: string) => {
-    try { await api.chat.saveMessage({ user_id: userId, sender, message }); } 
-    catch (error) { console.error("Save Message Error:", error); }
+    api.chat.clearHistory(userId).catch(console.error);
   };
 
   const handleSend = async (overrideText?: string, isSystemInjection = false) => {
-    console.log("handleSend ausgelöst!", { overrideText, isSystemInjection });
+    const textInput = overrideText ?? input.trim();
+    if ((!textInput && selectedFiles.length === 0) || loading) return;
 
-    const textToSend = overrideText || input.trim();
-    if ((!textToSend && selectedFiles.length === 0) || loading) return;
-
-    let uploadedFileNames: string[] = [];
-    
     setLoading(true);
-
     if (!overrideText) setInput("");
 
     try {
-      if (selectedFiles.length > 0) {
-        const uploadResponse = await api.files.upload(selectedFiles);
-        uploadedFileNames = uploadResponse.data.files.map((f: any) => f.stored_filename);
-        setSelectedFiles([]);
-        setShowFileUpload(false);
+      const { fileNames, transcribedText } = await chatService.processUploads(selectedFiles);
+      setSelectedFiles([]);
+      setShowFileUpload(false);
+
+      let finalText = textInput;
+      if (!isSystemInjection && !finalText && transcribedText) {
+          finalText = transcribedText;
+      }
+
+      if (!finalText && fileNames.length > 0 && !transcribedText && !isSystemInjection) {
+         const displayText = `[${fileNames.length} file(s) uploaded]`;
+         setMessages(p => [...p, { id: `msg-${Date.now()}`, sender: "User", text: displayText, files: fileNames }]);
+         api.chat.saveMessage({ user_id: userId, sender: "User", message: displayText });
+         setLoading(false);
+         return;
       }
 
       const displayText = isSystemInjection 
         ? "E-Mail Update: Analysiere eingegangene Antwort..." 
-        : (textToSend || `[${uploadedFileNames.length} file(s) uploaded]`);
+        : (finalText || `[${fileNames.length} file(s) uploaded]`);
 
-      const userMsgId = `msg-${Date.now()}-user`;
-      
-      setMessages((prev) => [...prev, { 
-          id: userMsgId, 
-          sender: "User", 
-          text: displayText, 
-          files: uploadedFileNames 
+      setMessages(prev => [...prev, { 
+        id: `msg-${Date.now()}-user`, 
+        sender: "User", 
+        text: displayText, 
+        files: fileNames 
       }]);
-
-      saveMessageToHistory("User", displayText);
-
-      console.log("Sende an Backend...");
-      const res = await api.sendToKI({ message: textToSend });
-      
-      const answer = res.data?.response ?? "Keine Antwort erhalten.";
-      const agentSteps = (res.data as any)?.agent_steps || [];
-      const currentAgent = ((res.data as any)?.agent || "chatbot") as string;
-      const agentChanged = Boolean((res.data as any)?.agent_changed);
-      
-      console.log("Antwort erhalten:", answer);
+      api.chat.saveMessage({ user_id: userId, sender: "User", message: displayText });
 
       const botMsgId = `msg-${Date.now()}-bot`;
-      // Session-basierte Timeline: ein Eintrag pro Agent, Updates werden gesammelt
-      setAllAgentSteps((prev) => appendSessionStep(
-        prev,
-        currentAgent,
-        displayText,
-        answer,
-        agentChanged
-      ));
-   
-      setMessages((prev) => [
-          ...prev, 
-          { id: botMsgId, sender: "Bot", text: answer, agentSteps, agent: currentAgent }
-      ]);
-      
-      saveMessageToHistory("Bot", answer);
+      const lastActiveStep = allAgentSteps.at(-1);
+      let currentAgent = lastActiveStep?.agent || "chatbot";
 
-    } catch (err) {
-      console.error("Chat error:", err);
-      setMessages((prev) => [...prev, { 
-          id: `msg-err-${Date.now()}`, 
-          sender: "Bot", 
-          text: "Entschuldigung, ein Fehler ist aufgetreten." 
+      setMessages(prev => [...prev, { 
+        id: botMsgId, sender: "Bot", text: "", isStreaming: true, agent: currentAgent 
       }]);
-    } finally {
       setLoading(false);
+
+      abortControllerRef.current = new AbortController();
+      
+      await chatService.streamMessage(finalText, abortControllerRef.current.signal, {
+        
+        onDelta: (text) => {
+          setMessages(prev => prev.map(m => m.id === botMsgId ? { ...m, text } : m));
+        },
+        
+        onAgentUpdate: (agent) => {
+          currentAgent = agent;
+        },
+
+        onDone: (fullText, finalAgent, changed) => {
+          setMessages(prev => prev.map(m => m.id === botMsgId ? { 
+            ...m, isStreaming: false, agent: finalAgent 
+          } : m));
+          
+          api.chat.saveMessage({ user_id: userId, sender: "Bot", message: fullText });
+
+          setAllAgentSteps(prev => appendSessionStep(
+            prev, finalAgent, displayText, fullText, changed, true
+          ));
+        },
+
+        onError: (err: any) => {
+          if (err.name !== 'AbortError') {
+            console.error(err);
+            setMessages(prev => [...prev, { id: `err-${Date.now()}`, sender: "Bot", text: "Fehler aufgetreten." }]);
+          }
+        }
+      });
+
+    } catch (e) {
+      console.error(e);
+      setLoading(false);
+    } finally {
+      abortControllerRef.current = null;
     }
   };
 

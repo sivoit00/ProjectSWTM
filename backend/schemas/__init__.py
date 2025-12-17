@@ -1,13 +1,13 @@
-from .kunde_schema import KundeBase, KundeCreate, Kunde
-from .fahrzeug_schema import FahrzeugBase, FahrzeugCreate, Fahrzeug
-from .werkstatt_schema import WerkstattBase, WerkstattCreate, Werkstatt
-from .auftrag_schema import AuftragBase, AuftragCreate, Auftrag
-from .ki_aktion_schema import KIAktionCreate, KIAktionSchema
+from .customer_schema import CustomerBase, CustomerCreate, Customer
+from .vehicle_schema import VehicleBase, VehicleCreate, Vehicle
+from .workshop_schema import WorkshopBase, WorkshopCreate, Workshop
+from .lawyer_schema import Lawyer, LawyerCreate, LawyerBase
+from .insurance_schema import Insurance, InsuranceCreate, InsuranceBase
 
 __all__ = [
-    "KundeBase", "KundeCreate", "Kunde",
-    "FahrzeugBase", "FahrzeugCreate", "Fahrzeug",
-    "WerkstattBase", "WerkstattCreate", "Werkstatt",
-    "AuftragBase", "AuftragCreate", "Auftrag",
-    "KIAktionCreate", "KIAktionSchema"
+    "CustomerBase", "CustomerCreate", "Customer",
+    "VehicleBase", "VehicleCreate", "Vehicle",
+    "WorkshopBase", "WorkshopCreate", "Workshop",
+    "Lawyer", "LawyerCreate", "LawyerBase",
+    "Insurance", "InsuranceCreate", "InsuranceBase"
 ]

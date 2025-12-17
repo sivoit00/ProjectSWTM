@@ -2,15 +2,15 @@ from sqlalchemy import Column, Integer, String, ForeignKey
 from database import Base
 
 
-class Insurance(Base):
-    __tablename__ = "insurance"
+class Lawyer(Base):
+    __tablename__ = "lawyer"
 
     id = Column(Integer, primary_key=True, index=True)
     customer_id = Column(Integer, ForeignKey("customer.id"))
 
-    name = Column(String(150))
-    number = Column(String(100))
-    contact = Column(String(150))
+    firstName = Column(String(100))
+    lastName = Column(String(100))
+    company = Column(String(150))
     email = Column(String(150))
     phone = Column(String(50))
     address = Column(String(150))
