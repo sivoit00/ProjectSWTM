@@ -27,6 +27,7 @@ ALLOWED_EXTENSIONS = {
     ".aac",
     ".ogg",
     ".mp4",
+    ".txt"
 }
 
 AUDIO_EXTENSIONS = {".webm", ".wav", ".mp3", ".m4a", ".aac", ".ogg", ".mp4"}
@@ -105,11 +106,11 @@ async def upload_files(
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Upload multiple files (images or PDFs)
+    Upload multiple files (images, text files or PDFs)
     
     - Maximum 5 files per request
     - Maximum 10MB per file
-    - Allowed types: PDF, Images, and common Audio formats
+    - Allowed types: PDF, Images, Text files, and common Audio formats
     """
     if len(files) > 5:
         raise HTTPException(400, "Maximum 5 files allowed per upload")

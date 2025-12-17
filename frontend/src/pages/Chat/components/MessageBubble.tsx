@@ -1,6 +1,6 @@
 import { FileText, Image as ImageIcon } from "lucide-react";
 import { api } from "../../../services/api";
-import type { Message } from "../hooks/useChatState";
+import type { Message } from "../hooks/chat/chatTypes";
 import { getAgentColor } from "../../../components/common/timeline/timelineUtils";
 import LoadingIndicator from "./LoadingIndicator";
 
