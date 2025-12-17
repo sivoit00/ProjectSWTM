@@ -104,7 +104,7 @@ def get_claim_status(claim_id: str) -> dict:
 
 def get_user_context(customer_id: str) -> Dict[str, Any]:
     
-    db: Session = SessionLocal()
+    db = SessionLocal()
     context: Dict[str, Any] = {
         "customer_id": None,
         "customer_name": None,
@@ -121,18 +121,17 @@ def get_user_context(customer_id: str) -> Dict[str, Any]:
     }
     try:
         
-        kunde: Optional[Kunde] = db.query(Kunde).filter_by(id=customer_id).first()
-        if kunde:
-            context["customer_id"] = kunde.id
-            context["customer_name"] = kunde.name
-            context["customer_email"] = kunde.email
-            context["customer_phone"] = kunde.telefon
+        customer: Optional[Customer] = db.query(Customer).filter_by(id=customer_id).first()
+        if customer:
+            context["customer_id"] = customer.id
+            context["customer_name"] = f"{customer.firstName} {customer.lastName}".strip
+            context["customer_email"] = customer.email
+            context["customer_phone"] = customer.phone
+            if customer.vehicles:
+                f = customer.vehicles[0]
+                context["vehicle"] = f"{f.brand} {f.model} {f.year}"
 
-            if kunde.fahrzeuge:
-                f = kunde.fahrzeuge[0]
-                context["vehicle"] = f"{f.marke} {f.modell} ({f.baujahr})"
-
-            insurance: Optional[Insurance] = db.query(Insurance).filter_by(user_id=str(kunde.id)).first()
+            insurance: Optional[Insurance] = db.query(Insurance).filter_by(user_id=str(customer.id)).first()
             if insurance:
                 context["insurance"] = {
                     "name": insurance.name,

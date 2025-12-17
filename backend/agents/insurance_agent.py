@@ -18,10 +18,7 @@ PROMPT_TEMPLATE_PATH = os.path.join(templates_dir, "insurance_classifier.md")
 
 @tool
 def check_policy_details(customer_id: str) -> str:
-    """
-    Retrieves the policy details (coverage, status) for a given customer ID from the database.
-    Input MUST be a customer ID (string).
-    """
+    
     if not customer_id:
         return "ERROR: Customer ID is missing. Please ask the user for their customer ID first."
 
@@ -31,10 +28,7 @@ def check_policy_details(customer_id: str) -> str:
 
 @tool
 def calculate_estimated_premium(vehicle_data: str) -> str:
-    """
-    Calculates the estimated annual premium for a vehicle based on its data (make, model, year, value).
-    Input MUST be a JSON string containing vehicle information (e.g., '{"year": 2022, "value": 30000}').
-    """
+    
     if not vehicle_data:
         return "ERROR: Vehicle data is missing. Please ask the user for details like vehicle year, value, or model."
 
@@ -44,10 +38,7 @@ def calculate_estimated_premium(vehicle_data: str) -> str:
 
 @tool
 def get_claim_status_check(claim_id: str) -> str:
-    """
-    Checks the current processing status of a claim using the claim ID.
-    Input MUST be the specific claim ID (string).
-    """
+   
     if not claim_id:
         return "ERROR: Claim ID is missing. Please ask the user for the claim ID."
 
