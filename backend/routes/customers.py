@@ -22,26 +22,39 @@ def get_or_create_customer(db: Session, current_user: dict) -> Customer:
         raise HTTPException(status_code=400, detail="No user id in token")
 
     customer = db.query(Customer).filter(Customer.user_id == user_id).first()
+    
     if customer:
         return customer
 
-    username = (
-        current_user.get("preferred_username")
-        or current_user.get("username")
-        or "Unbekannt"
-    )
     email = current_user.get("email") or ""
+    first_name = current_user.get("given_name") or current_user.get("firstName") or "Vorname"
+    last_name = current_user.get("family_name") or current_user.get("lastName") or "Nachname"
+    username = current_user.get("preferred_username") or email or "Unbekannt"
 
-    customer = Customer(
-        user_id=user_id,
-        email=email,
-        name=username,
+    new_customer = Customer(
+        user_id=user_id,  
+        email=email,      
+        firstName=first_name,
+        lastName=last_name,
+        username=username
     )
-    db.add(customer)
-    db.commit()
-    db.refresh(customer)
-    return customer
+    
+    try:
+        db.add(new_customer)
+        db.commit()
+        db.refresh(new_customer)
+        return new_customer
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error creating customer: {str(e)}")
 
+
+@router.get("/me", response_model=CustomerSchema)
+def get_current_customer(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    return get_or_create_customer(db, current_user)
 
 
 @router.get("", response_model=list[CustomerSchema])
