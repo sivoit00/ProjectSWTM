@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import engine
 from models import Base
 from models.notifications import Notification
-from routes import customers, vehicles, workshops, openai_route, chat_history, files, ki_orchestrator, insurance, guardrails, admin_guardrails, notifications, lawyers, insurances
+from routes import customers, vehicles, workshops, openai_route, chat_history, files, ki_orchestrator, guardrails, admin_guardrails, notifications, lawyers, insurances
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.background import BackgroundScheduler
 from agents.email_listener import check_inbox_for_replies
@@ -53,7 +53,6 @@ app.include_router(openai_route.router, tags=["Chat"])
 app.include_router(chat_history.router)
 app.include_router(files.router)
 app.include_router(ki_orchestrator.router, prefix="/ki-orchestrator", tags=["KI Orchestrator"])
-app.include_router(insurance.router, prefix="/ki", tags=["Insurance"])
 app.include_router(guardrails.router, prefix="/guardrails", tags=["GuardRails"])
 app.include_router(admin_guardrails.router, prefix="/admin/guardrails", tags=["GuardRails Admin"])
 app.include_router(notifications.router, prefix="/notifications", tags=["Notifications"])

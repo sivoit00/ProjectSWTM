@@ -102,59 +102,49 @@ def get_claim_status(claim_id: str) -> dict:
     finally:
         db.close()
 
-
-
-def get_user_context(customer_id: Optional[str]) -> Dict[str, Any]:
-
+def get_user_context(identifier: str) -> Dict[str, Any]:
     db = SessionLocal()
-    context: Dict[str, Any] = {}
-
+    context: Dict[str, Any] = {
+        "customer_id": None,
+        "customer_name": None,
+        "customer_email": None,
+        "customer_phone": None,
+        "vehicle": None,
+        "insurance": {
+            "name": None, "email": None, "phone": None,
+            "postcode": None, "city": None
+        }
+    }
     try:
+        customer = None
+        if "@" in identifier:
+            customer = db.query(Customer).filter(Customer.email == identifier).first()
+        elif len(identifier) > 10: 
+            customer = db.query(Customer).filter(Customer.user_id == identifier).first()
+        elif identifier.isdigit():
+            customer = db.query(Customer).filter(Customer.id == int(identifier)).first()
 
-        if not customer_id:
-            return context
+        if customer:
+            context["customer_id"] = customer.id
+            context["customer_name"] = f"{customer.firstName} {customer.lastName}".strip()
+            context["customer_email"] = customer.email
+            context["customer_phone"] = customer.phone
+            
+            if customer.vehicles:
+                f = customer.vehicles[0]
+                context["vehicle"] = f"{f.brand} {f.model} ({f.year})"
 
-        kunde: Optional[Kunde] = None
-
-        # customer_id can be either the numeric DB id (as string) or an email address.
-        # Avoid querying an Integer column with a non-numeric value (psycopg2 DataError).
-        customer_id_str = str(customer_id).strip()
-        if customer_id_str.isdigit():
-            kunde = db.query(Kunde).filter_by(id=int(customer_id_str)).first()
-        else:
-            kunde = db.query(Kunde).filter_by(email=customer_id_str).first()
-
-        if not kunde:
-            return context
-
-        context["customer_id"] = str(kunde.id)
-        context["customer_name"] = kunde.name
-        context["customer_email"] = kunde.email
-        context["customer_phone"] = kunde.telefon
-
-        
-        fahrzeuge: list = []
-        for f in kunde.fahrzeuge:
-            fahrzeuge.append({
-                "id": f.id,
-                "marke": f.marke,
-                "modell": f.modell,
-                "baujahr": f.baujahr
-            })
-        context["vehicles"] = fahrzeuge
-
-        
-        insurance: Optional[Insurance] = db.query(Insurance).filter_by(user_id=str(kunde.id)).first()
-        if insurance:
-            context["insurance"] = {
-                "name": insurance.name,
-                "email": insurance.email,
-                "phone": insurance.phone,
-                "postcode": insurance.postcode,
-                "city": insurance.city
-            }
-
+            insurance = db.query(Insurance).filter_by(customer_id=customer.id).first()
+            if insurance:
+                context["insurance"] = {
+                    "name": insurance.name,
+                    "email": insurance.email,
+                    "phone": insurance.phone,
+                    "postcode": insurance.postcode,
+                    "city": insurance.city
+                }
+    except Exception as e:
+        context["error"] = f"Database error: {str(e)}"   
         return context
-
     finally:
         db.close()

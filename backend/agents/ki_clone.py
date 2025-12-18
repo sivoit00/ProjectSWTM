@@ -265,21 +265,25 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
             return wrap_response("lawyer", res)
         elif target_agent == "insurance":
             res = run_insurance_agent(user_message, session_id, user_context)
-
-            # Prüfen, ob Insurance-Agent Handover möchte
-            if isinstance(res, dict) and res.get("handover") == "repair":
-                # Daten speichern für den Repair-Agenten
+            
+            user_said_yes = re.search(r"\b(ja|gerne|einverstanden|mach das)\b", user_message.lower())
+            
+            if isinstance(res, dict) and (res.get("handover") == "repair" or (user_said_yes and active_agent == "insurance")):
+                log.info(f"!!! Triggering Instant Handover to Repair !!!")
+    
                 agent_session_state[session_id] = "repair"
-        
-                # claim_data in user_context speichern
-                if "claim_data" in res:
-                    user_context["claim_data"] = res["claim_data"]
-
+                repair_res = run_repair_agent_with_memory("START_REPAIR_FLOW", session_id, user_context)
+    
+                insurance_text = res.get('response', res) if isinstance(res, dict) else res
+                repair_text = repair_res.get('response', repair_res) if isinstance(repair_res, dict) else repair_res
+    
+                combined_response = f"{insurance_text}\n\n{repair_text}"
+    
                 return {
-                    "response": res.get("response", ""),
-                    "structured": {"intent": "insurance"},
-                    "agent": "insurance",
-                    "agent_changed": True  # sehr wichtig!
+                    "response": combined_response,
+                    "structured": {"intent": "repair", "handover_complete": True},
+                    "agent": "repair",
+                    "agent_changed": True
                 }
 
             return wrap_response("insurance", res)
