@@ -102,8 +102,7 @@ def get_claim_status(claim_id: str) -> dict:
     finally:
         db.close()
 
-def get_user_context(customer_id: str) -> Dict[str, Any]:
-    
+def get_user_context(identifier: str) -> Dict[str, Any]:
     db = SessionLocal()
     context: Dict[str, Any] = {
         "customer_id": None,
@@ -112,26 +111,30 @@ def get_user_context(customer_id: str) -> Dict[str, Any]:
         "customer_phone": None,
         "vehicle": None,
         "insurance": {
-            "name": None,
-            "email": None,
-            "phone": None,
-            "postcode": None,
-            "city": None
+            "name": None, "email": None, "phone": None,
+            "postcode": None, "city": None
         }
     }
     try:
-        
-        customer: Optional[Customer] = db.query(Customer).filter_by(id=customer_id).first()
+        customer = None
+        if "@" in identifier:
+            customer = db.query(Customer).filter(Customer.email == identifier).first()
+        elif len(identifier) > 10: 
+            customer = db.query(Customer).filter(Customer.user_id == identifier).first()
+        elif identifier.isdigit():
+            customer = db.query(Customer).filter(Customer.id == int(identifier)).first()
+
         if customer:
             context["customer_id"] = customer.id
-            context["customer_name"] = f"{customer.firstName} {customer.lastName}".strip
+            context["customer_name"] = f"{customer.firstName} {customer.lastName}".strip()
             context["customer_email"] = customer.email
             context["customer_phone"] = customer.phone
+            
             if customer.vehicles:
                 f = customer.vehicles[0]
-                context["vehicle"] = f"{f.brand} {f.model} {f.year}"
+                context["vehicle"] = f"{f.brand} {f.model} ({f.year})"
 
-            insurance: Optional[Insurance] = db.query(Insurance).filter_by(user_id=str(customer.id)).first()
+            insurance = db.query(Insurance).filter_by(customer_id=customer.id).first()
             if insurance:
                 context["insurance"] = {
                     "name": insurance.name,
@@ -140,6 +143,8 @@ def get_user_context(customer_id: str) -> Dict[str, Any]:
                     "postcode": insurance.postcode,
                     "city": insurance.city
                 }
+    except Exception as e:
+        context["error"] = f"Database error: {str(e)}"   
         return context
     finally:
-        db.close()  
+        db.close()
