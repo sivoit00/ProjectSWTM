@@ -149,7 +149,7 @@ async def upload_files(
             "uploaded_at": datetime.now().isoformat()
         })
 
-    # Trigger Vektor-DB-Update im Hintergrund
+    
     async def _refresh_vector_index():
         try:
             db = pgvector_instance.get()

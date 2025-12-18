@@ -1,10 +1,8 @@
 import os
 import logging
-import smtplib
 from typing import Any, Dict, List
-from email.message import EmailMessage
-from dotenv import load_dotenv
 
+from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -12,20 +10,15 @@ from langchain.tools import tool
 from langchain_core.runnables.history import RunnableWithMessageHistory
 
 from agents.email_listener import check_inbox_for_replies
-from agents.memory import get_session_history, global_store
+from agents.memory import get_session_history, clear_session_history
 from agents.tools.google_search import search_google_maps
 from agents.tools.email_sender import send_email_via_smtp
 from agents.tools.rag import search_vector_db as rag_search_vector_db
-from fastapi import HTTPException
+
 
 load_dotenv()
 log = logging.getLogger(__name__)
 
-SMTP_HOST = os.environ.get("SMTP_HOST")
-SMTP_PORT = int(os.environ.get("SMTP_PORT", 587))
-SMTP_USER = os.environ.get("SMTP_USER") 
-SMTP_PASS = os.environ.get("SMTP_PASS")
-SMTP_TO = os.environ.get("SMTP_TO") 
 
 llm = ChatOpenAI(temperature=0.0, model="gpt-5-mini") 
 
@@ -43,7 +36,7 @@ def send_personal_email(lawyer_email: str, subject: str, email_body: str) -> str
 @tool
 def search_vector_db(query: str, top_k: int = 3) -> List[Dict]:
     """Durchsucht die Vektordatenbank nach relevanten Dokumenten."""
-    return rag_search_vector_db(query=query, top_k=top_k)  
+    return rag_search_vector_db(query=query, top_k=top_k)
 
 tools = [search_workshops_online, send_personal_email, search_vector_db]
 
@@ -57,11 +50,8 @@ def _load_template(name: str) -> str:
 
 # Load and adapt template placeholders for ChatPromptTemplate
 _RAW_PROMPT = _load_template("repair_general.md")
-# Strategy: escape ALL braces, then restore the two intended prompt variables
-_ESCAPED = _RAW_PROMPT.replace("{", "{{").replace("}", "}}")
-_ESCAPED = _ESCAPED.replace("{{user_input}}", "{user_message}")
-_ESCAPED = _ESCAPED.replace("{{chat_history}}", "{chat_history}")
-SYSTEM_PROMPT = _ESCAPED
+
+SYSTEM_PROMPT = _RAW_PROMPT.replace("{user_input}", "{user_message}")
 
 prompt = ChatPromptTemplate.from_messages([
     ("system", SYSTEM_PROMPT),
@@ -79,14 +69,6 @@ agent_with_chat_history = RunnableWithMessageHistory(
     input_messages_key="user_message",
     history_messages_key="chat_history",
 )
-
-def clear_session_memory(session_id: str) -> None:
-    """Clears chat history for a given session id (orchestrator compatibility)."""
-    try:
-        if session_id in global_store:
-            del global_store[session_id]
-    except Exception:
-        pass
 
 def run_repair_agent_with_memory(user_query: str, session_id: str = "REPAIR_DEFAULT", user_context: Dict[str, Any] = None) -> str:
     log.info("Prüfe Posteingang auf Antworten...")
@@ -120,7 +102,14 @@ def run_repair_agent_with_memory(user_query: str, session_id: str = "REPAIR_DEFA
             },
             config={"configurable": {"session_id": sess_id}}
         )
-        return result['output'] if isinstance(result, dict) else str(result)
+        return {
+            "response": result['output'], 
+            "structured": {"intent": "repair"}
+        }
+
     except Exception as e:
         log.exception("FEHLER IM REPAIR AGENT:")
-        return "Fehler: " + str(e)
+        return {
+            "response": "Entschuldigung, es ist ein interner Fehler aufgetreten: " + str(e),
+            "structured": {"error": str(e)}
+        } 
