@@ -5,6 +5,9 @@ from models.damage_event import DamageEvent
 from models.customer import Customer
 from models.vehicle import Vehicle
 from models.insurance import Insurance
+import logging
+
+log = logging.getLogger(__name__)
 
 def get_policy_details(customer_id: str) -> Dict[str, Any]:
     """
@@ -129,7 +132,8 @@ def get_user_context(identifier: str) -> Dict[str, Any]:
             context["customer_name"] = f"{customer.firstName} {customer.lastName}".strip()
             context["customer_email"] = customer.email
             context["customer_phone"] = customer.phone
-            
+            context["insurance"]["number"] = f"POL-{customer.id}"
+
             if customer.vehicles:
                 f = customer.vehicles[0]
                 context["vehicle"] = f"{f.brand} {f.model} ({f.year})"
