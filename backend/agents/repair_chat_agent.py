@@ -10,10 +10,10 @@ from langchain.tools import tool
 from langchain_core.runnables.history import RunnableWithMessageHistory
 
 from agents.email_listener import check_inbox_for_replies
-from agents.memory import get_session_history, global_store
+from agents.memory import get_session_history, clear_session_history
 from agents.tools.google_search import search_google_maps
 from agents.tools.email_sender import send_email_via_smtp
-from agents.tools.rag import search_vector_db 
+from agents.tools.rag import search_vector_db as rag_search_vector_db
 
 
 load_dotenv()
@@ -36,7 +36,7 @@ def send_personal_email(lawyer_email: str, subject: str, email_body: str) -> str
 @tool
 def search_vector_db(query: str, top_k: int = 3) -> List[Dict]:
     """Durchsucht die Vektordatenbank nach relevanten Dokumenten."""
-    return search_vector_db(query=query, top_k=top_k)  
+    return rag_search_vector_db(query=query, top_k=top_k)
 
 tools = [search_workshops_online, send_personal_email, search_vector_db]
 
@@ -69,14 +69,6 @@ agent_with_chat_history = RunnableWithMessageHistory(
     input_messages_key="user_message",
     history_messages_key="chat_history",
 )
-
-def clear_session_memory(session_id: str) -> None:
-    """Clears chat history for a given session id (orchestrator compatibility)."""
-    try:
-        if session_id in global_store:
-            del global_store[session_id]
-    except Exception:
-        pass
 
 def run_repair_agent_with_memory(user_query: str, session_id: str = "REPAIR_DEFAULT", user_context: Dict[str, Any] = None) -> str:
     log.info("Prüfe Posteingang auf Antworten...")
