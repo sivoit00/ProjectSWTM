@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import SessionLocal
 from pydantic import BaseModel
-from services.werkstatt_web_agent import run_werkstatt_agent_sequential
+from agents.repair_chat_agent import run_repair_agent_with_memory
 import traceback
 
 router = APIRouter()
@@ -27,12 +27,7 @@ class WerkstattAgentRequest(BaseModel):
 @router.post("/langchain/chat")
 def langchain_chat(req: LangChainRequest, db: Session = Depends(get_db)):
     try:
-        answer = run_werkstatt_agent_sequential(req.message)
-
-        ki = KIAktion(nachricht=req.message, antwort=answer, auftrag_id=None)
-        db.add(ki)
-        db.commit()
-        db.refresh(ki)
+        answer = run_repair_agent_with_memory(req.message)
 
         return {"response": answer}
     except Exception as e:
@@ -44,12 +39,8 @@ def langchain_chat(req: LangChainRequest, db: Session = Depends(get_db)):
 @router.post("/werkstatt-agent/search")
 def werkstatt_agent_search(req: WerkstattAgentRequest, db: Session = Depends(get_db)):
     try:
-        answer = run_werkstatt_agent_sequential(req.query)
+        answer = run_repair_agent_with_memory(req.query)
 
-        ki = KIAktion(nachricht=req.query, antwort=answer, auftrag_id=None)
-        db.add(ki)
-        db.commit()
-        db.refresh(ki)
 
         return {
             "response": answer,
