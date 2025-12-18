@@ -8,6 +8,9 @@ import os
 from agents.lawyer_agent import handle_lawyer_request
 from agents.insurance_agent import run_insurance_agent
 from agents.repair_chat_agent import run_repair_agent_with_memory 
+from agents.tools.router import _get_routing_decision, _should_switch_agent
+from agents.tools.orchestrator_utils import _check_explicit_triggers, _safe_json_loads, _normalize_text
+
 
 log = logging.getLogger(__name__)
 
@@ -35,17 +38,6 @@ except:
     User: {user_message}
     """
 
-def _safe_json_loads(s: str) -> dict:
-    try:
-        s = s.replace("```json", "").replace("```", "").strip()
-        start = s.find("{")
-        end = s.rfind("}") + 1
-        if start != -1 and end != -1:
-            s = s[start:end]
-        return json.loads(s)
-    except json.JSONDecodeError:
-        return {}
-
 state_storage = {}
 
 def load_state(session_id: str, user_context: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -59,117 +51,11 @@ def load_state(session_id: str, user_context: Dict[str, Any] = None) -> Dict[str
 def save_state(session_id: str, state: Dict[str, Any]):
     state_storage[session_id] = state
 
-def _normalize_text(text: str) -> str:
-    text = text.strip().lower()
-    text = text.replace("ß", "ss")
-    text = unicodedata.normalize("NFKD", text)
-    text = "".join(ch for ch in text if not unicodedata.combining(ch))
-    return text
-
-def _clamp_confidence(value: Any, default: float = 0.0) -> float:
-    try:
-        c = float(value)
-    except (TypeError, ValueError):
-        return default
-    if c < 0.0:
-        return 0.0
-    if c > 1.0:
-        return 1.0
-    return c
-
 def _sanitize_agent(agent: Any, default: str = "general") -> str:
     if not isinstance(agent, str):
         return default
     agent = agent.strip().lower()
     return agent if agent in ALLOWED_AGENTS else default
-
-def _check_explicit_triggers(text: str) -> tuple[bool, str]:
-    """Prüft ob User explizit einen Agenten-Wechsel wünscht."""
-    t = _normalize_text(text)
-
-    request_words = r"(?:bitte|bitte\s+mal|kannst\s*du|koennen\s*wir|kann\s*ich|ich\s*(?:will|moechte|mochte|brauch|brauche)|verbinde|wechsel|leite\s*mich\s*weiter|sprich\s*(?:mit|zu))"
-
-    lawyer_kw = r"(?:anwalt|rechtsanwalt|rechtsberatung|rechtliche\s*hilfe|rechtshilfe|juristisch)"
-    insurance_kw = r"(?:versicherung|schadensmeldung|schaden\s*melden|schadenfall|claim)"
-    repair_kw = r"(?:werkstatt|werkstatttermin|reparatur|termin\s*(?:bei|in)\s*der\s*werkstatt|inspektion|olwechsel|service)"
-
-    patterns: list[tuple[str, str]] = [
-        ("lawyer", rf"\b{request_words}\b.*\b{lawyer_kw}\b|\b{lawyer_kw}\b.*\b(?:bitte|verbinde|wechsel)\b"),
-        ("insurance", rf"\b(?:schadensmeldung|schaden\s*melden)\b|\b{request_words}\b.*\b{insurance_kw}\b|\b{insurance_kw}\b.*\b(?:bitte|verbinde|wechsel)\b"),
-        ("repair", rf"\b(?:werkstatttermin)\b|\b{request_words}\b.*\b{repair_kw}\b|\b{repair_kw}\b.*\b(?:bitte|verbinde|wechsel)\b"),
-    ]
-
-    for agent, pat in patterns:
-        if re.search(pat, t, flags=re.IGNORECASE):
-            return (True, agent)
-
-    return (False, "general")
-
-def _should_switch_agent(current_agent: str, user_message: str) -> tuple[bool, str, float]:
-    """
-    Entscheidet kontext-bewusst ob Agent gewechselt werden soll.
-    
-    Returns: (should_switch, target_agent, confidence)
-    """
-    current_agent = _sanitize_agent(current_agent, default="general")
-
-    # 1) Explizite Trigger haben höchste Priorität (Override)
-    has_trigger, trigger_agent = _check_explicit_triggers(user_message)
-    if has_trigger and trigger_agent != current_agent:
-        return (True, trigger_agent, 0.95)
-    
-    # 2) LLM mit Kontext-Awareness (semantisch, nicht keyword-basiert)
-    context_prompt = f"""
-You are an intelligent agent router. Analyze if the user wants to switch to a different agent.
-
-Current Active Agent: {current_agent}
-User Message: {user_message}
-
-Available Agents:
-- lawyer: Legal advice, accident support, legal questions
-- repair: Workshop appointments, car repairs, maintenance
-- insurance: Insurance claims, damage reports, insurance questions
-- general: General conversation, greetings, other topics
-
-Rules:
-1. STAY with current agent if the user is continuing the same topic or only mentioning other domains.
-2. SWITCH only when the user is clearly asking for help in a different domain NOW.
-3. If uncertain, set should_switch=false and confidence<0.7.
-4. Examples (German):
-    - "ich muss noch mit der versicherung sprechen" (lawyer context) → STAY
-    - "hilf mir mit der versicherung" → SWITCH insurance
-    - "die werkstatt hat gesagt..." (insurance context) → STAY
-    - "ich brauche einen werkstatttermin" → SWITCH repair
-
-Return ONLY valid JSON:
-{{"should_switch": boolean, "target_agent": "lawyer|repair|insurance|general", "confidence": 0.0-1.0, "reason": "short explanation"}}
-"""
-    
-    try:
-        response = llm.invoke(context_prompt)
-        result = _safe_json_loads(response.content)
-        
-        should_switch = bool(result.get("should_switch", False))
-        target_agent = _sanitize_agent(result.get("target_agent", "general"), default="general")
-        confidence = _clamp_confidence(result.get("confidence", 0.5), default=0.5)
-        
-        log.info(f"Agent Switch Decision: switch={should_switch}, target={target_agent}, confidence={confidence}, reason={result.get('reason', 'N/A')}")
-        
-        return (should_switch, target_agent, confidence)
-    except Exception as e:
-        log.error(f"Error in agent switch decision: {e}")
-        return (False, current_agent, 0.0)
-
-def _get_routing_decision(text: str) -> tuple[str, float]:
-    """Fragt das LLM, welcher Agent zuständig sein könnte (für neue Sessions)."""
-    try:
-        response = llm.invoke(PROMPT_ROUTE.format(user_message=text))
-        data = _safe_json_loads(response.content)
-        agent = _sanitize_agent(data.get("agent", "general"), default="general")
-        confidence = _clamp_confidence(data.get("confidence", 0.5), default=0.5)
-        return (agent, confidence)
-    except Exception:
-        return ("general", 0.0)
 
 def handle_general_request(user_message: str, user_name: str = None) -> Dict[str, Any]:
     if user_name:
@@ -204,9 +90,9 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
     agent_changed = False
 
     if active_agent:
-        # Es gibt bereits einen aktiven Agenten
-        # Prüfe kontext-bewusst ob gewechselt werden soll
-        should_switch, new_agent, confidence = _should_switch_agent(active_agent, user_message)
+        should_switch, new_agent, confidence = _should_switch_agent(
+        llm, active_agent, user_message, _sanitize_agent
+        )
         
         if should_switch and confidence >= CONFIDENCE_THRESHOLD:
             # Hohe Confidence → Wechsel durchführen
@@ -235,7 +121,9 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
             log.info(f"Explicit trigger detected: {target_agent}")
         else:
             # Fallback auf LLM-basierte Entscheidung
-            routed_agent, confidence = _get_routing_decision(user_message)
+            routed_agent, confidence = _get_routing_decision(
+                llm, PROMPT_ROUTE, user_message, _sanitize_agent
+            )
             log.info(f"LLM routing decision: {routed_agent} (confidence: {confidence})")
             if routed_agent != "general" and confidence >= CONFIDENCE_THRESHOLD:
                 target_agent = routed_agent
