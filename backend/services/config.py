@@ -13,9 +13,11 @@ load_dotenv()
 class Settings(BaseSettings):
     OPENAI_API_KEY: str
 
+    # backend/services
     project_root = Path(__file__).parent
 
-    DOCUMENTS_PATH: str = str(project_root / "uploads")
+    # Einheitlicher Upload-/Dokumentenpfad: backend/uploads
+    DOCUMENTS_PATH: str = str(project_root.parent / "uploads")
 
 
     DATABASE_SCHEMA: str = "postgresql+psycopg"

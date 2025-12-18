@@ -3,13 +3,22 @@ import hashlib
 import logging
 import uuid
 from typing import List
-import pgvector_instance
+
+try:
+    # Direktimport, wenn "backend" das Arbeitsverzeichnis ist
+    import pgvector_instance  # type: ignore
+except ImportError:  # pragma: no cover - Fallback für Paketkontext (Docker)
+    from services import pgvector_instance  # type: ignore
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain_core.documents import Document
 from langchain_postgres.vectorstores import PGVector
 
-from config import settings
+try:
+    # Direktimport, wenn "backend" das Arbeitsverzeichnis ist
+    from config import settings  # type: ignore
+except ImportError:  # pragma: no cover - Fallback für Paketkontext (Docker)
+    from services.config import settings  # type: ignore
 
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 200
@@ -143,7 +152,8 @@ def main():
         if args.clear:
             logger.info("Clearing database...")
             clear_database()
-        import pgvector_instance
+
+        # nutzt die oben importierte pgvector_instance (lokal oder als services.pgvector_instance)
         db = pgvector_instance.get()
         update_database(db)
         logger.info("Database initialization completed successfully")

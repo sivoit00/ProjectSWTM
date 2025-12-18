@@ -7,9 +7,15 @@ from datetime import datetime
 from auth.dependencies import get_current_user
 from pydantic import BaseModel
 import asyncio
+import logging
 import requests
 
+from services import pgvector_instance
+from services.build_vector_db import update_database
+
 router = APIRouter(prefix="/files", tags=["files"])
+
+log = logging.getLogger(__name__)
 
 UPLOAD_DIR = "uploads"
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
@@ -142,7 +148,26 @@ async def upload_files(
             "size": len(content),
             "uploaded_at": datetime.now().isoformat()
         })
-    
+
+    # Trigger Vektor-DB-Update im Hintergrund
+    async def _refresh_vector_index():
+        try:
+            db = pgvector_instance.get()
+            await asyncio.to_thread(update_database, db)
+            log.info("Vector index updated after file upload ✅")
+        except Exception as e:
+            log.error(f"Vector index update failed after upload: {e}")
+
+    try:
+        asyncio.create_task(_refresh_vector_index())
+    except RuntimeError:
+        # Falls kein laufender Event-Loop vorhanden ist (z.B. bei Tests), synchron ausführen
+        try:
+            db = pgvector_instance.get()
+            update_database(db)
+        except Exception as e:
+            log.error(f"Synchronous vector index update failed: {e}")
+
     return {
         "success": True,
         "files": uploaded_files

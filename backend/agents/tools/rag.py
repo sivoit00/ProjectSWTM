@@ -7,19 +7,13 @@ from dotenv import load_dotenv
 import services.pgvector_instance  
 
 
-
-
-
 llm = ChatOpenAI(temperature=0.0, model="gpt-5") 
-
 
 load_dotenv()
 log = logging.getLogger(__name__)
 
-
-
-    
-BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
+# Basisverzeichnis des Backends (.. / .. von agents/tools)
+BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 
 
 
@@ -45,7 +39,7 @@ def search_vector_db(query: str, top_k: int = 3) -> List[Dict[str, Any]]:
     query_text = query
     try:
         base_uploads = os.path.abspath(os.path.join(BACKEND_DIR, "uploads"))
-        if isinstance(query, str) and query.endswith('.txt'):
+        if isinstance(query, str) and query.endswith(('.txt', '.md', '.pdf')):
             candidate_path = os.path.join(base_uploads, query)
             if os.path.exists(candidate_path):
                 with open(candidate_path, 'r', encoding='utf-8', errors='ignore') as f:
