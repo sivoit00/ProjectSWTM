@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { MoreVertical, Pencil, Trash2, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../../services/api";
 import type { ChatConversationListItem } from "../conversations/conversationTypes";
@@ -11,13 +11,19 @@ import {
 } from "../conversations/conversationSync";
 import { normalizeConversationList } from "../conversations/conversationUtils";
 
-export function ChatSidebarSection({ userId }: { userId: string }) {
+interface ChatSidebarSectionProps {
+  userId: string;
+  onNewChat?: () => void;
+}
+
+export function ChatSidebarSection({ userId, onNewChat }: ChatSidebarSectionProps) {
   const navigate = useNavigate();
 
   const [conversations, setConversations] = React.useState<ChatConversationListItem[]>([]);
   const [activeConversationId, setActiveConversationId] = React.useState<string | null>(null);
   const [editingConversationId, setEditingConversationId] = React.useState<string | null>(null);
   const [editingTitle, setEditingTitle] = React.useState<string>("");
+  const [openMenuId, setOpenMenuId] = React.useState<string | null>(null);
 
   const formatConversationLabel = (id: string) => {
     if (!id) return "";
@@ -72,6 +78,15 @@ export function ChatSidebarSection({ userId }: { userId: string }) {
     return () => window.removeEventListener("conversationListChanged", handler as EventListener);
   }, [loadConversations, userId, editingConversationId]);
 
+  // Close dropdown when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = () => setOpenMenuId(null);
+    if (openMenuId) {
+      document.addEventListener("click", handleClickOutside);
+      return () => document.removeEventListener("click", handleClickOutside);
+    }
+  }, [openMenuId]);
+
   const handleSelectConversation = (conversationId: string) => {
     setActiveConversationId(conversationId);
     saveActiveConversationId(userId, conversationId);
@@ -79,7 +94,7 @@ export function ChatSidebarSection({ userId }: { userId: string }) {
     navigate("/chat");
   };
 
-  const handleNewChat = async () => {
+  const handleNewChat = React.useCallback(async () => {
     try {
       const created = await api.chat.createSession();
       const newId = created.data.session_id;
@@ -95,12 +110,22 @@ export function ChatSidebarSection({ userId }: { userId: string }) {
     } catch (e) {
       console.error(e);
     }
-  };
+  }, [userId, navigate]);
+
+  React.useEffect(() => {
+    if (onNewChat) {
+      (window as any).__handleNewChat = handleNewChat;
+    }
+    return () => {
+      delete (window as any).__handleNewChat;
+    };
+  }, [handleNewChat, onNewChat]);
 
   const startEditing = (conversationId: string) => {
     const existingTitle = conversations.find((c) => c.conversation_id === conversationId)?.title ?? "";
     setEditingConversationId(conversationId);
     setEditingTitle(existingTitle || "");
+    setOpenMenuId(null);
   };
 
   const cancelEditing = () => {
@@ -152,88 +177,104 @@ export function ChatSidebarSection({ userId }: { userId: string }) {
     } catch (e) {
       console.error(e);
     }
+    setOpenMenuId(null);
   };
 
   return (
-    <div className="mt-4 pt-4 border-t border-gray-700">
-      <div className="flex items-center justify-between px-2 mb-2">
-        <div className="text-xs font-semibold tracking-wide text-gray-300">Deine Chats</div>
-        <button
-          onClick={handleNewChat}
-          className="text-xs px-2.5 py-1.5 rounded-md border border-gray-700 bg-gray-900 text-gray-200 hover:bg-gray-800 transition-colors"
-        >
-          New
-        </button>
-      </div>
-
-      <div className="max-h-64 overflow-y-auto rounded-lg border border-gray-700 bg-gray-900">
+    <div className="mt-4">
+      <div className="space-y-0.5">
         {conversations.length === 0 ? (
-          <div className="p-3 text-sm text-gray-400">Keine Chats</div>
+          <div className="px-3 py-4 text-sm text-gray-400 text-center">Keine Chats vorhanden</div>
         ) : (
           conversations.map((c) => {
             const isSelected = c.conversation_id === activeConversationId;
             const isEditing = c.conversation_id === editingConversationId;
             const label = c.title && c.title.trim().length > 0 ? c.title : formatConversationLabel(c.conversation_id);
+            const preview = c.last_message_preview || "";
 
             return (
               <div
                 key={c.conversation_id}
-                className={
-                  "group flex items-center gap-2 px-3 py-2 text-sm border-b border-gray-800 transition-colors " +
-                  (isSelected ? "bg-gray-800 text-white" : "text-gray-200 hover:bg-gray-800")
-                }
+                className={`group relative flex items-start gap-2 px-3 py-2.5 rounded-lg transition-colors cursor-pointer ${
+                  isSelected
+                    ? "bg-gray-700/70"
+                    : "hover:bg-gray-700/30"
+                }`}
+                onClick={() => !isEditing && handleSelectConversation(c.conversation_id)}
               >
-                {isEditing ? (
-                  <input
-                    className="flex-1 bg-gray-900 text-gray-200 border border-gray-700 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/40"
-                    autoFocus
-                    value={editingTitle}
-                    onChange={(e) => setEditingTitle(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") saveEditing(c.conversation_id);
-                      if (e.key === "Escape") cancelEditing();
-                    }}
-                    onBlur={() => saveEditing(c.conversation_id)}
-                  />
-                ) : (
-                  <button
-                    onClick={() => handleSelectConversation(c.conversation_id)}
-                    className="flex-1 text-left truncate"
-                    title={label}
-                  >
-                    <span className="block truncate">{label}</span>
-                  </button>
-                )}
+                <div className="flex-1 min-w-0">
+                  {isEditing ? (
+                    <input
+                      className="w-full bg-gray-800 text-gray-100 border border-gray-600 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      autoFocus
+                      value={editingTitle}
+                      onChange={(e) => setEditingTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") saveEditing(c.conversation_id);
+                        if (e.key === "Escape") cancelEditing();
+                      }}
+                      onBlur={() => saveEditing(c.conversation_id)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <>
+                      <div className="text-sm font-medium text-gray-100 truncate mb-0.5">
+                        {label}
+                      </div>
+                      {preview && (
+                        <div className="text-xs text-gray-400 truncate">
+                          {preview}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
 
                 {!isEditing && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      startEditing(c.conversation_id);
-                    }}
-                    className={
-                      "p-1.5 rounded-md transition-colors " +
-                      (isSelected ? "hover:bg-gray-700" : "opacity-0 group-hover:opacity-100 hover:bg-gray-700")
-                    }
-                    title="Umbenennen"
-                  >
-                    <Pencil size={16} />
-                  </button>
-                )}
+                  <div className="relative">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenMenuId(openMenuId === c.conversation_id ? null : c.conversation_id);
+                      }}
+                      className={`p-1.5 rounded-md transition-opacity ${
+                        openMenuId === c.conversation_id || isSelected
+                          ? "opacity-100"
+                          : "opacity-0 group-hover:opacity-100"
+                      } hover:bg-gray-600/50`}
+                    >
+                      <MoreVertical size={16} className="text-gray-300" />
+                    </button>
 
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteConversation(c.conversation_id);
-                  }}
-                  className={
-                    "p-1.5 rounded-md transition-colors " +
-                    (isSelected ? "hover:bg-gray-700" : "opacity-0 group-hover:opacity-100 hover:bg-gray-700")
-                  }
-                  title="Chat löschen"
-                >
-                  <Trash2 size={16} />
-                </button>
+                    {openMenuId === c.conversation_id && (
+                      <div
+                        className="absolute right-0 top-8 w-36 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-50 overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            startEditing(c.conversation_id);
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-200 hover:bg-gray-700 transition-colors"
+                        >
+                          <Pencil size={14} />
+                          <span>Umbenennen</span>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteConversation(c.conversation_id);
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-gray-700 transition-colors"
+                        >
+                          <Trash2 size={14} />
+                          <span>Löschen</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })
@@ -242,3 +283,4 @@ export function ChatSidebarSection({ userId }: { userId: string }) {
     </div>
   );
 }
+

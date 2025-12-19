@@ -1,4 +1,4 @@
-import { MessageSquare, LogOut, Trash2 } from "lucide-react";
+import { MessageSquare, LogOut, Trash2, Plus } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import keycloak from "../../keycloak";
 import { ChatSidebarSection } from "../../features/chat/components/ChatSidebarSection";
@@ -49,10 +49,24 @@ export default function Sidebar({ onClearChat }: SidebarProps) {
           <span>MyClone</span>
         </Link>
 
-        {isChatRoute && <ChatSidebarSection userId={userId} />}
+        {isChatRoute && <ChatSidebarSection userId={userId} onNewChat={() => {}} />}
       </nav>
 
       <div className="p-4 border-t border-gray-700 space-y-2">
+        {isChatRoute && (
+          <button
+            onClick={() => {
+              if ((window as any).__handleNewChat) {
+                (window as any).__handleNewChat();
+              }
+            }}
+            className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-gray-700 transition-colors w-full"
+          >
+            <Plus size={20} />
+            <span>Neuer Chat</span>
+          </button>
+        )}
+
         {onClearChat && (
           <button
             onClick={onClearChat}

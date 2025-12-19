@@ -82,14 +82,14 @@ export default function ChatInput({
             setInput(`${voicePrefixRef.current}${text}`.trimStart());
           }}
           onRecorded={(file) => {
-            // Keep max 1 voice memo per message (replace older audio); backend allows max 5 total files.
+            // Voice recordings are NOT added to files - only transcription is used
+            // Only non-audio files (PDFs, images) should be added to selectedFiles
             const isAudio = /\.(webm|wav|mp3|m4a|aac|ogg|mp4)$/i.test(file.name);
-
-            setSelectedFiles((prev) => {
-              const withoutAudio = prev.filter((f) => !/\.(webm|wav|mp3|m4a|aac|ogg|mp4)$/i.test(f.name));
-              const next = isAudio ? [...withoutAudio, file] : [...prev, file];
-              return next.slice(0, 5);
-            });
+            
+            if (!isAudio) {
+              setSelectedFiles((prev) => [...prev, file].slice(0, 5));
+            }
+            // Audio files are discarded after transcription
           }}
         />
 

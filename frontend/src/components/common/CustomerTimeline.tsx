@@ -53,14 +53,14 @@ export default function CustomerTimeline({ events: propEvents, onEventClick, use
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-900 p-3">
+    <div className="flex flex-col h-full bg-gray-900 p-3 overflow-hidden">
       <ActiveAgentHeader 
         currentAgent={currentAgent} 
         hasActiveEvents={hasActiveEvents}
         userName={userName}
       />
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
         {events.length === 0 ? (
           <EmptyState />
         ) : (
