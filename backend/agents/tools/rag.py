@@ -79,9 +79,3 @@ def search_vector_db(query: str, top_k: int = 3) -> List[Dict[str, Any]]:
     except Exception as e:
         log.warning(f"LLM synthesis failed: {e}")
         return formatted
-
-    
-
-
-
-
