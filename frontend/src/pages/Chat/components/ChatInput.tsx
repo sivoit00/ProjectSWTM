@@ -37,17 +37,17 @@ export default function ChatInput({
   }, [input]);
 
   return (
-    <div className="p-4 border-t border-gray-700 bg-gray-800">
+    <div className="p-4 border-t border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
       {showFileUpload && (
-        <div className="mb-3 p-4 bg-gray-900 rounded-lg border border-gray-700">
+        <div className="mb-3 p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-white">Upload Files</h3>
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Upload Files</h3>
             <button
               onClick={() => {
                 setShowFileUpload(false);
                 setSelectedFiles([]);
               }}
-              className="text-gray-400 hover:text-white"
+              className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
             >
               <X size={18} />
             </button>
@@ -62,7 +62,7 @@ export default function ChatInput({
           className={`p-3 rounded-xl transition-colors ${
             showFileUpload
               ? "bg-blue-600 text-white"
-              : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+              : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
           }`}
         >
           <Paperclip size={20} />
@@ -106,7 +106,7 @@ export default function ChatInput({
           rows={1}
           placeholder="Type your message..."
           disabled={loading}
-          className="flex-1 px-4 py-3 text-white placeholder-gray-400 rounded-xl border border-gray-600 bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 resize-none overflow-hidden"
+          className="flex-1 px-4 py-3 text-gray-900 placeholder-gray-500 rounded-xl border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 resize-none overflow-hidden dark:text-white dark:placeholder-gray-400 dark:border-gray-600 dark:bg-gray-700"
         />
         <button
           onClick={() => onSend()}

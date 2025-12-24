@@ -19,7 +19,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
         className={`px-4 py-3 rounded-2xl max-w-[70%] shadow-md ${
           isUser
             ? "bg-blue-600 text-white rounded-br-none"
-            : "text-gray-200 rounded-bl-none border"
+            : "text-gray-800 dark:text-gray-200 rounded-bl-none border"
         }`}
         style={
           isUser
@@ -60,7 +60,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
                   className={`flex items-center gap-2 p-2 rounded-lg text-xs ${
                     isUser
                       ? "bg-blue-700 hover:bg-blue-800"
-                      : "bg-gray-700 hover:bg-gray-600"
+                      : "bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
                   }`}
                 >
                   {isPdf && <FileText size={16} />}

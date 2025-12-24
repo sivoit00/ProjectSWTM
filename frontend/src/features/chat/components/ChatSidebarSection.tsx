@@ -184,7 +184,7 @@ export function ChatSidebarSection({ userId, onNewChat }: ChatSidebarSectionProp
     <div className="mt-4">
       <div className="space-y-0.5">
         {conversations.length === 0 ? (
-          <div className="px-3 py-4 text-sm text-gray-400 text-center">Keine Chats vorhanden</div>
+          <div className="px-3 py-4 text-sm text-gray-600 dark:text-gray-400 text-center">Keine Chats vorhanden</div>
         ) : (
           conversations.map((c) => {
             const isSelected = c.conversation_id === activeConversationId;
@@ -197,15 +197,15 @@ export function ChatSidebarSection({ userId, onNewChat }: ChatSidebarSectionProp
                 key={c.conversation_id}
                 className={`group relative flex items-start gap-2 px-3 py-2.5 rounded-lg transition-colors cursor-pointer ${
                   isSelected
-                    ? "bg-gray-700/70"
-                    : "hover:bg-gray-700/30"
+                    ? "bg-gray-200 dark:bg-gray-700/70"
+                    : "hover:bg-gray-100 dark:hover:bg-gray-700/30"
                 }`}
                 onClick={() => !isEditing && handleSelectConversation(c.conversation_id)}
               >
                 <div className="flex-1 min-w-0">
                   {isEditing ? (
                     <input
-                      className="w-full bg-gray-800 text-gray-100 border border-gray-600 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full bg-white text-gray-900 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600"
                       autoFocus
                       value={editingTitle}
                       onChange={(e) => setEditingTitle(e.target.value)}
@@ -218,11 +218,11 @@ export function ChatSidebarSection({ userId, onNewChat }: ChatSidebarSectionProp
                     />
                   ) : (
                     <>
-                      <div className="text-sm font-medium text-gray-100 truncate mb-0.5">
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate mb-0.5">
                         {label}
                       </div>
                       {preview && (
-                        <div className="text-xs text-gray-400 truncate">
+                        <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
                           {preview}
                         </div>
                       )}
@@ -241,14 +241,14 @@ export function ChatSidebarSection({ userId, onNewChat }: ChatSidebarSectionProp
                         openMenuId === c.conversation_id || isSelected
                           ? "opacity-100"
                           : "opacity-0 group-hover:opacity-100"
-                      } hover:bg-gray-600/50`}
+                      } hover:bg-gray-200 dark:hover:bg-gray-600/50`}
                     >
-                      <MoreVertical size={16} className="text-gray-300" />
+                      <MoreVertical size={16} className="text-gray-600 dark:text-gray-300" />
                     </button>
 
                     {openMenuId === c.conversation_id && (
                       <div
-                        className="absolute right-0 top-8 w-36 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-50 overflow-hidden"
+                        className="absolute right-0 top-8 w-36 bg-white border border-gray-200 rounded-lg shadow-xl z-50 overflow-hidden dark:bg-gray-800 dark:border-gray-600"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <button
@@ -256,7 +256,7 @@ export function ChatSidebarSection({ userId, onNewChat }: ChatSidebarSectionProp
                             e.stopPropagation();
                             startEditing(c.conversation_id);
                           }}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-200 hover:bg-gray-700 transition-colors"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-900 hover:bg-gray-100 transition-colors dark:text-gray-200 dark:hover:bg-gray-700"
                         >
                           <Pencil size={14} />
                           <span>Umbenennen</span>
@@ -266,7 +266,7 @@ export function ChatSidebarSection({ userId, onNewChat }: ChatSidebarSectionProp
                             e.stopPropagation();
                             handleDeleteConversation(c.conversation_id);
                           }}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-gray-700 transition-colors"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-gray-100 transition-colors dark:text-red-400 dark:hover:bg-gray-700"
                         >
                           <Trash2 size={14} />
                           <span>Löschen</span>

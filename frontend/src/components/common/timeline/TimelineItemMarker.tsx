@@ -39,8 +39,8 @@ export default function TimelineItemMarker({
         )}
       </div>
 
-      <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-gray-900 rounded-full flex items-center justify-center border border-gray-700">
-        <span className="text-[8px] text-gray-400 font-bold">{index + 1}</span>
+      <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-white dark:bg-gray-900 rounded-full flex items-center justify-center border border-gray-300 dark:border-gray-700">
+        <span className="text-[8px] text-gray-600 dark:text-gray-400 font-bold">{index + 1}</span>
       </div>
     </div>
   );

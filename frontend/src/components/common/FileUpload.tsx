@@ -98,11 +98,11 @@ export default function FileUpload({
         className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
           isDragging
             ? "border-blue-500 bg-blue-500/10"
-            : "border-gray-600 bg-gray-800/50"
+            : "border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-800/50"
         }`}
       >
-        <Upload className="mx-auto mb-4 text-gray-400" size={48} />
-        <p className="text-gray-300 mb-2">
+        <Upload className="mx-auto mb-4 text-gray-500 dark:text-gray-400" size={48} />
+        <p className="text-gray-700 dark:text-gray-300 mb-2">
           Drag and drop files here, or click to browse
         </p>
         <p className="text-sm text-gray-500 mb-4">
@@ -134,13 +134,13 @@ export default function FileUpload({
       {/* Selected Files List */}
       {selectedFiles.length > 0 && (
         <div className="mt-4 space-y-2">
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             Selected files ({selectedFiles.length}/{maxFiles}):
           </p>
           {selectedFiles.map((file, index) => (
             <div
               key={index}
-              className="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700"
+              className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 dark:bg-gray-800 dark:border-gray-700"
             >
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 {file.type.startsWith("image/") ? (
@@ -149,15 +149,15 @@ export default function FileUpload({
                   <FileText className="text-red-400 flex-shrink-0" size={20} />
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-white truncate">{file.name}</p>
+                  <p className="text-sm text-gray-900 dark:text-white truncate">{file.name}</p>
                   <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
                 </div>
               </div>
               <button
                 onClick={() => removeFile(index)}
-                className="ml-3 p-1 hover:bg-gray-700 rounded transition flex-shrink-0"
+                className="ml-3 p-1 hover:bg-gray-100 rounded transition flex-shrink-0 dark:hover:bg-gray-700"
               >
-                <X size={18} className="text-gray-400" />
+                <X size={18} className="text-gray-500 dark:text-gray-400" />
               </button>
             </div>
           ))}

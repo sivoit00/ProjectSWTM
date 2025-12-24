@@ -10,7 +10,7 @@ export default function MainLayout() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-900">
+    <div className="flex h-screen bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
       <Sidebar onClearChat={handleClearChat} />
       <div className="flex-1 overflow-hidden">
         <Outlet context={{ clearChatTrigger, setClearChatTrigger }} />

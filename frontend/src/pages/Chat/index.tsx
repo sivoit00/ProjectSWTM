@@ -45,9 +45,9 @@ export default function Chat() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-800">
+    <div className="flex h-screen bg-gray-100 dark:bg-gray-800">
       {/* Linke Spalte: Chat */}
-      <div className="w-3/5 flex flex-col border-r border-gray-700">
+      <div className="w-3/5 flex flex-col border-r border-gray-200 dark:border-gray-700">
         <ChatHeader onNotificationClick={handleEmailNotification} />
         <MessageList messages={messages} loading={loading} />
         <ChatInput
@@ -63,7 +63,7 @@ export default function Chat() {
       </div>
 
       {/* Rechte Spalte: Timeline */}
-      <div className="w-2/5 bg-gray-900">
+      <div className="w-2/5 bg-gray-50 dark:bg-gray-900">
         <CustomerTimeline events={allAgentSteps} onEventClick={handleTimelineEventClick} userName={userName} />
       </div>
     </div>

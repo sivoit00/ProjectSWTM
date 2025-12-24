@@ -93,7 +93,7 @@ async def stream_ki(
 
             result = await anyio.to_thread.run_sync(
                 route_message,
-                filtered_message,
+                filtered_message, 
                 user_context
             )
 
@@ -120,10 +120,10 @@ async def stream_ki(
                 }
                 
                 await emitter.send("message", payload)
-                await asyncio.sleep(0.02) 
+                await asyncio.sleep(0.02)
 
             await emitter.send("final", {
-                "ok": True,
+                "ok": True, 
                 "response": response_text,
                 "agent": agent_type,
                 "agent_steps": agent_steps
