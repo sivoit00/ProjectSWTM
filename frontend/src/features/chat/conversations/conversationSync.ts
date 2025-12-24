@@ -17,6 +17,7 @@ export function saveActiveConversationId(userId: string, conversationId: string)
   try {
     localStorage.setItem(activeConversationStorageKey(userId), conversationId);
   } catch {
+    return;
   }
 }
 

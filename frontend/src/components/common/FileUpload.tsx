@@ -97,8 +97,8 @@ export default function FileUpload({
         onDrop={handleDrop}
         className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
           isDragging
-            ? "border-blue-500 bg-blue-500/10"
-            : "border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-800/50"
+            ? "border-indigo-500 bg-indigo-500/10"
+            : "border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-950"
         }`}
       >
         <Upload className="mx-auto mb-4 text-gray-500 dark:text-gray-400" size={48} />
@@ -118,7 +118,7 @@ export default function FileUpload({
         />
         <label
           htmlFor="file-input"
-          className="inline-block px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg cursor-pointer transition"
+          className="inline-block px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg cursor-pointer transition"
         >
           Browse Files
         </label>
@@ -144,7 +144,7 @@ export default function FileUpload({
             >
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 {file.type.startsWith("image/") ? (
-                  <ImageIcon className="text-blue-400 flex-shrink-0" size={20} />
+                  <ImageIcon className="text-indigo-500 flex-shrink-0" size={20} />
                 ) : (
                   <FileText className="text-red-400 flex-shrink-0" size={20} />
                 )}

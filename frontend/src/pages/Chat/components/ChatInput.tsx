@@ -2,6 +2,7 @@ import { Send, Paperclip, X } from "lucide-react";
 import FileUpload from "../../../components/common/FileUpload";
 import VoiceRecorder from "./VoiceRecorder";
 import { useEffect, useRef } from "react";
+import type { Dispatch, SetStateAction } from "react";
 
 interface ChatInputProps {
   input: string;
@@ -10,7 +11,7 @@ interface ChatInputProps {
   showFileUpload: boolean;
   setShowFileUpload: (show: boolean) => void;
   selectedFiles: File[];
-  setSelectedFiles: (files: File[]) => void;
+  setSelectedFiles: Dispatch<SetStateAction<File[]>>;
   onSend: () => void;
 }
 
@@ -37,7 +38,7 @@ export default function ChatInput({
   }, [input]);
 
   return (
-    <div className="p-4 border-t border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
+    <div className="p-4 border-t border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-950">
       {showFileUpload && (
         <div className="mb-3 p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-3">
@@ -61,7 +62,7 @@ export default function ChatInput({
           onClick={() => setShowFileUpload(!showFileUpload)}
           className={`p-3 rounded-xl transition-colors ${
             showFileUpload
-              ? "bg-blue-600 text-white"
+              ? "bg-indigo-600 text-white"
               : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
           }`}
         >
@@ -106,12 +107,12 @@ export default function ChatInput({
           rows={1}
           placeholder="Type your message..."
           disabled={loading}
-          className="flex-1 px-4 py-3 text-gray-900 placeholder-gray-500 rounded-xl border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 resize-none overflow-hidden dark:text-white dark:placeholder-gray-400 dark:border-gray-600 dark:bg-gray-700"
+          className="flex-1 px-4 py-3 text-gray-900 placeholder-gray-500 rounded-xl border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 resize-none overflow-hidden dark:text-gray-100 dark:placeholder-gray-400 dark:border-gray-700 dark:bg-gray-900"
         />
         <button
           onClick={() => onSend()}
           disabled={loading || (!input.trim() && selectedFiles.length === 0)}
-          className="p-3 bg-blue-600 rounded-xl shadow-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="p-3 bg-indigo-600 rounded-xl shadow-md hover:bg-indigo-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Send size={20} />
         </button>

@@ -1,6 +1,6 @@
 import { FileText, Image as ImageIcon } from "lucide-react";
 import { api } from "../../../services/api";
-import type { Message } from "../hooks/useChatState";
+import type { Message } from "../hooks/chat/chatTypes";
 import { getAgentColor } from "../../../components/common/timeline/timelineUtils";
 import LoadingIndicator from "./LoadingIndicator";
 
@@ -18,7 +18,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
       <div
         className={`px-4 py-3 rounded-2xl max-w-[70%] shadow-md ${
           isUser
-            ? "bg-blue-600 text-white rounded-br-none"
+            ? "bg-indigo-600 text-white rounded-br-none"
             : "text-gray-800 dark:text-gray-200 rounded-bl-none border"
         }`}
         style={
@@ -46,7 +46,6 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
               const isImage = /\.(jpg|jpeg|png|gif|bmp)$/i.test(filename);
               const isAudio = /\.(webm|wav|mp3|m4a|aac|ogg|mp4)$/i.test(filename);
 
-              // Skip audio files - they are only used for transcription
               if (isAudio) {
                 return null;
               }
@@ -59,7 +58,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
                   rel="noopener noreferrer"
                   className={`flex items-center gap-2 p-2 rounded-lg text-xs ${
                     isUser
-                      ? "bg-blue-700 hover:bg-blue-800"
+                      ? "bg-indigo-700 hover:bg-indigo-800"
                       : "bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
                   }`}
                 >

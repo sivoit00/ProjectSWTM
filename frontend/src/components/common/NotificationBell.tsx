@@ -53,8 +53,8 @@ export default function NotificationBell({ onProcessEmail }: Props) {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 dark:bg-gray-800 dark:border-gray-700 rounded-lg shadow-xl z-50 overflow-hidden ring-1 ring-black ring-opacity-5">
-          <div className="p-3 text-sm font-semibold text-gray-900 border-b border-gray-200 bg-gray-50 dark:text-gray-300 dark:border-gray-700 dark:bg-gray-900 flex justify-between items-center">
+        <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 dark:bg-gray-900 dark:border-gray-800 rounded-lg shadow-xl z-50 overflow-hidden ring-1 ring-black ring-opacity-5">
+          <div className="p-3 text-sm font-semibold text-gray-900 border-b border-gray-200 bg-gray-50 dark:text-gray-200 dark:border-gray-800 dark:bg-gray-950 flex justify-between items-center">
             <span>Notifications</span>
             <span className="text-xs font-normal text-gray-500">{notifications.length} Total</span>
           </div>
@@ -72,15 +72,15 @@ export default function NotificationBell({ onProcessEmail }: Props) {
                     onClick={() => handleItemClick(n)}
                     className={`p-3 cursor-pointer transition-all duration-200 ${
                         n.is_read 
-                        ? 'bg-gray-50 opacity-80 hover:opacity-100 dark:bg-gray-800 dark:opacity-60 dark:hover:opacity-100' 
-                        : 'bg-blue-50 hover:bg-blue-100 border-l-4 border-blue-500 dark:bg-gray-750 dark:hover:bg-gray-700'
+                        ? 'bg-gray-50 opacity-80 hover:opacity-100 dark:bg-gray-950 dark:opacity-60 dark:hover:opacity-100' 
+                        : 'bg-indigo-50 hover:bg-indigo-100 border-l-4 border-indigo-500 dark:bg-gray-900 dark:hover:bg-gray-800'
                     }`}
                   >
                     <div className="flex justify-between items-start">
                         <div className={`font-bold text-sm mb-1 ${n.is_read ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-white'}`}>
                             {n.title}
                         </div>
-                        {n.is_read && <span className="text-[10px] text-gray-500 border border-gray-300 px-1 rounded dark:border-gray-600">Read</span>}
+                        {n.is_read && <span className="text-[10px] text-gray-500 border border-gray-300 px-1 rounded dark:border-gray-700">Read</span>}
                     </div>
                     
                     <div className="text-xs text-gray-700 truncate mb-1 dark:text-gray-300">{n.message}</div>

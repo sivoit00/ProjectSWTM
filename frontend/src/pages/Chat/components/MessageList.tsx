@@ -1,6 +1,6 @@
 import MessageBubble from "./MessageBubble";
 import EmptyState from "./EmptyState";
-import type { Message } from "../hooks/useChatState";
+import type { Message } from "../hooks/chat/chatTypes";
 
 interface MessageListProps {
   messages: Message[];
