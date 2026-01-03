@@ -53,27 +53,26 @@ export const getTaskColor = (taskName: string): string => {
 };
 
 export const getAgentColor = (agentName: string | undefined): string => {
-  if (!agentName) return "#6B7280"; // Default gray
+
+  if (!agentName) return "#6B7280"; 
   
   const normalized = agentName.toLowerCase();
   
-  // Agent-spezifische Farben
-  if (normalized.includes("ki clone") || normalized.includes("chatbot")) return "#3B82F6"; // Blau
-  if (normalized.includes("repair") || normalized.includes("werkstatt")) return "#10B981"; // Grün
-  if (normalized.includes("lawyer") || normalized.includes("anwalt")) return "#8B5CF6"; // Lila
-  if (normalized.includes("insurance") || normalized.includes("versicherung")) return "#F59E0B"; // Orange
-  if (normalized.includes("guardrails")) return "#EF4444"; // Rot
+  if (normalized.includes("ki clone") || normalized.includes("chatbot")) return "#3B82F6";
+  if (normalized.includes("repair") || normalized.includes("werkstatt")) return "#EAB308"; 
+  if (normalized.includes("lawyer") || normalized.includes("anwalt")) return "#8B5CF6"; 
+  if (normalized.includes("insurance") || normalized.includes("versicherung")) return "#F59E0B";
+  if (normalized.includes("guardrails")) return "#EF4444"; 
   
-  return "#6B7280"; // Default gray
+  return "#6B7280"; 
 };
 
 export const formatTime = (timestamp: string | Date) => {
   const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
-  
-  // Stelle sicher, dass die Zeit in der lokalen Zeitzone angezeigt wird
+
   return date.toLocaleTimeString('de-DE', { 
     hour: '2-digit', 
     minute: '2-digit',
-    timeZone: 'Europe/Berlin'  // Deutsche Zeitzone
+    timeZone: 'Europe/Berlin' 
   });
 };

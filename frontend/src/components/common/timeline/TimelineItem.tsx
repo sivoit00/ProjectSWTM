@@ -50,7 +50,6 @@ export default function TimelineItem({ event, index, totalCount, onEventClick }:
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Vertikale Verbindungslinie */}
       <TimelineItemLine isLastItem={isLastItem} />
     
       <TimelineItemMarker
@@ -78,7 +77,6 @@ export default function TimelineItem({ event, index, totalCount, onEventClick }:
             if (event.messageId && onEventClick) onEventClick(event.messageId);
           }}
         >
-          {/* Header */}
           <TimelineItemHeader
             description={event.description}
             timestamp={event.timestamp}
@@ -87,7 +85,6 @@ export default function TimelineItem({ event, index, totalCount, onEventClick }:
             StatusIcon={StatusIcon}
           />
 
-          {/* Details Toggle */}
           <TimelineItemActions
             hasDetails={Boolean(hasDetails)}
             isExpanded={isExpanded}
@@ -97,7 +94,6 @@ export default function TimelineItem({ event, index, totalCount, onEventClick }:
             }}
           />
 
-          {/* Status Indicators */}
           <TimelineItemStatusIndicators
             status={event.status}
             isActive={isActive}
@@ -105,7 +101,6 @@ export default function TimelineItem({ event, index, totalCount, onEventClick }:
             agentColor={agentColor}
           />
 
-          {/* Details (nur beim Aufklappen) */}
           <TimelineItemDetails
             hasDetails={Boolean(hasDetails)}
             isExpanded={isExpanded}

@@ -28,6 +28,7 @@ export const chatService = {
 
   async streamMessage(
     message: string, 
+    sessionId: string | null,
     signal: AbortSignal, 
     callbacks: StreamCallbacks
   ) {
@@ -40,7 +41,7 @@ export const chatService = {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${keycloak.token}`,
         },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ message, session_id: sessionId || undefined }),
         signal,
       });
 
