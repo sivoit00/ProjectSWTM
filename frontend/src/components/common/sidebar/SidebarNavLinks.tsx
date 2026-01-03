@@ -31,6 +31,18 @@ export function SidebarNavLinks({ isActive }: SidebarNavLinksProps) {
         <MessageSquare size={20} />
         <span>MyClone</span>
       </Link>
+
+      <Link
+        to="/profile"
+        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+          isActive("/profile")
+            ? "bg-indigo-600 text-white"
+            : "text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-900"
+        }`}
+      >
+        <MessageSquare size={20} />
+        <span>MyProfile</span>
+      </Link>
     </div>
   );
 }

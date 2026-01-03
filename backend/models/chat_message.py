@@ -7,6 +7,7 @@ class ChatMessage(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String, index=True, nullable=False)  # Keycloak user ID
+    conversation_id = Column(String, index=True, nullable=False, default="default")
     sender = Column(String, nullable=False)  # "User" or "Bot"
     message = Column(Text, nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
