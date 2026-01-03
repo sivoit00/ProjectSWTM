@@ -1,8 +1,59 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FileUp, ListChecks, MessageSquare, Wand2 } from "lucide-react";
 
 export default function Home() {
   const navigate = useNavigate();
+
+  const benefits = [
+    {
+      title: "One place for the whole case",
+      text: "Workshop, insurance and lawyer support — routed automatically.",
+    },
+    {
+      title: "Clear next steps",
+      text: "You always know what to do now and what information is needed.",
+    },
+    {
+      title: "Less back-and-forth",
+      text: "Draft messages and structured info so you can move faster.",
+    },
+  ] as const;
+
+  const [benefitIndex, setBenefitIndex] = useState(0);
+  const [isVisible, setIsVisible] = useState(true);
+
+  useEffect(() => {
+    let showTimer: number | undefined;
+    let hideTimer: number | undefined;
+    let isCancelled = false;
+
+    const cycle = () => {
+      if (isCancelled) return;
+
+      // Visible phase
+      setIsVisible(true);
+      showTimer = window.setTimeout(() => {
+        // Fade out
+        setIsVisible(false);
+
+        hideTimer = window.setTimeout(() => {
+          // Swap content while hidden, then fade in
+          setBenefitIndex((prev) => (prev + 1) % benefits.length);
+          setIsVisible(true);
+          cycle();
+        }, 500);
+      }, 3200);
+    };
+
+    cycle();
+
+    return () => {
+      isCancelled = true;
+      if (showTimer) window.clearTimeout(showTimer);
+      if (hideTimer) window.clearTimeout(hideTimer);
+    };
+  }, [benefits.length]);
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
@@ -106,6 +157,23 @@ export default function Home() {
               <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
                 Draft messages + the exact info/files needed
               </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-950">
+          <div className="text-sm font-semibold">Why MyClone</div>
+          <div
+            className={`mt-2 transition-opacity duration-500 motion-reduce:transition-none ${
+              isVisible ? "opacity-100" : "opacity-0"
+            }`}
+            aria-live="polite"
+          >
+            <div className="text-base font-semibold">
+              {benefits[benefitIndex].title}
+            </div>
+            <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">
+              {benefits[benefitIndex].text}
             </div>
           </div>
         </div>
