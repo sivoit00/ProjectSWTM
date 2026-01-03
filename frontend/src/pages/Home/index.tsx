@@ -21,29 +21,38 @@ export default function Home() {
   ] as const;
 
   const [benefitIndex, setBenefitIndex] = useState(0);
-  const [isVisible, setIsVisible] = useState(true);
+  const [phase, setPhase] = useState<"pre" | "in" | "out">("pre");
 
   useEffect(() => {
     let showTimer: number | undefined;
     let hideTimer: number | undefined;
+    let enterTimer: number | undefined;
     let isCancelled = false;
+
+    const enter = () => {
+      // Start hidden on the left, then slide/fade in.
+      setPhase("pre");
+      enterTimer = window.setTimeout(() => {
+        if (isCancelled) return;
+        setPhase("in");
+      }, 30);
+    };
 
     const cycle = () => {
       if (isCancelled) return;
 
-      // Visible phase
-      setIsVisible(true);
+      // Enter + visible phase
+      enter();
       showTimer = window.setTimeout(() => {
-        // Fade out
-        setIsVisible(false);
+        // Slide/fade out to the right
+        setPhase("out");
 
         hideTimer = window.setTimeout(() => {
           // Swap content while hidden, then fade in
           setBenefitIndex((prev) => (prev + 1) % benefits.length);
-          setIsVisible(true);
           cycle();
         }, 500);
-      }, 3200);
+      }, 8000);
     };
 
     cycle();
@@ -52,6 +61,7 @@ export default function Home() {
       isCancelled = true;
       if (showTimer) window.clearTimeout(showTimer);
       if (hideTimer) window.clearTimeout(hideTimer);
+      if (enterTimer) window.clearTimeout(enterTimer);
     };
   }, [benefits.length]);
 
@@ -164,8 +174,12 @@ export default function Home() {
         <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-950">
           <div className="text-sm font-semibold">Why MyClone</div>
           <div
-            className={`mt-2 transition-opacity duration-500 motion-reduce:transition-none ${
-              isVisible ? "opacity-100" : "opacity-0"
+            className={`mt-2 transition-[opacity,transform] duration-500 ease-out motion-reduce:transition-none motion-reduce:transform-none ${
+              phase === "in"
+                ? "opacity-100 translate-x-0"
+                : phase === "out"
+                  ? "opacity-0 translate-x-8"
+                  : "opacity-0 -translate-x-8"
             }`}
             aria-live="polite"
           >
