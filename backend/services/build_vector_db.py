@@ -91,7 +91,6 @@ def update_database(db: PGVector):
     for i in range(0, len(chunk_ids), batch_size):
         batch_ids = chunk_ids[i:i + batch_size]
 
-        db.get_by_ids(batch_ids)
         batch_docs = db.get_by_ids(batch_ids)
         existing_docs.extend(batch_docs)
 

@@ -1,13 +1,8 @@
 import logging
 from typing import List, Dict, Any
 import os
-import sys
-from langchain_openai import ChatOpenAI
 from dotenv import load_dotenv
 import services.pgvector_instance  
-
-
-llm = ChatOpenAI(temperature=0.0, model="gpt-5") 
 
 load_dotenv()
 log = logging.getLogger(__name__)
@@ -21,13 +16,11 @@ BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 def search_vector_db(query: str, top_k: int = 3) -> List[Dict[str, Any]]:
     """Search the PGVector database and return top-k matches with scores.
 
-    - Uses the shared `pgvector_instance.get()` to obtain the DB
-    - Prints optional debug lines with similarity scores
-    - Returns a list of dicts containing id, metadata, page_content, and score
+    This tool intentionally does *retrieval only* (no second LLM call / synthesis),
+    because the Repair-Agent already performs the final answer generation.
+
+    Returns a list of dicts containing: id, metadata, page_content, score.
     """
-    
-    if services.pgvector_instance is None:
-        return [{"error": "pgvector_instance not available"}]
 
     try:
         db = services.pgvector_instance.get()
@@ -65,17 +58,10 @@ def search_vector_db(query: str, top_k: int = 3) -> List[Dict[str, Any]]:
             }
         )
 
+    return formatted
+
     
-    try:
-        context = "\n\n---\n\n".join([f"[SIM={d['score']:.3f}]\n{d['page_content']}" for d in formatted])
-        prompt = (
-            "Beantworte die folgende Frage basierend ausschließlich auf dem Kontext. "
-            "Wenn die Antwort nicht sicher im Kontext steht, sage kurz, dass es unklar ist.\n\n"
-            f"Frage: {query}\n\nKontext:\n{context}"
-        )
-        llm_response = llm.invoke(prompt)
-        answer = getattr(llm_response, "content", "")
-        return [{"answer": answer, "sources": formatted}]
-    except Exception as e:
-        log.warning(f"LLM synthesis failed: {e}")
-        return formatted
+
+
+
+

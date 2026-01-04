@@ -8,7 +8,7 @@ from typing import Optional, Dict, Any, List
 import uuid
 from datetime import datetime, timezone
 from agents.ki_clone import route_message
-from agents.repair_chat_agent import clear_session_memory
+from agents.memory import clear_session_history
 from services.guardrails_service import validate_request
 from services.sse_emitter import SSEEmitter
 from auth.dependencies import get_optional_user
@@ -145,7 +145,7 @@ async def stream_ki(
 @router.delete("/session/{session_id}")
 async def clear_session(session_id: str):
     try:
-        clear_session_memory(session_id)
+        clear_session_history(session_id)
         return {"ok": True, "message": f"Session {session_id} gelöscht."}
     except Exception as e:
         log.exception(f"Fehler beim Löschen von Session {session_id}")

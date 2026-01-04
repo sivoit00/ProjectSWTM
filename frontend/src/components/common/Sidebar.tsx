@@ -55,6 +55,19 @@ export default function Sidebar({ onClearChat }: SidebarProps) {
           <span>MyClone</span>
           
         </Link>
+
+        <Link
+          to="/profile"
+          className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+            isActive("/profile")
+              ? "bg-blue-600 text-white"
+              : "text-gray-300 hover:bg-gray-700"
+          }`}
+        >
+          <MessageSquare size={20} />
+          <span>MyProfile</span>
+          
+        </Link>
         
 
         

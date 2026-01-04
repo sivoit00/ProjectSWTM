@@ -48,7 +48,7 @@ app.add_middleware(
 
 app.include_router(customers.router, prefix="/customers", tags=["Customers"])
 app.include_router(vehicles.router, prefix="/vehicles", tags=["Vehicles"])
-app.include_router(workshops.router, prefix="/workshop", tags=["Workshops"])
+app.include_router(workshops.router, prefix="/workshops", tags=["Workshops"])
 app.include_router(openai_route.router, tags=["Chat"])
 app.include_router(chat_history.router)
 app.include_router(files.router)
@@ -56,8 +56,8 @@ app.include_router(ki_orchestrator.router, prefix="/ki-orchestrator", tags=["KI 
 app.include_router(guardrails.router, prefix="/guardrails", tags=["GuardRails"])
 app.include_router(admin_guardrails.router, prefix="/admin/guardrails", tags=["GuardRails Admin"])
 app.include_router(notifications.router, prefix="/notifications", tags=["Notifications"])
-app.include_router(lawyers.router, prefix="/lawyer", tags=["Lawyers"])
-app.include_router(insurances.router, prefix="/insurance", tags=["Insurances"])
+app.include_router(lawyers.router, prefix="/lawyers", tags=["Lawyers"])
+app.include_router(insurances.router, prefix="/insurances", tags=["Insurances"])
 
 @app.get("/", tags=["Root"])
 def home():
