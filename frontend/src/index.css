@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Hide Safari's AirPlay/remote playback button in audio controls (TV icon). */
 .chat-audio::-webkit-media-controls-airplay-button {
 	display: none !important;

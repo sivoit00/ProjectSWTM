@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from database import engine
+from database import engine, ensure_chat_messages_schema
 from models import Base
 from models.notifications import Notification
 from routes import customers, vehicles, workshops, openai_route, chat_history, files, ki_orchestrator, guardrails, admin_guardrails, notifications, lawyers, insurances
@@ -12,6 +12,7 @@ import logging
 log = logging.getLogger(__name__)
 
 Base.metadata.create_all(bind=engine)
+ensure_chat_messages_schema()
 
 def run_email_check():
     """Wird vom Scheduler regelmäßig aufgerufen"""

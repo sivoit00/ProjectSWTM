@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { api } from "../../services/api";
 import { Upload, X, FileText, Image as ImageIcon } from "lucide-react";
 
 interface FileUploadProps {
@@ -17,7 +16,7 @@ export default function FileUpload({
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string>("");
 
-  const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/bmp", "application/pdf", "text/plain"];
+  const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/bmp", "application/pdf"];
 
   const validateFile = (file: File): boolean => {
     // Check size
@@ -56,23 +55,6 @@ export default function FileUpload({
       setSelectedFiles(newFiles);
       onFilesSelected(newFiles);
     }
-    api.files.upload(validFiles)
-        .then((res) => {
-          const uploaded = (res.data?.files ?? []) as Array<{ stored_filename: string; filename: string }>;
-          if (uploaded.length > 0) {
-            const fileRefs = uploaded.map(f => `${f.stored_filename}`).join(", ");
-            const message = `Dateien hochgeladen: ${fileRefs}`;
-            // Persist chat message and notify orchestrator
-            const userId = typeof window !== 'undefined' ? (localStorage.getItem('sessionId') || 'anonymous') : 'anonymous';
-            api.chat.saveMessage({ user_id: userId, sender: 'user', message })
-              .catch(() => {/* non-blocking */});
-
-          }
-        })
-        .catch((err) => {
-          console.error('Upload failed', err);
-          setError('Upload failed. Bitte erneut versuchen.');
-        });
   };
 
   const removeFile = (index: number) => {
@@ -115,12 +97,12 @@ export default function FileUpload({
         onDrop={handleDrop}
         className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
           isDragging
-            ? "border-blue-500 bg-blue-500/10"
-            : "border-gray-600 bg-gray-800/50"
+            ? "border-indigo-500 bg-indigo-500/10"
+            : "border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-950"
         }`}
       >
-        <Upload className="mx-auto mb-4 text-gray-400" size={48} />
-        <p className="text-gray-300 mb-2">
+        <Upload className="mx-auto mb-4 text-gray-500 dark:text-gray-400" size={48} />
+        <p className="text-gray-700 dark:text-gray-300 mb-2">
           Drag and drop files here, or click to browse
         </p>
         <p className="text-sm text-gray-500 mb-4">
@@ -136,7 +118,7 @@ export default function FileUpload({
         />
         <label
           htmlFor="file-input"
-          className="inline-block px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg cursor-pointer transition"
+          className="inline-block px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg cursor-pointer transition"
         >
           Browse Files
         </label>
@@ -152,30 +134,30 @@ export default function FileUpload({
       {/* Selected Files List */}
       {selectedFiles.length > 0 && (
         <div className="mt-4 space-y-2">
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             Selected files ({selectedFiles.length}/{maxFiles}):
           </p>
           {selectedFiles.map((file, index) => (
             <div
               key={index}
-              className="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700"
+              className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 dark:bg-gray-800 dark:border-gray-700"
             >
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 {file.type.startsWith("image/") ? (
-                  <ImageIcon className="text-blue-400 flex-shrink-0" size={20} />
+                  <ImageIcon className="text-indigo-500 flex-shrink-0" size={20} />
                 ) : (
                   <FileText className="text-red-400 flex-shrink-0" size={20} />
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-white truncate">{file.name}</p>
+                  <p className="text-sm text-gray-900 dark:text-white truncate">{file.name}</p>
                   <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
                 </div>
               </div>
               <button
                 onClick={() => removeFile(index)}
-                className="ml-3 p-1 hover:bg-gray-700 rounded transition flex-shrink-0"
+                className="ml-3 p-1 hover:bg-gray-100 rounded transition flex-shrink-0 dark:hover:bg-gray-700"
               >
-                <X size={18} className="text-gray-400" />
+                <X size={18} className="text-gray-500 dark:text-gray-400" />
               </button>
             </div>
           ))}

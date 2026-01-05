@@ -206,8 +206,8 @@ export default function VoiceRecorder({
       disabled={disabled}
       className={`p-3 rounded-xl transition-colors ${
         recording
-          ? "bg-blue-600 text-white"
-          : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+          ? "bg-indigo-600 text-white"
+          : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
       } disabled:opacity-50`}
       aria-label={recording ? "Stop recording" : "Start recording"}
       title={recording ? "Stop" : "Record"}

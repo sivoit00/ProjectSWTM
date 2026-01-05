@@ -18,7 +18,7 @@ export default function TimelineItemHeader({
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-1.5 flex-1">
-        <h4 className="text-white font-semibold text-xs">{description}</h4>
+        <h4 className="text-gray-900 dark:text-white font-semibold text-xs">{description}</h4>
 
         <span
           className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium transition-all"

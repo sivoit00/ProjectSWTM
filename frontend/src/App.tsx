@@ -2,7 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import MainLayout from "./layouts/MainLayout";
 import Home from "./pages/Home";
 import Chat from "./pages/Chat/index";
-import Profile from "./pages/Profile/index";
+import Profile from "./pages/Profile";
 import { NotificationProvider } from "./context/NotificationContext";
 
 
