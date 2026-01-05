@@ -1,75 +1,198 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MessageSquare, Clock, Shield } from "lucide-react";
+import { FileUp, ListChecks, MessageSquare, Wand2 } from "lucide-react";
 
 export default function Home() {
   const navigate = useNavigate();
 
+  const benefits = [
+    {
+      title: "One place for the whole case",
+      text: "Workshop, insurance and lawyer support — routed automatically.",
+    },
+    {
+      title: "Clear next steps",
+      text: "You always know what to do now and what information is needed.",
+    },
+    {
+      title: "Less back-and-forth",
+      text: "Draft messages and structured info so you can move faster.",
+    },
+  ] as const;
+
+  const [benefitIndex, setBenefitIndex] = useState(0);
+  const [phase, setPhase] = useState<"pre" | "in" | "out">("pre");
+
+  useEffect(() => {
+    let showTimer: number | undefined;
+    let hideTimer: number | undefined;
+    let enterTimer: number | undefined;
+    let isCancelled = false;
+
+    const enter = () => {
+      // Start hidden on the left, then slide/fade in.
+      setPhase("pre");
+      enterTimer = window.setTimeout(() => {
+        if (isCancelled) return;
+        setPhase("in");
+      }, 30);
+    };
+
+    const cycle = () => {
+      if (isCancelled) return;
+
+      // Enter + visible phase
+      enter();
+      showTimer = window.setTimeout(() => {
+        // Slide/fade out to the right
+        setPhase("out");
+
+        hideTimer = window.setTimeout(() => {
+          // Swap content while hidden, then fade in
+          setBenefitIndex((prev) => (prev + 1) % benefits.length);
+          cycle();
+        }, 500);
+      }, 8000);
+    };
+
+    cycle();
+
+    return () => {
+      isCancelled = true;
+      if (showTimer) window.clearTimeout(showTimer);
+      if (hideTimer) window.clearTimeout(hideTimer);
+      if (enterTimer) window.clearTimeout(enterTimer);
+    };
+  }, [benefits.length]);
+
   return (
-    <div className="flex flex-col items-center justify-center h-screen p-8 text-white overflow-y-auto">
-      <div className="max-w-4xl w-full space-y-12">
-        {/* Hero Section */}
-        <div className="text-center space-y-4">
-          <h1 className="text-5xl font-bold">
-            Welcome to <span className="text-blue-400">MyClone</span>
-          </h1>
-          <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-            Your intelligent assistant for vehicle maintenance and service management. Let our AI handle everything for you with simple conversations.
-          </p>
+    <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
+      <div className="mx-auto max-w-6xl px-6 py-7">
+        <div className="flex flex-row items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="mt-3 text-3xl sm:text-4xl font-bold">
+              Welcome to <span className="text-indigo-600 dark:text-indigo-400">MyClone</span>
+            </h1>
+            <p className="mt-2 text-base sm:text-lg text-gray-700 dark:text-gray-300">
+              One agent for workshop, insurance advice, lawyer support and basic treatment — you describe your case once, MyClone routes it and handles the workflow.
+            </p>
+          </div>
+
           <button
             onClick={() => navigate("/chat")}
-            className="mt-6 inline-flex items-center gap-2 px-8 py-4 bg-blue-600 hover:bg-blue-700 rounded-lg text-lg font-semibold shadow-lg transition transform hover:scale-105"
+            className="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap px-5 py-3 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-semibold text-white shadow-sm transition"
           >
-            <MessageSquare size={24} />
-            Start Chat Now
+            <MessageSquare size={18} />
+            Start now
           </button>
         </div>
 
-        {/* Features */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-blue-900/30 backdrop-blur-sm border border-blue-500/20 rounded-xl p-6 hover:border-blue-500/40 transition">
-            <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-4">
-              <MessageSquare className="text-white" size={24} />
+        <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-950">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900">
+              <div className="flex items-start gap-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-600 text-white">
+                  <MessageSquare size={18} />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-indigo-700 dark:text-indigo-400">Step 1</div>
+                  <div className="mt-1 text-base font-semibold">Start chat</div>
+                  <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                    Tell your case in one sentence — any topic.
+                  </div>
+                </div>
+              </div>
             </div>
-            <h3 className="text-xl font-semibold mb-2">AI-Powered</h3>
-            <p className="text-gray-300">
-              Chat with our intelligent AI assistant that understands your vehicle service needs and handles everything automatically.
-            </p>
-          </div>
 
-          <div className="bg-blue-900/30 backdrop-blur-sm border border-blue-500/20 rounded-xl p-6 hover:border-blue-500/40 transition">
-            <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-4">
-              <Clock className="text-white" size={24} />
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900">
+              <div className="flex items-start gap-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-600 text-white">
+                  <FileUp size={18} />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-indigo-700 dark:text-indigo-400">Step 2</div>
+                  <div className="mt-1 text-base font-semibold">Add files</div>
+                  <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                    Photos, invoices, policy docs, letters (optional).
+                  </div>
+                </div>
+              </div>
             </div>
-            <h3 className="text-xl font-semibold mb-2">Save Time</h3>
-            <p className="text-gray-300">
-              No complex forms or navigation. Simply describe what you need, and our AI takes care of the rest instantly.
-            </p>
-          </div>
 
-          <div className="bg-blue-900/30 backdrop-blur-sm border border-blue-500/20 rounded-xl p-6 hover:border-blue-500/40 transition">
-            <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-4">
-              <Shield className="text-white" size={24} />
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900">
+              <div className="flex items-start gap-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-600 text-white">
+                  <Wand2 size={18} />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-indigo-700 dark:text-indigo-400">Step 3</div>
+                  <div className="mt-1 text-base font-semibold">Get next steps</div>
+                  <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                    MyClone guides you and takes over the busywork.
+                  </div>
+                </div>
+              </div>
             </div>
-            <h3 className="text-xl font-semibold mb-2">Simple & Secure</h3>
-            <p className="text-gray-300">
-              Easy-to-use interface designed for everyone. Your data is protected with enterprise-grade security.
-            </p>
           </div>
         </div>
 
-        {/* CTA Section */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-12 text-center">
-          <h2 className="text-3xl font-bold mb-4">Ready to get started?</h2>
-          <p className="text-lg text-blue-100 mb-6">
-            Experience the future of vehicle service management. Chat with our AI and let it handle your requests in seconds.
-          </p>
-          <button
-            onClick={() => navigate("/chat")}
-            className="inline-flex items-center gap-2 px-8 py-3 bg-white text-blue-600 hover:bg-gray-100 rounded-lg font-semibold shadow-lg transition"
+        <div className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-950">
+            <div className="text-sm font-semibold">Example request</div>
+            <div className="mt-3 space-y-2">
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100">
+                “I had an accident — do I need a lawyer, and what should I do next?”
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100">
+                “I can upload photos, my insurance policy, and the other party’s details.”
+              </div>
+            </div>
+            <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+              Tip: Mention dates, location, and what documents you already have.
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-950">
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <ListChecks size={16} className="text-indigo-600 dark:text-indigo-400" />
+              What you get
+            </div>
+            <div className="mt-3 space-y-2 text-sm text-gray-700 dark:text-gray-300">
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
+                Automatic routing (workshop / insurance / lawyer)
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
+                Clear next steps (what to do now)
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
+                Draft messages + the exact info/files needed
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-950">
+          <div className="text-sm font-semibold">
+            Why{" "}
+            <span className="text-indigo-600 dark:text-indigo-400">MyClone</span>
+          </div>
+          <div
+            className={`mt-2 transition-[opacity,transform] duration-500 ease-out motion-reduce:transition-none motion-reduce:transform-none ${
+              phase === "in"
+                ? "opacity-100 translate-x-0"
+                : phase === "out"
+                  ? "opacity-0 translate-x-8"
+                  : "opacity-0 -translate-x-8"
+            }`}
+            aria-live="polite"
           >
-            <MessageSquare size={20} />
-            Open Chat Assistant
-          </button>
+            <div className="text-base font-semibold">
+              {benefits[benefitIndex].title}
+            </div>
+            <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">
+              {benefits[benefitIndex].text}
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -9,11 +9,11 @@ type Props = {
 
 export function MyProfileSection({ form, onChange }: Props) {
   return (
-    <section className="bg-blue-900/30 backdrop-blur-sm border border-blue-500/20 rounded-xl p-6 space-y-4">
+    <section className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-950 space-y-4">
             <h2 className="text-2xl font-semibold mb-2">My Profile</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm text-gray-300 mb-1">
+                <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
                   First name
                 </label>
                 <input
@@ -21,11 +21,11 @@ export function MyProfileSection({ form, onChange }: Props) {
                   name="firstName"
                   value={form.firstName}
                   onChange={onChange}
-                  className="w-full px-3 py-2 rounded-lg bg-blue-950/60 border border-blue-500/30 focus:outline-none focus:border-blue-400"
+                  className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-indigo-500 dark:bg-gray-900 dark:border-gray-800 dark:text-gray-100"
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-300 mb-1">
+                <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
                   Last name
                 </label>
                 <input
@@ -33,11 +33,11 @@ export function MyProfileSection({ form, onChange }: Props) {
                   name="lastName"
                   value={form.lastName}
                   onChange={onChange}
-                  className="w-full px-3 py-2 rounded-lg bg-blue-950/60 border border-blue-500/30 focus:outline-none focus:border-blue-400"
+                  className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-indigo-500 dark:bg-gray-900 dark:border-gray-800 dark:text-gray-100"
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm text-gray-300 mb-1">
+                <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
                   Username
                 </label>
                 <input
@@ -45,11 +45,11 @@ export function MyProfileSection({ form, onChange }: Props) {
                   name="username"
                   value={form.username}
                   onChange={onChange}
-                  className="w-full px-3 py-2 rounded-lg bg-blue-950/60 border border-blue-500/30 focus:outline-none focus:border-blue-400"
+                  className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-indigo-500 dark:bg-gray-900 dark:border-gray-800 dark:text-gray-100"
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm text-gray-300 mb-1">
+                <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
                   Email
                 </label>
                 <input
@@ -57,11 +57,11 @@ export function MyProfileSection({ form, onChange }: Props) {
                   name="email"
                   value={form.email}
                   onChange={onChange}
-                  className="w-full px-3 py-2 rounded-lg bg-blue-950/60 border border-blue-500/30 focus:outline-none focus:border-blue-400"
+                  className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-indigo-500 dark:bg-gray-900 dark:border-gray-800 dark:text-gray-100"
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm text-gray-300 mb-1">
+                <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
                   Phone
                 </label>
                 <input
@@ -69,11 +69,11 @@ export function MyProfileSection({ form, onChange }: Props) {
                   name="phone"
                   value={form.phone}
                   onChange={onChange}
-                  className="w-full px-3 py-2 rounded-lg bg-blue-950/60 border border-blue-500/30 focus:outline-none focus:border-blue-400"
+                  className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-indigo-500 dark:bg-gray-900 dark:border-gray-800 dark:text-gray-100"
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm text-gray-300 mb-1">
+                <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
                   Address
                 </label>
                 <input
@@ -81,11 +81,11 @@ export function MyProfileSection({ form, onChange }: Props) {
                   name="address"
                   value={form.address}
                   onChange={onChange}
-                  className="w-full px-3 py-2 rounded-lg bg-blue-950/60 border border-blue-500/30 focus:outline-none focus:border-blue-400"
+                  className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-indigo-500 dark:bg-gray-900 dark:border-gray-800 dark:text-gray-100"
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-300 mb-1">
+                <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
                   Postcode
                 </label>
                 <input
@@ -93,11 +93,11 @@ export function MyProfileSection({ form, onChange }: Props) {
                   name="postcode"
                   value={form.postcode}
                   onChange={onChange}
-                  className="w-full px-3 py-2 rounded-lg bg-blue-950/60 border border-blue-500/30 focus:outline-none focus:border-blue-400"
+                  className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-indigo-500 dark:bg-gray-900 dark:border-gray-800 dark:text-gray-100"
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-300 mb-1">
+                <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
                   City
                 </label>
                 <input
@@ -105,7 +105,7 @@ export function MyProfileSection({ form, onChange }: Props) {
                   name="city"
                   value={form.city}
                   onChange={onChange}
-                  className="w-full px-3 py-2 rounded-lg bg-blue-950/60 border border-blue-500/30 focus:outline-none focus:border-blue-400"
+                  className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-indigo-500 dark:bg-gray-900 dark:border-gray-800 dark:text-gray-100"
                 />
               </div>
             </div>

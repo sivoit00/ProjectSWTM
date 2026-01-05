@@ -10,9 +10,9 @@ export default function TimelineItemDetails({ hasDetails, isExpanded, details }:
   if (!hasDetails || !isExpanded) return null;
 
   return (
-    <div className="mt-2 border-t border-gray-700/50 pt-2 space-y-1">
+    <div className="mt-2 border-t border-gray-200 pt-2 space-y-1 dark:border-gray-700/50">
       {getDetailsLines(details).map((line, i) => (
-        <div key={i} className="text-[10px] text-gray-300 leading-snug">
+        <div key={i} className="text-[10px] text-gray-700 dark:text-gray-300 leading-snug">
           {line}
         </div>
       ))}

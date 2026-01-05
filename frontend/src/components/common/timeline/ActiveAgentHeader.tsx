@@ -24,12 +24,14 @@ export default function ActiveAgentHeader({ currentAgent, hasActiveEvents, userN
     <div className="mb-3">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+          <div className="w-6 h-6 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-full flex items-center justify-center">
             <Bot size={12} className="text-white" />
           </div>
           <div>
             <p className="text-[10px] text-gray-500">Active Agent</p>
-            <p className="text-xs font-semibold text-white">{getAgentDisplayName(currentAgent, userName)}</p>
+            <p className="text-xs font-semibold text-gray-900 dark:text-white">
+              {getAgentDisplayName(currentAgent, userName)}
+            </p>
           </div>
         </div>
         {hasActiveEvents && (
@@ -39,9 +41,9 @@ export default function ActiveAgentHeader({ currentAgent, hasActiveEvents, userN
           </span>
         )}
       </div>
-      <div className="border-t border-gray-800 pt-2">
-        <h3 className="text-xs font-bold text-white">Activity Timeline</h3>
-        <p className="text-[10px] text-gray-400">What's happening right now</p>
+      <div className="border-t border-gray-200 pt-2 dark:border-gray-800">
+        <h3 className="text-xs font-bold text-gray-900 dark:text-white">Activity Timeline</h3>
+        <p className="text-[10px] text-gray-600 dark:text-gray-400">What's happening right now</p>
       </div>
     </div>
   );

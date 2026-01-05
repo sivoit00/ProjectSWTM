@@ -21,7 +21,7 @@ apiClient.interceptors.request.use(
           (config.headers as Record<string, any>).Authorization = `Bearer ${keycloak.token}`;
         }
       } catch (error) {
-        console.error("Token refresh fehlgeschlagen, leite zum Login:", error);
+        console.error("Token refresh failed; redirecting to login:", error);
         keycloak.login();
       }
     }
@@ -34,15 +34,18 @@ apiClient.interceptors.request.use(
 
 export interface Customer {
   id?: number;
-  firstName: string;
-  lastName: string;
-  username: string;
+  user_id?: string;
   email: string;
-  phone: string;
-  postcode: string;
-  city: string;
-  address: string;
+  username: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  postcode?: string | null;
+  city?: string | null;
 }
+
+export type CustomerUpsert = Omit<Customer, 'id' | 'user_id'>;
 
 export interface Vehicle {
   id?: number;
@@ -52,15 +55,19 @@ export interface Vehicle {
   numberplate: string;
 }
 
+export type VehicleCreate = Omit<Vehicle, 'id'>;
+
 export interface Workshop {
   id?: number;
   name: string;
   email: string;
   phone: string;
+  address: string;
   postcode: string;
   city: string;
-  address: string;
 }
+
+export type WorkshopCreate = Omit<Workshop, 'id'>;
 
 export interface Lawyer {
   id?: number;
@@ -69,22 +76,26 @@ export interface Lawyer {
   company: string;
   email: string;
   phone: string;
+  address: string;
   postcode: string;
   city: string;
-  address: string;
 }
+
+export type LawyerCreate = Omit<Lawyer, 'id'>;
 
 export interface Insurance {
   id?: number;
   name: string;
   number: string;
+  contact: string;
   email: string;
   phone: string;
+  address: string;
   postcode: string;
   city: string;
-  contact: string;
-  address: string;
 }
+
+export type InsuranceCreate = Omit<Insurance, 'id'>;
 
 export interface NotificationItem {
   id: number;
@@ -96,57 +107,72 @@ export interface NotificationItem {
   is_read: boolean;
 }
 
+export interface ChatConversationSummary {
+  user_id: string;
+  conversation_id: string;
+  title?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export const api = {
   customers: {
     getAll: () => apiClient.get<Customer[]>('/customers'),
-    create: (customer: Omit<Customer, 'id'>) =>
-      apiClient.post<Customer>('/customers', customer),
-    update: (id: number, customer: Partial<Omit<Customer, 'id'>>) =>
-      apiClient.put<Customer>(`/customers/${id}`, customer),
+    create: (customer: CustomerUpsert) => apiClient.post<Customer>('/customers', customer),
+    update: (id: number, customer: CustomerUpsert) => apiClient.put<Customer>(`/customers/${id}`, customer),
+    me: () => apiClient.get<Customer>('/customers/me'),
   },
 
   vehicles: {
     getAll: () => apiClient.get<Vehicle[]>('/vehicles'),
-    create: (vehicle: Omit<Vehicle, 'id'>) =>
-      apiClient.post<Vehicle>('/vehicles', vehicle),
-    update: (id: number, vehicle: Partial<Omit<Vehicle, 'id'>>) =>
-      apiClient.put<Vehicle>(`/vehicles/${id}`, vehicle),
+    create: (vehicle: VehicleCreate) => apiClient.post<Vehicle>('/vehicles', vehicle),
+    update: (id: number, vehicle: VehicleCreate) => apiClient.put<Vehicle>(`/vehicles/${id}`, vehicle),
+    delete: (id: number) => apiClient.delete(`/vehicles/${id}`),
   },
 
   workshops: {
     getAll: () => apiClient.get<Workshop[]>('/workshops'),
-    create: (workshop: Omit<Workshop, 'id'>) =>
-      apiClient.post<Workshop>('/workshops', workshop),
-    update: (id: number, workshop: Partial<Omit<Workshop, 'id'>>) =>
-      apiClient.put<Workshop>(`/workshops/${id}`, workshop),
+    create: (workshop: WorkshopCreate) => apiClient.post<Workshop>('/workshops', workshop),
+    update: (id: number, workshop: WorkshopCreate) => apiClient.put<Workshop>(`/workshops/${id}`, workshop),
+    delete: (id: number) => apiClient.delete(`/workshops/${id}`),
   },
 
   lawyers: {
     getAll: () => apiClient.get<Lawyer[]>('/lawyers'),
-    create: (lawyer: Omit<Lawyer, 'id'>) =>
-      apiClient.post<Lawyer>('/lawyers', lawyer),
-    update: (id: number, lawyer: Partial<Omit<Lawyer, 'id'>>) =>
-      apiClient.put<Lawyer>(`/lawyers/${id}`, lawyer),
+    create: (lawyer: LawyerCreate) => apiClient.post<Lawyer>('/lawyers', lawyer),
+    update: (id: number, lawyer: LawyerCreate) => apiClient.put<Lawyer>(`/lawyers/${id}`, lawyer),
+    delete: (id: number) => apiClient.delete(`/lawyers/${id}`),
   },
 
   insurances: {
     getAll: () => apiClient.get<Insurance[]>('/insurances'),
-    create: (insurance: Omit<Insurance, 'id'>) =>
-      apiClient.post<Insurance>('/insurances', insurance),
-    update: (id: number, insurance: Partial<Omit<Insurance, 'id'>>) =>
-      apiClient.put<Insurance>(`/insurances/${id}`, insurance),
+    create: (insurance: InsuranceCreate) => apiClient.post<Insurance>('/insurances', insurance),
+    update: (id: number, insurance: InsuranceCreate) => apiClient.put<Insurance>(`/insurances/${id}`, insurance),
+    delete: (id: number) => apiClient.delete(`/insurances/${id}`),
   },
 
-
   chat: {
-    saveMessage: (data: { user_id: string; sender: string; message: string }) =>
+    saveMessage: (data: { user_id: string; sender: string; message: string; conversation_id?: string }) =>
       apiClient.post('/chat/save', data),
     
-    getHistory: (userId: string) =>
-      apiClient.get(`/chat/history/${userId}`),
+    getHistory: (userId: string, conversationId?: string) =>
+      apiClient.get(`/chat/history/${userId}`, {
+        params: conversationId ? { conversation_id: conversationId } : {},
+      }),
+
+    listConversations: (userId: string) =>
+      apiClient.get<ChatConversationSummary[]>(`/chat/conversations/${userId}/details`),
+
+    renameConversation: (userId: string, conversationId: string, title: string | null) =>
+      apiClient.patch<ChatConversationSummary>(`/chat/conversations/${userId}/${conversationId}`, { title }),
+
+    deleteConversation: (userId: string, conversationId: string) =>
+      apiClient.delete(`/chat/conversations/${userId}/${conversationId}`),
     
-    clearHistory: (userId: string) =>
-      apiClient.delete(`/chat/history/${userId}`),
+    clearHistory: (userId: string, conversationId?: string) =>
+      apiClient.delete(`/chat/history/${userId}`, {
+        params: conversationId ? { conversation_id: conversationId } : {},
+      }),
 
     createSession: () => 
       apiClient.post<{ ok: boolean; session_id: string; message: string }>('/ki-orchestrator/session/new'),

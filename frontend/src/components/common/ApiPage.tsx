@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { api } from "../../services/api";
-import type { Kunde, Fahrzeug, Werkstatt } from "../../services/api";
+import type { Customer, Vehicle, Workshop } from "../../services/api";
 
 export default function ApiPage() {
-  const [kunden, setKunden] = useState<Kunde[]>([]);
-  const [werkstatt, setWerkstatt] = useState<Werkstatt[]>([]);
-  const [fahrzeuge, setFahrzeuge] = useState<Fahrzeug[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [workshops, setWorkshops] = useState<Workshop[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [text, setText] = useState("");
 
   useEffect(() => {
@@ -14,14 +14,14 @@ export default function ApiPage() {
 
   const loadData = async () => {
     try {
-      const [kundenRes, fahrzeugeRes, werkstattRes] = await Promise.all([
-        api.getKunden(),
-        api.getFahrzeuge(),
-        api.getWerkstatt(),
+      const [customersRes, vehiclesRes, workshopsRes] = await Promise.all([
+        api.customers.getAll(),
+        api.vehicles.getAll(),
+        api.workshops.getAll(),
       ]);
-      setKunden(kundenRes.data);
-      setFahrzeuge(fahrzeugeRes.data);
-      setWerkstatt(werkstattRes.data);
+      setCustomers(customersRes.data);
+      setVehicles(vehiclesRes.data);
+      setWorkshops(workshopsRes.data);
     } catch (error) {
       console.error("Error loading data:", error);
     }
@@ -33,26 +33,26 @@ export default function ApiPage() {
 
       <h2>Customers</h2>
       <ul>
-        {kunden.map((kunde) => (
-          <li key={kunde.id}>
-            {kunde.name} - {kunde.email}
+        {customers.map((customer) => (
+          <li key={customer.id}>
+            {(customer.firstName || "").trim()} {(customer.lastName || "").trim()} - {customer.email}
           </li>
         ))}
       </ul>
 
       <h2>Vehicles</h2>
       <ul>
-        {fahrzeuge.map((fahrzeug) => (
-          <li key={fahrzeug.id}>
-            {fahrzeug.marke} {fahrzeug.modell} ({fahrzeug.baujahr})
+        {vehicles.map((vehicle) => (
+          <li key={vehicle.id}>
+            {vehicle.brand} {vehicle.model} ({vehicle.year})
           </li>
         ))}
       </ul>
       <h2>Workshops</h2>
       <ul>
-        {werkstatt.map((w) => (
+        {workshops.map((w) => (
           <li key={w.id}>
-            {w.name} {w.adresse} {w.plz} {w.ort}
+            {w.name} {w.address} {w.postcode} {w.city}
           </li>
         ))}
       </ul>

@@ -17,7 +17,7 @@ export default function TimelineItemActions({
     <div className="mt-1 flex items-center justify-end">
       <button
         type="button"
-        className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-white transition-colors"
+        className="flex items-center gap-1 text-[10px] text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
         onClick={onToggle}
       >
         {isExpanded ? (

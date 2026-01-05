@@ -5,6 +5,7 @@ from typing import List
 class ChatMessageBase(BaseModel):
     sender: str  # "User" or "Bot"
     message: str
+    conversation_id: str = "default"
 
 class ChatMessageCreate(ChatMessageBase):
     user_id: str
