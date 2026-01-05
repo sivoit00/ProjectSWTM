@@ -172,7 +172,10 @@ export default function Home() {
         </div>
 
         <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-950">
-          <div className="text-sm font-semibold">Why MyClone</div>
+          <div className="text-sm font-semibold">
+            Why{" "}
+            <span className="text-indigo-600 dark:text-indigo-400">MyClone</span>
+          </div>
           <div
             className={`mt-2 transition-[opacity,transform] duration-500 ease-out motion-reduce:transition-none motion-reduce:transform-none ${
               phase === "in"

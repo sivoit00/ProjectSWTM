@@ -51,7 +51,7 @@ export function ConversationRow({
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
-          <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+          <div className="text-xs font-medium text-gray-900 dark:text-gray-100 whitespace-normal break-words">
             {label}
           </div>
         )}

@@ -9,6 +9,7 @@ import { chatService } from "./chat/chatService";
 import type { ChatConversationListItem } from "../../../features/chat/conversations/conversationTypes";
 import {
   getSavedActiveConversationId,
+  emitConversationListChanged,
   saveActiveConversationId,
 } from "../../../features/chat/conversations/conversationSync";
 import { normalizeConversationList } from "../../../features/chat/conversations/conversationUtils";
@@ -215,7 +216,7 @@ export function useChatState() {
       if (!finalText && fileNames.length > 0 && !transcribedText && !isSystemInjection) {
          const displayText = `[${fileNames.length} file(s) uploaded]`;
          setMessages(p => [...p, { id: `msg-${Date.now()}`, sender: "User", text: displayText, files: fileNames }]);
-        api.chat.saveMessage({ user_id: userId, sender: "User", message: displayText, conversation_id: convId });
+        await api.chat.saveMessage({ user_id: userId, sender: "User", message: displayText, conversation_id: convId });
          setLoading(false);
          return;
       }
@@ -230,7 +231,14 @@ export function useChatState() {
         text: displayText, 
         files: fileNames 
       }]);
-      api.chat.saveMessage({ user_id: userId, sender: "User", message: displayText, conversation_id: convId });
+      await api.chat.saveMessage({ user_id: userId, sender: "User", message: displayText, conversation_id: convId });
+
+      if (!isSystemInjection && finalText.trim().length > 0) {
+        const currentTitle = conversations.find(c => c.conversation_id === convId)?.title;
+        if (!currentTitle || currentTitle.trim().length === 0) {
+          emitConversationListChanged();
+        }
+      }
 
       const botMsgId = `msg-${Date.now()}-bot`;
       const lastActiveStep = allAgentSteps.at(-1);
