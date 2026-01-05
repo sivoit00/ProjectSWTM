@@ -12,22 +12,16 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 
 from agents.memory import get_session_history 
 from services.insurance_service import (
-    get_user_context, 
     get_claim_status, 
     submit_claim, 
     calculate_premium, 
-    get_policy_details
 )
+
+from agents.tools.context_service import get_complete_user_context
 
 load_dotenv()
 log = logging.getLogger(__name__)
 
-
-@tool
-def check_policy_details(customer_id: str) -> str:
-    """Fragt Versicherungsdetails und Status für eine customer_id ab."""
-    details = get_policy_details(str(customer_id))
-    return json.dumps(details, indent=2, ensure_ascii=False)
 
 @tool
 def calculate_estimated_premium(vehicle_data: str) -> str:
@@ -58,10 +52,10 @@ def submit_insurance_claim_tool(
     result = submit_claim(claim_dict)
     return json.dumps(result, indent=2, ensure_ascii=False)
 
-tools = [check_policy_details, calculate_estimated_premium, get_claim_status_check, submit_insurance_claim_tool]
+tools = [calculate_estimated_premium, get_claim_status_check, submit_insurance_claim_tool]
 
 
-llm = ChatOpenAI(temperature=0.0, model=os.getenv("OPENAI_MODEL", "gpt-5-mini"))
+llm = ChatOpenAI(temperature=0.0, model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"))
 
 def _load_system_prompt():
     path = os.path.join(os.path.dirname(__file__), "templates", "insurance_classifier.md")
@@ -86,17 +80,24 @@ insurance_agent_with_history = RunnableWithMessageHistory(
     history_messages_key="chat_history",
 )
 
-
 def run_insurance_agent(user_message: str, session_id: str = "INS_DEFAULT", user_context: Dict[str, Any] = None) -> Dict[str, Any]:
+    
     if user_context is None:
         user_context = {}
 
-    identifier = user_context.get("customer_id") or session_id
-    db_context = get_user_context(str(identifier))
-    if db_context:
-        user_context.update(db_context)
+    identifier = (
+        user_context.get("user_id") or 
+        user_context.get("customer_id") or 
+        user_context.get("email") or 
+        session_id
+    )
+ 
+    db_context = get_complete_user_context(str(identifier))
     
-    context_json = json.dumps(user_context, ensure_ascii=False)
+    if db_context and "error" not in db_context:
+        user_context = db_context
+    
+    context_json = json.dumps(user_context, ensure_ascii=False, indent=2)
     log.info(f"DEBUG: Übergabe an Agent - Kontext: {context_json}")
 
     try:
@@ -104,7 +105,7 @@ def run_insurance_agent(user_message: str, session_id: str = "INS_DEFAULT", user
             {
                 "input": user_message,
                 "user_message": user_message,
-                "user_context": json.dumps(user_context, ensure_ascii=False) 
+                "user_context": context_json 
             },
             config={"configurable": {"session_id": session_id}}
         )
@@ -119,7 +120,10 @@ def run_insurance_agent(user_message: str, session_id: str = "INS_DEFAULT", user
             "response": output_text,
             "agent": "insurance",
             "handover": handover,
-            "structured": {"intent": "insurance_claim"}
+            "structured": {
+                "intent": "insurance_claim",
+                "customer_id": user_context.get("customer", {}).get("id")
+            }
         }
 
     except Exception as e:

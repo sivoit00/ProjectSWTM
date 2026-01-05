@@ -1,6 +1,7 @@
 import json
 from typing import Any, Dict, Optional
 from database import SessionLocal
+from sqlalchemy.orm import joinedload
 from models.damage_event import DamageEvent
 from models.customer import Customer
 from models.vehicle import Vehicle
@@ -8,18 +9,6 @@ from models.insurance import Insurance
 import logging
 
 log = logging.getLogger(__name__)
-
-def get_policy_details(customer_id: str) -> Dict[str, Any]:
-    """
-    Placeholder: Gibt Fake-Daten zurück, bis ein Policy-Modell existiert.
-    """
-    return {
-        "customer_id": customer_id,
-        "policy_id": f"POL-{customer_id}",
-        "coverage": {"liability": True, "collision": False, "theft": True},
-        "status": "active"
-    }
-
 
 def calculate_premium(vehicle_data: Any) -> Dict[str, Any]:
     if isinstance(vehicle_data, str):
@@ -102,53 +91,5 @@ def get_claim_status(claim_id: str) -> dict:
             "note": ""
         }
 
-    finally:
-        db.close()
-
-def get_user_context(identifier: str) -> Dict[str, Any]:
-    db = SessionLocal()
-    context: Dict[str, Any] = {
-        "customer_id": None,
-        "customer_name": None,
-        "customer_email": None,
-        "customer_phone": None,
-        "vehicle": None,
-        "insurance": {
-            "name": None, "email": None, "phone": None,
-            "postcode": None, "city": None
-        }
-    }
-    try:
-        customer = None
-        if "@" in identifier:
-            customer = db.query(Customer).filter(Customer.email == identifier).first()
-        elif len(identifier) > 10: 
-            customer = db.query(Customer).filter(Customer.user_id == identifier).first()
-        elif identifier.isdigit():
-            customer = db.query(Customer).filter(Customer.id == int(identifier)).first()
-
-        if customer:
-            context["customer_id"] = customer.id
-            context["customer_name"] = f"{customer.firstName} {customer.lastName}".strip()
-            context["customer_email"] = customer.email
-            context["customer_phone"] = customer.phone
-            context["insurance"]["number"] = f"POL-{customer.id}"
-
-            if customer.vehicles:
-                f = customer.vehicles[0]
-                context["vehicle"] = f"{f.brand} {f.model} ({f.year})"
-
-            insurance = db.query(Insurance).filter_by(customer_id=customer.id).first()
-            if insurance:
-                context["insurance"] = {
-                    "name": insurance.name,
-                    "email": insurance.email,
-                    "phone": insurance.phone,
-                    "postcode": insurance.postcode,
-                    "city": insurance.city
-                }
-    except Exception as e:
-        context["error"] = f"Database error: {str(e)}"   
-        return context
     finally:
         db.close()

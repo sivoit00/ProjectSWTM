@@ -151,12 +151,11 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
             user_context["session_id"] = session_id 
             res = handle_lawyer_request(user_message, user_context)
             return wrap_response("lawyer", res)
+        
         elif target_agent == "insurance":
             res = run_insurance_agent(user_message, session_id, user_context)
             
-            user_said_yes = re.search(r"\b(ja|gerne|einverstanden|mach das)\b", user_message.lower())
-            
-            if isinstance(res, dict) and (res.get("handover") == "repair" or (user_said_yes and active_agent == "insurance")):
+            if isinstance(res, dict) and (res.get("handover") == "repair"):
                 log.info(f"!!! Triggering Instant Handover to Repair !!!")
     
                 agent_session_state[session_id] = "repair"
