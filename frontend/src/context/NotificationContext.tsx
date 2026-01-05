@@ -28,7 +28,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 60000); 
+    const interval = setInterval(fetchNotifications, 30000); 
     return () => clearInterval(interval);
   }, [userId]);
 
