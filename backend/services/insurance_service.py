@@ -9,17 +9,6 @@ import logging
 
 log = logging.getLogger(__name__)
 
-def get_policy_details(customer_id: str) -> Dict[str, Any]:
-    """
-    Placeholder: Gibt Fake-Daten zurück, bis ein Policy-Modell existiert.
-    """
-    return {
-        "customer_id": customer_id,
-        "policy_id": f"POL-{customer_id}",
-        "coverage": {"liability": True, "collision": False, "theft": True},
-        "status": "active"
-    }
-
 
 def calculate_premium(vehicle_data: Any) -> Dict[str, Any]:
     if isinstance(vehicle_data, str):
@@ -121,8 +110,8 @@ def get_user_context(identifier: str) -> Dict[str, Any]:
     try:
         customer = None
         if "@" in identifier:
-            customer = db.query(Customer).filter(Customer.email == identifier).first()
-        elif len(identifier) > 10: 
+            customer = db.query(Customer).filter(Customer.email.ilike(identifier)).first()
+        if len(identifier) > 10: 
             customer = db.query(Customer).filter(Customer.user_id == identifier).first()
         elif identifier.isdigit():
             customer = db.query(Customer).filter(Customer.id == int(identifier)).first()

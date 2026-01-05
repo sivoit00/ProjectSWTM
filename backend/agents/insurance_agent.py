@@ -16,18 +16,10 @@ from services.insurance_service import (
     get_claim_status, 
     submit_claim, 
     calculate_premium, 
-    get_policy_details
 )
 
 load_dotenv()
 log = logging.getLogger(__name__)
-
-
-@tool
-def check_policy_details(customer_id: str) -> str:
-    """Fragt Versicherungsdetails und Status für eine customer_id ab."""
-    details = get_policy_details(str(customer_id))
-    return json.dumps(details, indent=2, ensure_ascii=False)
 
 @tool
 def calculate_estimated_premium(vehicle_data: str) -> str:
@@ -58,7 +50,7 @@ def submit_insurance_claim_tool(
     result = submit_claim(claim_dict)
     return json.dumps(result, indent=2, ensure_ascii=False)
 
-tools = [check_policy_details, calculate_estimated_premium, get_claim_status_check, submit_insurance_claim_tool]
+tools = [calculate_estimated_premium, get_claim_status_check, submit_insurance_claim_tool]
 
 
 llm = ChatOpenAI(temperature=0.0, model=os.getenv("OPENAI_MODEL", "gpt-5-mini"))
