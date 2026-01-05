@@ -25,14 +25,12 @@ def check_inbox_for_replies():
     try:
         global _last_imap_auth_failure_ts, _imap_auth_backoff_seconds, _logged_missing_imap_creds
 
-        # If credentials are not configured, skip quietly after one log.
         if not IMAP_USER or not IMAP_PASS:
             if not _logged_missing_imap_creds:
-                log.warning("IMAP check skipped: missing SMTP_USER/SMTP_PASS (used for IMAP login).")
+                log.warning("IMAP check skipped: missing SMTP_USER/SMTP_PASS.")
                 _logged_missing_imap_creds = True
             return
 
-        # Backoff after authentication failures to avoid spamming logs every 60 seconds.
         now = time.time()
         if _last_imap_auth_failure_ts and (now - _last_imap_auth_failure_ts) < _imap_auth_backoff_seconds:
             return
@@ -45,12 +43,9 @@ def check_inbox_for_replies():
             if "AUTHENTICATIONFAILED" in msg.upper():
                 _last_imap_auth_failure_ts = now
                 _imap_auth_backoff_seconds = min(_imap_auth_backoff_seconds * 2, 3600.0)
-                log.error(
-                    "IMAP authentication failed; backing off for %.0fs (max 3600s).",
-                    _imap_auth_backoff_seconds,
-                )
                 return
             raise
+        
         mail.select("inbox")
 
         status, messages = mail.search(None, 'UNSEEN')
@@ -61,22 +56,29 @@ def check_inbox_for_replies():
         email_ids = messages[0].split()
 
         for e_id in email_ids:
-            _, msg_data = mail.fetch(e_id, "(RFC822)")
+            _, msg_data = mail.fetch(e_id, "(BODY.PEEK[])")
+            
             for response_part in msg_data:
                 if isinstance(response_part, tuple):
                     msg = email.message_from_bytes(response_part[1])
 
-                    subject, encoding = decode_header(msg["Subject"])[0]
-                    if isinstance(subject, bytes):
-                        subject = subject.decode(encoding or "utf-8")
+                    subject_header = msg["Subject"] or ""
+                    decoded_list = decode_header(subject_header)
+                    subject_parts = []
+                    for content, encoding in decoded_list:
+                        if isinstance(content, bytes):
+                            subject_parts.append(content.decode(encoding or "utf-8", errors="ignore"))
+                        else:
+                            subject_parts.append(str(content))
+                    subject = "".join(subject_parts)
                     
                     sender = msg.get("From", "Unbekannt")
 
-                    match = re.search(r"Ref(?:-ID)?:\s*(.*?)]", subject)
+                    match = re.search(r"Ref(?:-ID)?:\s*(.*?)]", subject, re.IGNORECASE)
                     
                     if match:
                         session_id = match.group(1).strip()
-
+                        
                         body = ""
                         if msg.is_multipart():
                             for part in msg.walk():
@@ -94,11 +96,10 @@ def check_inbox_for_replies():
 
                         if session_id in global_store:
                             try:
-                                sys_msg = SystemMessage(content=f"UPDATE: Neue E-Mail Antwort eingegangen.\nBetreff: {subject}\nInhalt:\n{clean_body}")
+                                sys_msg = SystemMessage(content=f"UPDATE: Neue E-Mail Antwort.\nBetreff: {subject}\nInhalt:\n{clean_body}")
                                 global_store[session_id].add_message(sys_msg)
-                                log.info(f"Email zu global_store hinzugefügt: {session_id}")
-                            except Exception as e:
-                                log.error(f"Fehler beim Update global_store: {e}")
+                            except Exception:
+                                pass
 
                         try:
                             new_notif = Notification(
@@ -115,9 +116,13 @@ def check_inbox_for_replies():
                             )
                             db.add(new_notif)
                             db.commit()
-                            log.info(f"Notification in DB gespeichert für User/Session: {session_id}")
+                            
+                            log.info(f"Notification gespeichert: {session_id}")
+
+                            mail.store(e_id, '+FLAGS', '\\Seen')
+
                         except Exception as e:
-                            log.error(f"Fehler beim Speichern der Notification in DB: {e}")
+                            log.error(f"Fehler DB/Store: {e}")
                             db.rollback()
             
         mail.close()
