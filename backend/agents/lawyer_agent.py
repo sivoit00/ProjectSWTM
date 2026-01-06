@@ -1,5 +1,6 @@
 import os
 import logging
+import json
 from typing import Any, Dict, List
 from dotenv import load_dotenv
 
@@ -13,6 +14,9 @@ from agents.email_listener import check_inbox_for_replies
 from agents.memory import get_session_history
 from agents.tools.google_search import search_google_maps
 from agents.tools.email_sender import send_email_via_smtp
+
+# NEU: Import des Context Services
+from agents.tools.context_service import get_complete_user_context
 
 load_dotenv()
 log = logging.getLogger(__name__)
@@ -43,8 +47,10 @@ def _load_template(name: str) -> str:
 
 SYSTEM_PROMPT = _load_template("lawyer_system.md")
 
+# NEU: Prompt erweitert um {user_context}
 prompt = ChatPromptTemplate.from_messages([
     ("system", SYSTEM_PROMPT),
+    ("system", "Nutzer-Kontext aus DB: {user_context}"),
     MessagesPlaceholder(variable_name="chat_history"),
     ("human", "{user_message}"),
     ("placeholder", "{agent_scratchpad}"),
@@ -70,17 +76,43 @@ def handle_lawyer_request(user_message: str, user_context: Dict[str, Any] = None
     if user_context is None:
         user_context = {}
 
-    user_name = user_context.get("name", "Unbekannt")
-    user_email = user_context.get("email")
-    user_id = user_context.get("user_id", "anonymous") 
-    session_id = f"LAWYER_{user_id}"
+    # --- START ÄNDERUNG ---
+    
+    # 1. Wir holen Kontext-Daten wie gehabt
+    identifier = (
+        user_context.get("user_id") or 
+        user_context.get("customer_id") or 
+        user_context.get("email") or 
+        "anonymous"
+    )
 
-    log.info(f"LawyerAgent gestartet für: {user_name} (ID: {user_id})")
+    db_context = get_complete_user_context(str(identifier))
+    
+    final_context_data = user_context
+    if db_context and "error" not in db_context:
+        final_context_data = db_context
+    
+    context_json = json.dumps(final_context_data, indent=2, ensure_ascii=False)
+
+    user_name = final_context_data.get("customer", {}).get("full_name") or user_context.get("name", "Unbekannt")
+    user_email = final_context_data.get("customer", {}).get("email") or user_context.get("email")
+    user_id = str(final_context_data.get("customer", {}).get("id") or user_context.get("user_id", "anonymous"))
+    
+    # WICHTIG: Hier nehmen wir die session_id aus dem context (vom Frontend/Orchestrator)
+    # Nur wenn keine da ist, fallen wir auf die User-ID zurück.
+    session_id = user_context.get("session_id")
+    if not session_id:
+         session_id = f"LAWYER_{user_id}"
+         
+    log.info(f"LawyerAgent gestartet für: {user_name} (Session: {session_id})")
+
+    # --- ENDE ÄNDERUNG ---
 
     try:
         result = agent_with_chat_history.invoke(
             {
                 "user_message": user_message,
+                "user_context": context_json,
                 "user_name": user_name,
                 "user_email": user_email,
                 "user_id": user_id,
