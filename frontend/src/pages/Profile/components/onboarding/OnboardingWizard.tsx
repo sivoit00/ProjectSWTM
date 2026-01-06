@@ -14,7 +14,7 @@ type Props = {
   onChange: (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => void;
-  onSubmit: (e: React.FormEvent) => Promise<void>;
+  onSubmit: () => Promise<void>;
 };
 
 const stepLabels = ["My Profile", "Insurance", "Lawyer", "Workshop", "Vehicle"];
@@ -40,11 +40,11 @@ export function OnboardingWizard({
     if (step > 0) setStep(s => s - 1);
   };
 
-  const handleFinish = async (e?: React.FormEvent) => {
-  if (e) e.preventDefault();
-  await onSubmit(new Event("submit") as any);
+  const handleFinish = async () => {
+  await onSubmit();
   onClose();
-};
+  };
+
 
 
   const renderStep = () => {
@@ -88,7 +88,7 @@ export function OnboardingWizard({
         />
 
         <form
-          onSubmit={isLastStep ? handleFinish : e => e.preventDefault()}
+          onSubmit={e => e.preventDefault()}
           className="space-y-6"
         >
           {renderStep()}

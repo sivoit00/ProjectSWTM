@@ -55,19 +55,19 @@ export default function Home() {
 }, []);
 
 
-  const handleFinishOnboarding = async (e: React.FormEvent) => {
-  await handleSubmit(e);
+  const handleFinishOnboarding = async () => {
+    await handleSubmit(new Event("submit") as unknown as React.FormEvent);
 
-  const userId =
-    keycloak.tokenParsed?.sub || keycloak.tokenParsed?.preferred_username;
+    const userId =
+      keycloak.tokenParsed?.sub || keycloak.tokenParsed?.preferred_username;
 
-  if (userId) {
-    const storageKey = `onboardingCompleted:${userId}`;
-    localStorage.setItem(storageKey, "true");
-  }
+    if (userId) {
+      const storageKey = `onboardingCompleted:${userId}`;
+      localStorage.setItem(storageKey, "true");
+    }
 
-  setShowOnboarding(false);
-};
+    setShowOnboarding(false);
+  };
 
 
   useEffect(() => {
