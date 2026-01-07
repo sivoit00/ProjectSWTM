@@ -49,12 +49,25 @@ def get_or_create_customer(db: Session, current_user: dict) -> Customer:
         raise HTTPException(status_code=500, detail=f"Error creating customer: {str(e)}")
 
 
-@router.get("/me", response_model=CustomerSchema)
+@router.get("/me")
 def get_current_customer(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    return get_or_create_customer(db, current_user)
+    user_id = current_user.get("user_id") or current_user.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="No user id in token")
+
+    customer = db.query(Customer).filter(Customer.user_id == user_id).first()
+    created = False
+
+    if not customer:
+        customer = get_or_create_customer(db, current_user)
+        created = True
+
+    customer_schema = CustomerSchema.model_validate(customer)
+
+    return {"customer": customer_schema, "created": created}
 
 
 @router.get("", response_model=list[CustomerSchema])

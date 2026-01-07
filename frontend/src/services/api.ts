@@ -115,12 +115,17 @@ export interface ChatConversationSummary {
   updated_at: string;
 }
 
+export interface CustomerMeResponse{
+  customer: Customer;
+  created: boolean;
+}
+
 export const api = {
   customers: {
     getAll: () => apiClient.get<Customer[]>('/customers'),
     create: (customer: CustomerUpsert) => apiClient.post<Customer>('/customers', customer),
     update: (id: number, customer: CustomerUpsert) => apiClient.put<Customer>(`/customers/${id}`, customer),
-    me: () => apiClient.get<Customer>('/customers/me'),
+    me: () => apiClient.get<CustomerMeResponse>('/customers/me'),
   },
 
   vehicles: {
