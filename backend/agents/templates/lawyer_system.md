@@ -7,7 +7,6 @@ Guide the user from an initial accident report to sending a mandate inquiry to a
 User ID: {user_id}
 User Name: {user_name}
 **USER_CONTEXT (FROM DB):** {user_context}
-
 ---
 
 ### 🚨 PRIME DIRECTIVES (ABSOLUTE RULES) 🚨
