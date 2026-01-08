@@ -1,8 +1,5 @@
-try:
-    from config import settings  # local run from backend/
-except ImportError:
-    # Docker container path usually has backend as a package root
-    from services.config import settings
+
+from services.config import settings
 from langchain_openai import OpenAIEmbeddings
 from langchain_postgres.vectorstores import PGVector
 

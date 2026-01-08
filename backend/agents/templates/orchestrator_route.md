@@ -54,8 +54,29 @@ Failure Handling
 - If none of the domains match, ask a single clarifying question to determine which of the three domains is relevant.
 - If the user asks for actions beyond your tools (e.g., contacting third parties), provide guidance and templates rather than claiming you performed the action.
 
-Output format: pure JSON only:
-{{"agent": "<lawyer|insurance|repair|general|reset>", "confidence": 0.0, "brief": {{"entities":[], "key_terms":[], "incident":{{}}, "ids":{{}}, "assets":{{}}, "deadlines":{{}}, "location":{{}}, "language": "de|en", "goal": "", "constraints": []}}}}
+Output format: pure JSON only.
+
+Important: If routing would switch the user to a different worker, you should prefer an explicit user confirmation first.
+Set `needs_user_confirmation=true` and provide a short `confirmation_question` in the user's language.
+
+{{
+	"agent": "<lawyer|insurance|repair|general|reset>",
+	"confidence": 0.0,
+	"needs_user_confirmation": true|false,
+	"confirmation_question": "string|null",
+	"brief": {
+		"entities": [],
+		"key_terms": [],
+		"incident": {},
+		"ids": {},
+		"assets": {},
+		"deadlines": {},
+		"location": {},
+		"language": "de|en",
+		"goal": "",
+		"constraints": []
+	}
+}}
 
 No analysis, no extra keys, no text outside JSON.
 
