@@ -1,5 +1,6 @@
 import os
 import logging
+import json
 from typing import Any, Dict, List
 
 from dotenv import load_dotenv
@@ -14,6 +15,7 @@ from agents.memory import get_session_history, clear_session_history
 from agents.tools.google_search import search_google_maps
 from agents.tools.email_sender import send_email_via_smtp
 from agents.tools.rag import search_vector_db as rag_search_vector_db
+from agents.tools.context_service import get_complete_user_context
 
 
 load_dotenv()
@@ -38,6 +40,7 @@ def search_vector_db(query: str, top_k: int = 3) -> List[Dict]:
     """Durchsucht die Vektordatenbank nach relevanten Dokumenten."""
     return rag_search_vector_db(query=query, top_k=top_k)
 
+
 tools = [search_workshops_online, send_personal_email, search_vector_db]
 
 
@@ -49,12 +52,11 @@ def _load_template(name: str) -> str:
         return f.read()
 
 # Load and adapt template placeholders for ChatPromptTemplate
-_RAW_PROMPT = _load_template("repair_general.md")
-
-SYSTEM_PROMPT = _RAW_PROMPT.replace("{user_input}", "{user_message}")
+SYSTEM_PROMPT = _load_template("repair_general.md")
 
 prompt = ChatPromptTemplate.from_messages([
     ("system", SYSTEM_PROMPT),
+    ("system", "Nutzer-Kontext aus DB: {user_context}"),
     MessagesPlaceholder(variable_name="chat_history"),
     ("human", "{user_message}"),
     ("placeholder", "{agent_scratchpad}"),
@@ -70,7 +72,7 @@ agent_with_chat_history = RunnableWithMessageHistory(
     history_messages_key="chat_history",
 )
 
-def run_repair_agent_with_memory(user_query: str, session_id: str = "REPAIR_DEFAULT", user_context: Dict[str, Any] = None) -> str:
+def run_repair_agent_with_memory(user_query: str, session_id: str = "REPAIR_DEFAULT", user_context: Dict[str, Any] = None) -> Dict[str, Any]:
     log.info("Prüfe Posteingang auf Antworten...")
     try:
         check_inbox_for_replies()
@@ -80,9 +82,30 @@ def run_repair_agent_with_memory(user_query: str, session_id: str = "REPAIR_DEFA
     if user_context is None:
         user_context = {}
 
-    user_name = user_context.get("name", "Unbekannt")
-    user_email = user_context.get("email")
-    sess_id = session_id or f"WORKSHOP_{user_email}"
+    identifier = (
+        user_context.get("user_id") or
+        user_context.get("customer_id") or
+        user_context.get("email") or
+        "anonymous"
+    )
+
+    db_context = get_complete_user_context(str(identifier))
+
+    final_context_data = user_context
+    if db_context and "error" not in db_context:
+        final_context_data = db_context
+
+    context_json = json.dumps(final_context_data, indent=2, ensure_ascii=False)
+
+    user_name = (
+        final_context_data.get("customer", {}).get("full_name")
+        or user_context.get("name")
+        or "Unbekannt"
+    )
+    user_email = final_context_data.get("customer", {}).get("email") or user_context.get("email")
+    user_id = str(final_context_data.get("customer", {}).get("id") or user_context.get("user_id", "anonymous"))
+
+    sess_id = session_id or f"WORKSHOP_{user_id}"
 
     log.info(f"Repair Agent gestartet für: {user_name} (Session: {sess_id})")
 
@@ -90,10 +113,11 @@ def run_repair_agent_with_memory(user_query: str, session_id: str = "REPAIR_DEFA
         result = agent_with_chat_history.invoke(
             {
                 "user_message": user_query,
+                "user_context": context_json,
                 "user_name": user_name,
                 "user_email": user_email,
                 "session_id": sess_id,
-                "phone": user_context.get("phone", ""),
+                "phone": final_context_data.get("customer", {}).get("phone") or user_context.get("phone", ""),
                 "vehicle": user_context.get("vehicle", ""),
                 "service": user_context.get("service", ""),
                 "preferred_date": user_context.get("preferred_date", ""),
