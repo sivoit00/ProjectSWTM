@@ -203,19 +203,9 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
         has_trigger, trigger_agent = _check_explicit_triggers(user_message)
         
         if has_trigger:
-            # Even for explicit/keyword triggers: require confirmation
-            pending_switch_state[session_id] = {
-                "from_agent": "general",
-                "to_agent": trigger_agent,
-                "confidence": 0.95,
-                "original_message": user_message,
-            }
-            return {
-                "response": _switch_question("general", trigger_agent),
-                "structured": {"intent": "general", "awaiting_switch_confirmation": True},
-                "agent": "chatbot",
-                "agent_changed": False,
-            }
+            # From general to specialized: switch directly without confirmation
+            target_agent = trigger_agent
+            log.info(f"Explicit trigger detected: {target_agent}")
         else:
             # Fallback auf LLM-basierte Entscheidung
             routed_agent, confidence = _get_routing_decision(
@@ -229,19 +219,10 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
                 log.info("LLM confidence too low -> staying in general")
         
         if target_agent != "general":
-            # Require confirmation before starting a specialized session
-            pending_switch_state[session_id] = {
-                "from_agent": "general",
-                "to_agent": target_agent,
-                "confidence": 0.8,
-                "original_message": user_message,
-            }
-            return {
-                "response": _switch_question("general", target_agent),
-                "structured": {"intent": "general", "awaiting_switch_confirmation": True},
-                "agent": "chatbot",
-                "agent_changed": False,
-            }
+            # From general to specialized: switch directly
+            agent_session_state[session_id] = target_agent
+            agent_changed = True
+            log.info(f"✅ New session started with agent: {target_agent}, agent_changed=True")
         else:
             log.info("Starting general chatbot, agent_changed=False")
 

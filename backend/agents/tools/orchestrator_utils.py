@@ -24,7 +24,7 @@ def _check_explicit_triggers(text: str) -> tuple[bool, str]:
     """Prüft ob User explizit einen Agenten-Wechsel wünscht."""
     t = _normalize_text(text)
 
-    request_words = r"(?:bitte|bitte\s+mal|kannst\s*du|koennen\s*wir|kann\s*ich|ich\s*(?:will|moechte|mochte|brauch|brauche)|verbinde|wechsel|leite\s*mich\s*weiter|sprich\s*(?:mit|zu))"
+    request_words = r"(?:bitte|bitte\s+mal|kannst\s*du|koennen\s*wir|kann\s*ich|ich\s*(?:will|moechte|mochte|brauch|brauche|suche)|suche|verbinde|wechsel|leite\s*mich\s*weiter|sprich\s*(?:mit|zu)| benotige | benoetige)"
 
     lawyer_kw = r"(?:anwalt|rechtsanwalt|rechtsberatung|rechtliche\s*hilfe|rechtshilfe|juristisch)"
     insurance_kw = r"(?:versicherung|schadensmeldung|schaden\s*melden|schadenfall|claim)"
