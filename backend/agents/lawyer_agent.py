@@ -13,11 +13,12 @@ from agents.email_listener import check_inbox_for_replies
 from agents.memory import get_session_history
 from agents.tools.google_search import search_google_maps
 from agents.tools.email_sender import send_email_via_smtp
+from agents.tools.orchestrator_utils import process_handover_signal
 
 load_dotenv()
 log = logging.getLogger(__name__)
 
-llm = ChatOpenAI(temperature=0.0, model="gpt-5-mini") 
+llm = ChatOpenAI(temperature=0.0, model="gpt-4o-mini") 
 
 @tool
 def search_lawyers_online(city: str, topic: str = "Verkehrsrecht") -> List[Dict]:
@@ -75,22 +76,36 @@ def handle_lawyer_request(user_message: str, user_context: Dict[str, Any] = None
     user_id = user_context.get("user_id", "anonymous") 
     session_id = f"LAWYER_{user_id}"
 
-    log.info(f"LawyerAgent gestartet für: {user_name} (ID: {user_id})")
+    log.info(f"LawyerAgent gestartet für: {user_id}")
+
+    # WEICHE: Handover-Signal abfangen
+    if user_message == "SYSTEM_HANDOVER_FROM_INSURANCE":
+        actual_message = (
+            f"Ich habe gerade einen Versicherungsschaden für {user_name} aufgenommen. "
+            f"Es geht um einen Vorfall mit dem Fahrzeug {user_context.get('vehicle', 'Unbekannt')}. "
+            f"Biete dem Kunden eine rechtliche Erstberatung an und frage nur noch nach fehlenden "
+            f"rechtlichen Details wie z.B. Personenschaden oder Polizeibericht."
+        )
+    else:
+        actual_message = user_message
 
     try:
         result = agent_with_chat_history.invoke(
             {
-                "user_message": user_message,
+                "user_message": actual_message,
                 "user_name": user_name,
-                "user_email": user_email,
                 "user_id": user_id,
-                "session_id": session_id
+                # ...
             },
             config={"configurable": {"session_id": session_id}}
         )
+        output_text = result['output']
         
+        handover_target, clean_text = process_handover_signal(output_text)
+
         return {
-            "response": result['output'], 
+            "response": clean_text, 
+            "handover": handover_target,
             "structured": {"intent": "lawyer"}
         }
 

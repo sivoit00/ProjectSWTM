@@ -9,8 +9,10 @@ from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.tools import tool
 from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_core.messages import SystemMessage
 
-from agents.memory import get_session_history 
+from agents.memory import get_session_history
+from agents.tools.orchestrator_utils import process_handover_signal
 from services.insurance_service import (
     get_claim_status, 
     submit_claim, 
@@ -63,7 +65,7 @@ def _load_system_prompt():
         return f.read()
 
 prompt = ChatPromptTemplate.from_messages([
-    ("system", _load_system_prompt()),
+    SystemMessage(content=_load_system_prompt()), # <--- Statisch laden!
     ("system", "Nutzer-Kontext aus DB: {user_context}"),
     MessagesPlaceholder(variable_name="chat_history"),
     ("human", "{user_message}"),
@@ -112,20 +114,17 @@ def run_insurance_agent(user_message: str, session_id: str = "INS_DEFAULT", user
 
         output_text = result['output']
         
-        handover = None
-        if "submit_insurance_claim_tool" in str(result.get("intermediate_steps", "")):
-            handover = "repair"
+        handover_target, clean_text = process_handover_signal(output_text)
 
         return {
-            "response": output_text,
+            "response": clean_text,
             "agent": "insurance",
-            "handover": handover,
+            "handover": handover_target, 
             "structured": {
                 "intent": "insurance_claim",
                 "customer_id": user_context.get("customer", {}).get("id")
             }
         }
-
     except Exception as e:
         log.exception("FEHLER IM INSURANCE AGENT:")
         return {"response": f"Fehler: {str(e)}", "agent": "insurance"}

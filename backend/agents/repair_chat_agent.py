@@ -14,13 +14,13 @@ from agents.memory import get_session_history, clear_session_history
 from agents.tools.google_search import search_google_maps
 from agents.tools.email_sender import send_email_via_smtp
 from agents.tools.rag import search_vector_db as rag_search_vector_db
-
+from agents.tools.orchestrator_utils import process_handover_signal
 
 load_dotenv()
 log = logging.getLogger(__name__)
 
 
-llm = ChatOpenAI(temperature=0.0, model="gpt-5-mini") 
+llm = ChatOpenAI(temperature=0.0, model="gpt-4o-mini") 
 
 @tool
 def search_workshops_online(city: str, topic: str = "Verkehrsrecht") -> List[Dict]:
@@ -86,24 +86,38 @@ def run_repair_agent_with_memory(user_query: str, session_id: str = "REPAIR_DEFA
 
     log.info(f"Repair Agent gestartet für: {user_name} (Session: {sess_id})")
 
+    log.info(f"Repair Agent gestartet für: {user_name} (Session: {sess_id})")
+
+    # WEICHE: Handover-Signal abfangen
+    if user_query == "SYSTEM_HANDOVER_FROM_INSURANCE":
+        # Wir bauen eine interne Nachricht, die dem LLM erklärt, was los ist
+        actual_query = (
+            f"Ein Schaden wurde gerade erfolgreich gemeldet. "
+            f"Fahrzeug: {user_context.get('vehicle', 'Unbekannt')}. "
+            f"Schaden: {user_context.get('damage_description', 'Nicht näher definiert')}. "
+            f"Begrüße den Kunden {user_name} und biete ihm direkt an, einen Termin in seiner "
+            f"bevorzugten Werkstatt {user_context.get('preferred_workshop', {}).get('name', 'einer Partnerwerkstatt')} zu vereinbaren."
+        )
+    else:
+        actual_query = user_query
+
     try:
         result = agent_with_chat_history.invoke(
             {
-                "user_message": user_query,
+                "user_message": actual_query, # Hier nutzen wir die übersetzte Nachricht
                 "user_name": user_name,
                 "user_email": user_email,
-                "session_id": sess_id,
-                "phone": user_context.get("phone", ""),
-                "vehicle": user_context.get("vehicle", ""),
-                "service": user_context.get("service", ""),
-                "preferred_date": user_context.get("preferred_date", ""),
-                "optional_damage_line": "",
-                "damage_description": user_context.get("damage_description", ""),
+                # ... restliche Parameter wie bisher
             },
             config={"configurable": {"session_id": sess_id}}
-        )
+        )   
+        output_text = result['output']
+        
+        handover_target, clean_text = process_handover_signal(output_text)
+
         return {
-            "response": result['output'], 
+            "response": clean_text, 
+            "handover": handover_target,
             "structured": {"intent": "repair"}
         }
 

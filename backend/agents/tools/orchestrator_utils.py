@@ -41,4 +41,14 @@ def _check_explicit_triggers(text: str) -> tuple[bool, str]:
             return (True, agent)
 
     return (False, "general")
+
+
+def process_handover_signal(output_text: str):
+    """Sucht nach dem Signal und gibt (Ziel-Agent, sauberer_Text) zurück."""
+    match = re.search(r"\[TRIGGER_HANDOVER:\s*(\w+)\]", output_text)
+    if match:
+        target = match.group(1).lower()
+        clean_text = re.sub(r"\[TRIGGER_HANDOVER:\s*\w+\]", "", output_text).strip()
+        return target, clean_text
+    return None, output_text
    
