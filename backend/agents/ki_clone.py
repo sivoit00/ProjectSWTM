@@ -19,6 +19,7 @@ llm = ChatOpenAI(temperature=0.0, model="gpt-4o-mini")
 
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 agent_session_state = {}
+pending_switch_state: Dict[str, Dict[str, Any]] = {}
 
 ALLOWED_AGENTS = {"lawyer", "insurance", "repair", "general", "reset"}
 CONFIDENCE_THRESHOLD = 0.7
@@ -46,6 +47,29 @@ def _sanitize_agent(agent: Any, default: str = "general") -> str:
     agent = agent.strip().lower()
     return agent if agent in ALLOWED_AGENTS else default
 
+def _llm_classify_switch_reply(message: str) -> str:
+    """Nutzt das LLM, um zu entscheiden, ob der User den Wechsel bestätigt."""
+    prompt = (
+        "Der Nutzer wurde gefragt, ob er den KI-Experten wechseln möchte. "
+        "Klassifiziere die Antwort des Nutzers in eine dieser Kategorien: "
+        "'confirm' (ja, einverstanden), 'decline' (nein, ablehnen) oder 'neutral' (unentschlossen/andere Frage).\n\n"
+        f"Antwort: '{message}'\n\n"
+        "Gib NUR das Wort 'confirm', 'decline' oder 'neutral' zurück."
+    )
+    
+    try:
+        # Wir nutzen das bereits definierte llm Objekt
+        resp = llm.invoke([("system", "Du bist ein präziser Klassifizierer."), ("human", prompt)])
+        decision = resp.content.strip().lower()
+        
+        # Sicherstellen, dass nur erlaubte Werte zurückkommen
+        if "confirm" in decision: return "confirm"
+        if "decline" in decision: return "decline"
+        return "neutral"
+    except Exception as e:
+        log.error(f"Fehler bei LLM-Klassifizierung: {e}")
+        return "neutral"
+    
 def handle_general_request(user_message: str, user_name: str = None) -> Dict[str, Any]:
     sys_msg = f"Du bist der persönliche Assistent von {user_name}. Antworte kurz." if user_name else "Du bist ein Assistent. Antworte kurz."
     resp = llm.invoke([("system", sys_msg), ("human", user_message)])
@@ -63,6 +87,53 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
     if user_message.lower().strip() in ["stop", "abbruch", "reset", "neues thema"]:
         if session_id in agent_session_state: del agent_session_state[session_id]
         return {"response": "Gespräch zurückgesetzt. Wie kann ich helfen?", "agent": "reset", "agent_changed": True}
+
+    # If a switch is pending, let the LLM decide whether the user confirmed.
+    pending = pending_switch_state.get(session_id)
+    if pending:
+        decision = _llm_classify_switch_reply(user_message)
+        if decision == "confirm":
+            target_agent = pending.get("to_agent", "general")
+            original_message = pending.get("original_message") or user_message
+
+            pending_switch_state.pop(session_id, None)
+
+            if target_agent != "general":
+                agent_session_state[session_id] = target_agent
+            else:
+                agent_session_state.pop(session_id, None)
+
+            # Process the original message under the newly selected agent
+            if target_agent == "lawyer":
+                user_context["session_id"] = session_id
+                res = handle_lawyer_request(original_message, user_context)
+                return {"response": res.get("response", ""), "structured": res.get("structured", {"intent": "lawyer"}), "agent": "lawyer", "agent_changed": True}
+            if target_agent == "insurance":
+                res = run_insurance_agent(original_message, session_id, user_context)
+                return {"response": res.get("response", ""), "structured": res.get("structured", {"intent": "insurance"}), "agent": "insurance", "agent_changed": True}
+            if target_agent == "repair":
+                res = run_repair_agent_with_memory(original_message, session_id, user_context)
+                return {"response": res.get("response", ""), "structured": res.get("structured", {"intent": "repair"}), "agent": "repair", "agent_changed": True}
+
+            res = handle_general_request(original_message)
+            return {"response": res.get("response", ""), "structured": res.get("structured", {"intent": "general"}), "agent": "chatbot", "agent_changed": True}
+
+        if decision == "decline":
+            pending_switch_state.pop(session_id, None)
+            active = agent_session_state.get(session_id) or "chatbot"
+            return {
+                "response": "Alles klar – ich bleibe im aktuellen Modus. Was genau brauchst du als Nächstes?",
+                "structured": {"intent": active, "switch_cancelled": True},
+                "agent": active,
+                "agent_changed": False,
+            }
+
+        return {
+            "response": "Bitte bestätige kurz: Soll ich wirklich den Agent wechseln?",
+            "structured": {"awaiting_switch_confirmation": True},
+            "agent": pending.get("from_agent", "chatbot"),
+            "agent_changed": False,
+        }
 
     active_agent = agent_session_state.get(session_id)
     target_agent = "general"
@@ -94,12 +165,14 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
     else:
         has_trigger, trigger_agent = _check_explicit_triggers(user_message)
         if has_trigger:
+            # From general to specialized: switch directly without confirmation
             target_agent = trigger_agent
         else:
             routed_agent, confidence = _get_routing_decision(llm, PROMPT_ROUTE, user_message, _sanitize_agent)
             target_agent = routed_agent if confidence >= CONFIDENCE_THRESHOLD else "general"
         
         if target_agent != "general":
+            # From general to specialized: switch directly
             agent_session_state[session_id] = target_agent
             agent_changed = True
 

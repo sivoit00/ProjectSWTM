@@ -1,9 +1,15 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FileUp, ListChecks, MessageSquare, Wand2 } from "lucide-react";
+import { OnboardingWizard } from "../Profile/components/onboarding/OnboardingWizard";
+import { useProfileForm } from "../Profile/hooks/useProfileForm";
+import keycloak from "../../keycloak";
 
 export default function Home() {
   const navigate = useNavigate();
+
+  const { form, handleChange, handleSubmit } = useProfileForm();
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const benefits = [
     {
@@ -22,6 +28,47 @@ export default function Home() {
 
   const [benefitIndex, setBenefitIndex] = useState(0);
   const [phase, setPhase] = useState<"pre" | "in" | "out">("pre");
+
+  useEffect(() => {
+  const initOnboarding = async () => {
+    try {
+      const userId =
+        keycloak.tokenParsed?.sub || keycloak.tokenParsed?.preferred_username;
+
+      if (!userId) {
+        console.warn("No user id in token, skipping onboarding check");
+        return;
+      }
+
+      const storageKey = `onboardingCompleted:${userId}`;
+      const alreadyCompleted = localStorage.getItem(storageKey) === "true";
+
+      if (!alreadyCompleted) {
+        setShowOnboarding(true);
+      }
+    } catch (err) {
+      console.error("Error in initOnboarding", err);
+    }
+  };
+
+  initOnboarding();
+}, []);
+
+
+  const handleFinishOnboarding = async () => {
+    await handleSubmit(new Event("submit") as unknown as React.FormEvent);
+
+    const userId =
+      keycloak.tokenParsed?.sub || keycloak.tokenParsed?.preferred_username;
+
+    if (userId) {
+      const storageKey = `onboardingCompleted:${userId}`;
+      localStorage.setItem(storageKey, "true");
+    }
+
+    setShowOnboarding(false);
+  };
+
 
   useEffect(() => {
     let showTimer: number | undefined;
@@ -195,6 +242,13 @@ export default function Home() {
           </div>
         </div>
       </div>
+      <OnboardingWizard
+        open={showOnboarding}
+        onClose={() => setShowOnboarding(false)}
+        form={form}
+        onChange={handleChange}
+        onSubmit={handleFinishOnboarding}
+      />
     </div>
   );
 }

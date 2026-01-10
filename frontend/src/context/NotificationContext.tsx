@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { api } from '../services/api';
 import type { NotificationItem } from '../services/api';
 import keycloak from '../keycloak';
@@ -15,12 +15,42 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const userId = keycloak.tokenParsed?.sub;
+  const lastSeenIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission !== "granted") {
+      Notification.requestPermission();
+    }
+  }, []);
 
   const fetchNotifications = async () => {
     if (!userId) return;
     try {
       const res = await api.notifications.getAll(userId);
-      setNotifications(res.data);
+      const latestData = res.data;
+
+      if (latestData.length > 0) {
+        const newestId = latestData[0].id;
+
+        if (lastSeenIdRef.current !== null && newestId > lastSeenIdRef.current) {
+          
+          const newMessages = latestData.filter(n => n.id > lastSeenIdRef.current!);
+
+          newMessages.forEach(msg => {
+            if (!msg.is_read && "Notification" in window && Notification.permission === "granted") {
+              new Notification(msg.title, {
+                body: msg.message,
+                icon: "/vite.svg", 
+                tag: `notification-${msg.id}`
+              });
+            }
+          });
+        }
+
+        lastSeenIdRef.current = newestId;
+      }
+
+      setNotifications(latestData);
     } catch (e) {
       console.error("Fehler beim Laden der Notifications", e);
     }
@@ -28,7 +58,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 60000); 
+    const interval = setInterval(fetchNotifications, 30000); 
     return () => clearInterval(interval);
   }, [userId]);
 

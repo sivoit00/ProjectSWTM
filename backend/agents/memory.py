@@ -19,5 +19,5 @@ def clear_session_history(session_id: str) -> None:
         if session_id in global_store:
             del global_store[session_id]
     except Exception:
-        # Best-effort: clearing memory must never crash the request path.
+        
         pass

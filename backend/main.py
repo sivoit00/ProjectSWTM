@@ -24,9 +24,9 @@ def run_email_check():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     scheduler = BackgroundScheduler()
-    scheduler.add_job(run_email_check, 'interval', seconds=60) 
+    scheduler.add_job(run_email_check, 'interval', seconds=30) 
     scheduler.start()
-    log.info("Email-Scheduler gestartet (Check alle 60s).")
+    log.info("Email-Scheduler gestartet (Check alle 30s).")
     yield
     scheduler.shutdown()
     log.info("Email-Scheduler beendet.")

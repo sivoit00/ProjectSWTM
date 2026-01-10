@@ -41,7 +41,8 @@ def get_claim_status_check(claim_id: str) -> str:
 def submit_insurance_claim_tool(
     customer_id: str, damage_type: str, damage_date: str, 
     damage_location: str, description: str, vehicle: str, 
-    estimated_damage: Optional[str] = None
+    estimated_damage: Optional[str] = None, police_involved: bool = False, 
+    third_party_involved: bool = False
 ) -> str:
     """REICHT DEN SCHADEN EIN. Tool aufrufen, wenn alle Daten vorliegen."""
     claim_dict = {
@@ -49,7 +50,7 @@ def submit_insurance_claim_tool(
         "damage_date": damage_date, "damage_location": damage_location,
         "description": description, "vehicle": vehicle,
         "estimated_damage": estimated_damage,
-        "police_involved": False, "third_party_involved": False
+        "police_involved": police_involved, "third_party_involved": third_party_involved
     }
     result = submit_claim(claim_dict)
     return json.dumps(result, indent=2, ensure_ascii=False)

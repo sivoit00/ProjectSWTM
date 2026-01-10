@@ -22,6 +22,9 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     environment:
       
       - DATABASE_URL=postgresql://postgres:Aasal22!!@projectswtm.c9gqueuwynyt.eu-north-1.rds.amazonaws.com:5432/fahrzeugservice
@@ -51,6 +54,9 @@ services:
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.4.2
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     environment:
       - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN}
       - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
