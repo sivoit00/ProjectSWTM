@@ -15,7 +15,7 @@ from agents.tools.orchestrator_utils import _check_explicit_triggers, _safe_json
 
 log = logging.getLogger(__name__)
 
-llm = ChatOpenAI(temperature=0.0, model="gpt-4o-mini") 
+llm = ChatOpenAI(temperature=0.0, model="gpt-5-mini") 
 
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 agent_session_state = {}

@@ -1,14 +1,17 @@
 from sqlalchemy import Column, Integer, String
 from database import Base
 from sqlalchemy.orm import relationship
+import uuid
 
-
+#def generate_customer_id():
+#    return f"CUST-{uuid.uuid4().hex[:5].upper()}"
 
 class Customer(Base):
     __tablename__ = "customer"
 
+    #id = Column(String, unique=True, index=True, default=generate_customer_id)
     id = Column(Integer, primary_key=True, index=True)
-
+    
     user_id = Column(String, index=True)
     firstName = Column(String(100))
     lastName = Column(String(100))

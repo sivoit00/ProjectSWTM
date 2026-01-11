@@ -9,6 +9,7 @@ from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.tools import tool
 from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_core.messages import SystemMessage
 
 from agents.email_listener import check_inbox_for_replies
 from agents.memory import get_session_history, clear_session_history
@@ -23,7 +24,7 @@ load_dotenv()
 log = logging.getLogger(__name__)
 
 
-llm = ChatOpenAI(temperature=0.0, model="gpt-4o-mini") 
+llm = ChatOpenAI(temperature=0.0, model="gpt-5-mini") 
 
 @tool
 def search_workshops_online(city: str, topic: str = "Verkehrsrecht") -> List[Dict]:
@@ -52,16 +53,14 @@ def _load_template(name: str) -> str:
     with open(path, "r", encoding="utf-8") as f:
         return f.read()
 
-# Load and adapt template placeholders for ChatPromptTemplate
-SYSTEM_PROMPT = _load_template("repair_general.md")
-
 prompt = ChatPromptTemplate.from_messages([
-    ("system", SYSTEM_PROMPT),
+    SystemMessage(content=_load_template("repair_general.md")),
     ("system", "Nutzer-Kontext aus DB: {user_context}"),
     MessagesPlaceholder(variable_name="chat_history"),
     ("human", "{user_message}"),
-    ("placeholder", "{agent_scratchpad}"),
+    MessagesPlaceholder(variable_name="agent_scratchpad"),
 ])
+
 
 agent = create_openai_tools_agent(llm, tools, prompt)
 agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
@@ -128,10 +127,17 @@ def run_repair_agent_with_memory(user_query: str, session_id: str = "REPAIR_DEFA
     try:
         result = agent_with_chat_history.invoke(
             {
-                "user_message": actual_query, # Hier nutzen wir die übersetzte Nachricht
+                "user_message": user_query,
+                "user_context": context_json,
                 "user_name": user_name,
                 "user_email": user_email,
-                # ... restliche Parameter wie bisher
+                "session_id": sess_id,
+                "phone": final_context_data.get("customer", {}).get("phone") or user_context.get("phone", ""),
+                "vehicle": user_context.get("vehicle", ""),
+                "service": user_context.get("service", ""),
+                "preferred_date": user_context.get("preferred_date", ""),
+                "optional_damage_line": "",
+                "damage_description": user_context.get("damage_description", ""), 
             },
             config={"configurable": {"session_id": sess_id}}
         )   

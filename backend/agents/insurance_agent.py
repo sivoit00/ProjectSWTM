@@ -49,7 +49,6 @@ def submit_insurance_claim_tool(
         "customer_id": customer_id, "damage_type": damage_type,
         "damage_date": damage_date, "damage_location": damage_location,
         "description": description, "vehicle": vehicle,
-        "estimated_damage": estimated_damage,
         "police_involved": police_involved, "third_party_involved": third_party_involved
     }
     result = submit_claim(claim_dict)
@@ -58,7 +57,7 @@ def submit_insurance_claim_tool(
 tools = [calculate_estimated_premium, get_claim_status_check, submit_insurance_claim_tool]
 
 
-llm = ChatOpenAI(temperature=0.0, model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"))
+llm = ChatOpenAI(temperature=0.0, model=os.getenv("OPENAI_MODEL", "gpt-5-mini"))
 
 def _load_system_prompt():
     path = os.path.join(os.path.dirname(__file__), "templates", "insurance_classifier.md")
@@ -66,7 +65,7 @@ def _load_system_prompt():
         return f.read()
 
 prompt = ChatPromptTemplate.from_messages([
-    SystemMessage(content=_load_system_prompt()), # <--- Statisch laden!
+    SystemMessage(content=_load_system_prompt()), 
     ("system", "Nutzer-Kontext aus DB: {user_context}"),
     MessagesPlaceholder(variable_name="chat_history"),
     ("human", "{user_message}"),
