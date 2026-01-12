@@ -11,7 +11,7 @@ from agents.insurance_agent import run_insurance_agent
 from agents.repair_chat_agent import run_repair_agent_with_memory 
 
 from agents.tools.router import _get_routing_decision, _should_switch_agent
-from agents.tools.orchestrator_utils import _check_explicit_triggers, _safe_json_loads, _normalize_text
+from agents.tools.orchestrator_utils import _check_explicit_triggers, _safe_json_loads, _normalize_text, _get_full_routing_info, process_handover_signal
 
 log = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ CONFIDENCE_THRESHOLD = 0.7
 
 HANDOVER_MAP = {
     "repair": lambda msg, sid, ctx: run_repair_agent_with_memory(msg, sid, ctx),
-    "lawyer": lambda msg, sid, ctx: handle_lawyer_request(msg, ctx),
+    "lawyer": lambda msg, sid, ctx: handle_lawyer_request(msg, sid, ctx),
     "insurance": lambda msg, sid, ctx: run_insurance_agent(msg, sid, ctx)
 }
 
@@ -86,151 +86,119 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
     # 1. Manuelle Reset-Trigger
     if user_message.lower().strip() in ["stop", "abbruch", "reset", "neues thema"]:
         if session_id in agent_session_state: del agent_session_state[session_id]
+        pending_switch_state.pop(session_id, None)
         return {"response": "Gespräch zurückgesetzt. Wie kann ich helfen?", "agent": "reset", "agent_changed": True}
 
-    # If a switch is pending, let the LLM decide whether the user confirmed.
+    # 2. Bestehende Switch-Bestätigung (Pending State)
     pending = pending_switch_state.get(session_id)
     if pending:
         decision = _llm_classify_switch_reply(user_message)
         if decision == "confirm":
             target_agent = pending.get("to_agent", "general")
-            original_message = pending.get("original_message") or user_message
-
+            original_msg = pending.get("original_message") or user_message
             pending_switch_state.pop(session_id, None)
-
+            
+            # Hier setzen wir den Status und führen unten die Agenten-Logik aus
             if target_agent != "general":
                 agent_session_state[session_id] = target_agent
             else:
                 agent_session_state.pop(session_id, None)
-
-            # Process the original message under the newly selected agent
-            if target_agent == "lawyer":
-                user_context["session_id"] = session_id
-                res = handle_lawyer_request(original_message, user_context)
-                return {"response": res.get("response", ""), "structured": res.get("structured", {"intent": "lawyer"}), "agent": "lawyer", "agent_changed": True}
-            if target_agent == "insurance":
-                res = run_insurance_agent(original_message, session_id, user_context)
-                return {"response": res.get("response", ""), "structured": res.get("structured", {"intent": "insurance"}), "agent": "insurance", "agent_changed": True}
-            if target_agent == "repair":
-                res = run_repair_agent_with_memory(original_message, session_id, user_context)
-                return {"response": res.get("response", ""), "structured": res.get("structured", {"intent": "repair"}), "agent": "repair", "agent_changed": True}
-
-            res = handle_general_request(original_message)
-            return {"response": res.get("response", ""), "structured": res.get("structured", {"intent": "general"}), "agent": "chatbot", "agent_changed": True}
-
-        if decision == "decline":
+            
+            # Um Code-Dopplung zu vermeiden, "faken" wir eine neue Nachricht
+            user_message = original_msg 
+        elif decision == "decline":
             pending_switch_state.pop(session_id, None)
             active = agent_session_state.get(session_id) or "chatbot"
-            return {
-                "response": "Alles klar – ich bleibe im aktuellen Modus. Was genau brauchst du als Nächstes?",
-                "structured": {"intent": active, "switch_cancelled": True},
-                "agent": active,
-                "agent_changed": False,
-            }
+            return {"response": "Alles klar – ich bleibe im aktuellen Modus.", "agent": active, "agent_changed": False}
+        else:
+            return {"response": "Bitte bestätige kurz: Soll ich den Experten wechseln?", "agent": "orchestrator"}
 
-        return {
-            "response": "Bitte bestätige kurz: Soll ich wirklich den Agent wechseln?",
-            "structured": {"awaiting_switch_confirmation": True},
-            "agent": pending.get("from_agent", "chatbot"),
-            "agent_changed": False,
-        }
-
+    # 3. ROUTER FRAGEN (Dein Template nutzen)
+    # Das ist der entscheidende Punkt: Wir fragen IMMER das Template nach der Intention.
+    routing_data = _get_full_routing_info(llm, PROMPT_ROUTE, user_message)
+    target_agent = _sanitize_agent(routing_data.get("agent"))
+    confidence = routing_data.get("confidence", 0.0)
+    concierge_intro = routing_data.get("concierge_message", "")
+    
     active_agent = agent_session_state.get(session_id)
-    target_agent = "general"
     agent_changed = False
 
-    # --- NEU: LOGIK FÜR KURZE BESTÄTIGUNGEN ---
-    # Wenn wir einen aktiven Agenten haben und die Nachricht nur ein "ja/ok" ist, 
-    # NICHT den Router fragen, sondern beim Agenten bleiben.
+    # 4. Kurze Bestätigungen abfangen (Deine Logik)
     confirmations = {"ja", "gerne", "einverstanden", "nein", "ok", "okay", "machen wir", "top", "gut"}
-    is_short_text = len(user_message.split()) <= 2
-    is_confirm = user_message.lower().strip().rstrip(".!?") in confirmations
+    is_short_confirm = user_message.lower().strip().rstrip(".!?") in confirmations and len(user_message.split()) <= 2
 
-    if active_agent and (is_confirm or (is_short_text and is_confirm)):
+    # 5. ENTSCHEIDUNG: Welcher Agent führt aus?
+    if active_agent and is_short_confirm:
+        # Bleibe beim aktiven Agenten bei kurzen Ja/Ok
         target_agent = active_agent
-        log.info(f"Kurze Bestätigung erkannt. Bleibe bei active_agent: {target_agent}")
-    
-    # --- BESTEHENDE ROUTING LOGIK ---
-    elif active_agent:
-        should_switch, new_agent, confidence = _should_switch_agent(llm, active_agent, user_message, _sanitize_agent)
-        if should_switch and confidence >= CONFIDENCE_THRESHOLD:
-            target_agent = new_agent
-            if target_agent == "general":
-                if session_id in agent_session_state: del agent_session_state[session_id]
-            else:
-                agent_session_state[session_id] = target_agent
-            agent_changed = True
-        else:
-            target_agent = active_agent
-    else:
-        has_trigger, trigger_agent = _check_explicit_triggers(user_message)
-        if has_trigger:
-            # From general to specialized: switch directly without confirmation
-            target_agent = trigger_agent
-        else:
-            routed_agent, confidence = _get_routing_decision(llm, PROMPT_ROUTE, user_message, _sanitize_agent)
-            target_agent = routed_agent if confidence >= CONFIDENCE_THRESHOLD else "general"
-        
-        if target_agent != "general":
-            # From general to specialized: switch directly
+    elif target_agent != "general" and target_agent != active_agent:
+        # Wechsel erkannt!
+        if confidence >= CONFIDENCE_THRESHOLD:
             agent_session_state[session_id] = target_agent
             agent_changed = True
-
-    def wrap_response(agent_name: str, result) -> Dict[str, Any]:
-        if isinstance(result, dict):
-            return {
-                "response": result.get("response") or result.get("output"),
-                "structured": result.get("structured") or {"intent": agent_name},
-                "agent": agent_name,
-                "agent_changed": agent_changed
-            }
-        return {"response": str(result), "agent": agent_name, "agent_changed": agent_changed}
-
-    try:
-        res = None
-        if target_agent == "lawyer":
-            user_context["session_id"] = session_id 
-            res = handle_lawyer_request(user_message, user_context)
-        
-        elif target_agent == "insurance":
-            # Wichtig: Hier rufen wir deinen Insurance Agent auf
-            res = run_insurance_agent(user_message, session_id, user_context)
-            
-        elif target_agent == "repair":
-            res = run_repair_agent_with_memory(user_message, session_id, user_context)
-
         else:
-            return wrap_response("chatbot", handle_general_request(user_message, user_name))
+            target_agent = active_agent or "general"
+    elif not active_agent:
+        # Initialer Start
+        if confidence >= CONFIDENCE_THRESHOLD:
+            agent_session_state[session_id] = target_agent
+            agent_changed = True
+        else:
+            target_agent = "general"
 
-        # --- HANDOVER LOGIK START ---
+    # 6. AGENTEN-AUFRUF
+    try:
+        # Falls ein Wechsel stattgefunden hat, hängen wir die Anweisung 
+        # direkt VOR die Nachricht. Da das LLM im Agenten dies als 
+        # aktuellsten Input sieht, wird es die Begrüßung weglassen.
+        if agent_changed:
+            current_msg = (
+                f"(Anweisung: Der Concierge hat bereits begrüßt. Überspringe deine "
+                f"Einleitung/Empathie und starte direkt mit den Daten/Fragen.) "
+                f"{user_message}"
+            )
+        else:
+            current_msg = user_message
+
+        if target_agent == "lawyer":
+            user_context["session_id"] = session_id
+            res = handle_lawyer_request(current_msg, user_context)
+        elif target_agent == "insurance":
+            res = run_insurance_agent(current_msg, session_id, user_context)
+        elif target_agent == "repair":
+            res = run_repair_agent_with_memory(current_msg, session_id, user_context)
+
+        # 7. HANDOVER LOGIK (Deine Spezial-Logik für Reparatur -> Versicherung etc.)
         if isinstance(res, dict) and res.get("handover"):
             next_agent = res.get("handover")
-            
             if next_agent in HANDOVER_MAP:
-                log.info(f"Handover bestätigt: {target_agent} -> {next_agent}")
-                
-                # 1. Session-Status aktualisieren
                 agent_session_state[session_id] = next_agent
-                
-                # 2. Den neuen Agenten mit einem speziellen Start-Signal triggern
-                # Wir geben ihm den Kontext mit, damit er weiß, dass ein Schaden vorliegt
                 start_trigger = f"SYSTEM_HANDOVER_FROM_{target_agent.upper()}"
                 new_res = HANDOVER_MAP[next_agent](start_trigger, session_id, user_context)
                 
                 old_text = res.get('response', '')
                 new_text = new_res.get('response', '') if isinstance(new_res, dict) else new_res
-                
-                # Kombinierte Antwort: Bestätigung vom alten + Begrüßung vom neuen Agenten
                 return {
                     "response": f"{old_text}\n\n{new_text}",
-                    "structured": {"intent": next_agent, "handover_complete": True},
                     "agent": next_agent,
-                    "agent_changed": True
+                    "agent_changed": True # Hier ist True okay, da es ein expliziter Wechsel ist
                 }
-        # --- HANDOVER LOGIK ENDE ---
 
-        return wrap_response(target_agent, res)
+# 8. ANTWORT WRAPPEN & CONCIERGE TEXT HINZUFÜGEN
+        agent_text = res.get("response") if isinstance(res, dict) else str(res)
+
+        if agent_changed and concierge_intro and len(concierge_intro.strip()) > 0:
+            final_text = f"{concierge_intro}\n\n{agent_text}"
+        else:
+            final_text = agent_text
+
+        return {
+            "response": final_text,
+            "agent": target_agent,
+            "agent_changed": agent_changed,
+            "structured": res.get("structured") if isinstance(res, dict) else {}
+        }
 
     except Exception as e:
-        log.exception(f"Fehler im Agenten '{target_agent}': {e}")
-        return {"response": "Entschuldigung, ein interner Fehler ist aufgetreten.", "agent": target_agent}
+        log.exception(f"Fehler im Agenten: {e}")
+        return {"response": "Entschuldigung, ein Fehler ist aufgetreten.", "agent": "error"}
