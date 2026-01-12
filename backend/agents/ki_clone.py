@@ -58,11 +58,9 @@ def _llm_classify_switch_reply(message: str) -> str:
     )
     
     try:
-        # Wir nutzen das bereits definierte llm Objekt
         resp = llm.invoke([("system", "Du bist ein präziser Klassifizierer."), ("human", prompt)])
         decision = resp.content.strip().lower()
-        
-        # Sicherstellen, dass nur erlaubte Werte zurückkommen
+
         if "confirm" in decision: return "confirm"
         if "decline" in decision: return "decline"
         return "neutral"
@@ -97,14 +95,12 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
             target_agent = pending.get("to_agent", "general")
             original_msg = pending.get("original_message") or user_message
             pending_switch_state.pop(session_id, None)
-            
-            # Hier setzen wir den Status und führen unten die Agenten-Logik aus
+
             if target_agent != "general":
                 agent_session_state[session_id] = target_agent
             else:
                 agent_session_state.pop(session_id, None)
-            
-            # Um Code-Dopplung zu vermeiden, "faken" wir eine neue Nachricht
+
             user_message = original_msg 
         elif decision == "decline":
             pending_switch_state.pop(session_id, None)
@@ -113,8 +109,7 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
         else:
             return {"response": "Bitte bestätige kurz: Soll ich den Experten wechseln?", "agent": "orchestrator"}
 
-    # 3. ROUTER FRAGEN (Dein Template nutzen)
-    # Das ist der entscheidende Punkt: Wir fragen IMMER das Template nach der Intention.
+    # 3. ROUTER FRAGEN (Template nutzen)
     routing_data = _get_full_routing_info(llm, PROMPT_ROUTE, user_message)
     target_agent = _sanitize_agent(routing_data.get("agent"))
     confidence = routing_data.get("confidence", 0.0)
@@ -129,17 +124,16 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
 
     # 5. ENTSCHEIDUNG: Welcher Agent führt aus?
     if active_agent and is_short_confirm:
-        # Bleibe beim aktiven Agenten bei kurzen Ja/Ok
         target_agent = active_agent
     elif target_agent != "general" and target_agent != active_agent:
-        # Wechsel erkannt!
+  
         if confidence >= CONFIDENCE_THRESHOLD:
             agent_session_state[session_id] = target_agent
             agent_changed = True
         else:
             target_agent = active_agent or "general"
     elif not active_agent:
-        # Initialer Start
+
         if confidence >= CONFIDENCE_THRESHOLD:
             agent_session_state[session_id] = target_agent
             agent_changed = True
@@ -148,9 +142,6 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
 
     # 6. AGENTEN-AUFRUF
     try:
-        # Falls ein Wechsel stattgefunden hat, hängen wir die Anweisung 
-        # direkt VOR die Nachricht. Da das LLM im Agenten dies als 
-        # aktuellsten Input sieht, wird es die Begrüßung weglassen.
         if agent_changed:
             current_msg = (
                 f"(Anweisung: Der Concierge hat bereits begrüßt. Überspringe deine "
@@ -173,22 +164,28 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
             next_agent = res.get("handover")
             if next_agent in HANDOVER_MAP:
                 agent_session_state[session_id] = next_agent
+        
                 start_trigger = f"SYSTEM_HANDOVER_FROM_{target_agent.upper()}"
                 new_res = HANDOVER_MAP[next_agent](start_trigger, session_id, user_context)
-                
+        
                 old_text = res.get('response', '')
                 new_text = new_res.get('response', '') if isinstance(new_res, dict) else new_res
+        
                 return {
                     "response": f"{old_text}\n\n{new_text}",
                     "agent": next_agent,
-                    "agent_changed": True # Hier ist True okay, da es ein expliziter Wechsel ist
+                    "agent_changed": False  
                 }
 
-# 8. ANTWORT WRAPPEN & CONCIERGE TEXT HINZUFÜGEN
+        # 8. ANTWORT WRAPPEN & CONCIERGE TEXT HINZUFÜGEN
         agent_text = res.get("response") if isinstance(res, dict) else str(res)
 
-        if agent_changed and concierge_intro and len(concierge_intro.strip()) > 0:
+        welcome_key = f"{session_id}_welcomed"
+        has_been_welcomed = agent_session_state.get(welcome_key, False)
+
+        if agent_changed and concierge_intro and not has_been_welcomed:
             final_text = f"{concierge_intro}\n\n{agent_text}"
+            agent_session_state[welcome_key] = True
         else:
             final_text = agent_text
 
