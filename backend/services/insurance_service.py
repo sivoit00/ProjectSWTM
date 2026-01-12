@@ -46,7 +46,6 @@ def submit_claim(claim_data: dict) -> dict:
             vehicle=json.dumps(claim_data.get("vehicle")) if claim_data.get("vehicle") else None,
             police_involved=claim_data.get("police_involved"),
             third_party_involved=claim_data.get("third_party_involved"),
-            estimated_damage=claim_data.get("estimated_damage"),
             status="submitted"
         )
 
