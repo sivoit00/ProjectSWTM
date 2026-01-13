@@ -64,7 +64,7 @@ agent_with_chat_history = RunnableWithMessageHistory(
     history_messages_key="chat_history",
 )
 
-def handle_lawyer_request(user_message: str, user_context: Dict[str, Any] = None) -> Dict[str, Any]:
+def handle_lawyer_request(user_message: str, session_id: str = "INS_DEFAULT", user_context: Dict[str, Any] = None) -> Dict[str, Any]:
     log.info("Prüfe Posteingang auf Antworten...")
     try:
         check_inbox_for_replies()
@@ -74,19 +74,16 @@ def handle_lawyer_request(user_message: str, user_context: Dict[str, Any] = None
     if user_context is None:
         user_context = {}
 
-    # 1. SCHRITT: Identifier bestimmen (Identifier wird für DB Suche gebraucht)
     identifier = (
         user_context.get("user_id") or 
         user_context.get("customer_id") or 
         user_context.get("email") or 
-        "anonymous"
+        session_id
     )
 
-    # 2. SCHRITT: DB Kontext holen
     db_context = get_complete_user_context(str(identifier))
     final_context_data = db_context if (db_context and "error" not in db_context) else user_context
 
-    # 3. SCHRITT: Jetzt erst Variablen für Logs und Logik extrahieren (Nachdem final_context_data existiert!)
     user_name = final_context_data.get("customer", {}).get("full_name") or user_context.get("name", "Unbekannt")
     user_id = str(final_context_data.get("customer", {}).get("id") or identifier)
 
@@ -94,7 +91,6 @@ def handle_lawyer_request(user_message: str, user_context: Dict[str, Any] = None
 
     context_json = json.dumps(final_context_data, indent=2, ensure_ascii=False)
     
-    # WEICHE: Handover-Signal abfangen
     if user_message == "SYSTEM_HANDOVER_FROM_INSURANCE":
         actual_message = (
             f"Ich habe gerade einen Versicherungsschaden für {user_name} aufgenommen. "
@@ -104,10 +100,6 @@ def handle_lawyer_request(user_message: str, user_context: Dict[str, Any] = None
         )
     else:
         actual_message = user_message
-
-    session_id = user_context.get("session_id")
-    if not session_id:
-         session_id = f"LAWYER_{user_id}"
          
     log.info(f"LawyerAgent gestartet für: {user_name} (Session: {session_id})")
 

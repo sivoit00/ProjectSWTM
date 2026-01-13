@@ -1,6 +1,9 @@
 import json
 import re
 import unicodedata
+import logging
+from typing import Any, Dict, Tuple
+log = logging.getLogger(__name__)
 
 def _normalize_text(text: str) -> str:
     text = text.strip().lower()
@@ -52,3 +55,25 @@ def process_handover_signal(output_text: str):
         return target, clean_text
     return None, output_text
    
+def _get_full_routing_info(llm, prompt_template: str, message: str) -> Dict[str, Any]:
+    """Ruft das LLM mit dem Concierge-Prompt auf und parst das JSON."""
+    try:
+        # Prompt vorbereiten
+        full_prompt = prompt_template.replace("{user_message}", message)
+        
+        # LLM Aufruf
+        resp = llm.invoke([
+            ("system", full_prompt),
+            ("human", message)
+        ])
+        
+        # Sicherstellen, dass wir JSON erhalten (nutzt deine orchestrator_utils)
+        data = _safe_json_loads(resp.content)
+        
+        if not isinstance(data, dict):
+            return {"agent": "general", "confidence": 0.0, "concierge_message": ""}
+            
+        return data
+    except Exception as e:
+        log.error(f"Fehler beim Routing-Parsing: {e}")
+        return {"agent": "general", "confidence": 0.0, "concierge_message": ""}

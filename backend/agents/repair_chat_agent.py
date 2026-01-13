@@ -111,9 +111,7 @@ def run_repair_agent_with_memory(user_query: str, session_id: str = "REPAIR_DEFA
 
     log.info(f"Repair Agent gestartet für: {user_name} (Session: {sess_id})")
 
-    # WEICHE: Handover-Signal abfangen
     if user_query == "SYSTEM_HANDOVER_FROM_INSURANCE":
-        # Wir bauen eine interne Nachricht, die dem LLM erklärt, was los ist
         actual_query = (
             f"Ein Schaden wurde gerade erfolgreich gemeldet. "
             f"Fahrzeug: {user_context.get('vehicle', 'Unbekannt')}. "
