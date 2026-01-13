@@ -13,15 +13,10 @@ load_dotenv()
 class Settings(BaseSettings):
     OPENAI_API_KEY: str
 
-    # backend/services
     project_root = Path(__file__).parent
 
-    # Einheitlicher Upload-/Dokumentenpfad: backend/uploads
     DOCUMENTS_PATH: str = str(project_root.parent / "uploads")
 
-
-    # DB configuration is read from environment/.env via BaseSettings.
-    # Keep only non-secret defaults here; credentials must not be hardcoded.
     DATABASE_SCHEMA: str = "postgresql+psycopg"
     DATABASE_HOST: str
     DATABASE_PORT: int = 5432

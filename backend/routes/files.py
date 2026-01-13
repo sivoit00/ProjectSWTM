@@ -161,7 +161,6 @@ async def upload_files(
     try:
         asyncio.create_task(_refresh_vector_index())
     except RuntimeError:
-        # Falls kein laufender Event-Loop vorhanden ist (z.B. bei Tests), synchron ausführen
         try:
             db = pgvector_instance.get()
             update_database(db)

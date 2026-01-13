@@ -58,16 +58,13 @@ def process_handover_signal(output_text: str):
 def _get_full_routing_info(llm, prompt_template: str, message: str) -> Dict[str, Any]:
     """Ruft das LLM mit dem Concierge-Prompt auf und parst das JSON."""
     try:
-        # Prompt vorbereiten
         full_prompt = prompt_template.replace("{user_message}", message)
         
-        # LLM Aufruf
         resp = llm.invoke([
             ("system", full_prompt),
             ("human", message)
         ])
         
-        # Sicherstellen, dass wir JSON erhalten (nutzt deine orchestrator_utils)
         data = _safe_json_loads(resp.content)
         
         if not isinstance(data, dict):
