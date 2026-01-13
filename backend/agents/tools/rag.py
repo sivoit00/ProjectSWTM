@@ -11,8 +11,6 @@ log = logging.getLogger(__name__)
 BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 
 
-
-
 def search_vector_db(query: str, top_k: int = 3) -> List[Dict[str, Any]]:
     """Search the PGVector database and return top-k matches with scores.
 

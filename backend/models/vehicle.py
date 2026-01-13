@@ -13,4 +13,4 @@ class Vehicle(Base):
     numberplate = Column(String(50))
     customer_id = Column(Integer, ForeignKey("customer.id"))
 
-    customer = relationship("Customer", back_populates="vehicles")
+    customer = relationship("Customer", back_populates="vehicles")  
