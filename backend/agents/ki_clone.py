@@ -153,7 +153,7 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
 
         if target_agent == "lawyer":
             user_context["session_id"] = session_id
-            res = handle_lawyer_request(current_msg, user_context)
+            res = handle_lawyer_request(current_msg, session_id, user_context)
         elif target_agent == "insurance":
             res = run_insurance_agent(current_msg, session_id, user_context)
         elif target_agent == "repair":
