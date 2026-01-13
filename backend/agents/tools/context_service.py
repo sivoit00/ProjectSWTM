@@ -60,7 +60,7 @@ def get_complete_user_context(identifier: str) -> dict:
                 "name": f"{lawyer.firstName} {lawyer.lastName}",
                 "company": lawyer.company,
                 "phone": lawyer.phone,
-                "adress": f"{lawyer.address}, {lawyer.postcode} {lawyer.city}",
+                "address": f"{lawyer.address}, {lawyer.postcode} {lawyer.city}",
                 "email": lawyer.email
             } if lawyer else None
         }
