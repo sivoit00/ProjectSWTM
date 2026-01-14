@@ -22,8 +22,8 @@ Proactive Awareness: Before asking for anything, check the context. If {{custome
 - damage_location
 - description
 - vehicle
-- police_involved
-- third_party_involved
+- police_involved (optional)
+- third_party_involved (optional)
 - customer_id: (Always use {{customer.id}} from context)
 
 3. When you collected every field give the customer a feedback that you collected all mandatory fields.
