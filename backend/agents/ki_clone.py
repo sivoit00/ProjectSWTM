@@ -118,7 +118,7 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
     active_agent = agent_session_state.get(session_id)
     agent_changed = False
 
-    # 4. Kurze Bestätigungen abfangen (Deine Logik)
+    # 4. Kurze Bestätigungen abfangen 
     confirmations = {"ja", "gerne", "einverstanden", "nein", "ok", "okay", "machen wir", "top", "gut"}
     is_short_confirm = user_message.lower().strip().rstrip(".!?") in confirmations and len(user_message.split()) <= 2
 
@@ -159,7 +159,7 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
         elif target_agent == "repair":
             res = run_repair_agent_with_memory(current_msg, session_id, user_context)
 
-        # 7. HANDOVER LOGIK (Deine Spezial-Logik für Reparatur -> Versicherung etc.)
+        # 7. HANDOVER LOGIK 
         if isinstance(res, dict) and res.get("handover"):
             next_agent = res.get("handover")
             if next_agent in HANDOVER_MAP:

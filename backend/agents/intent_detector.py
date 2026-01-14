@@ -7,7 +7,6 @@ from typing import Optional
 
 log = logging.getLogger(__name__)
 
-# Keyword-basierte Intent-Erkennung (schnell, keine LLM-Calls nötig)
 INTENT_KEYWORDS = {
     "repair": [
         "werkstatt", "reparatur", "service", "termin", "inspektion",
@@ -30,7 +29,6 @@ INTENT_KEYWORDS = {
     ]
 }
 
-# Reset-Keywords (zurück zu Tom)
 RESET_KEYWORDS = [
     "zurück zu tom", "wieder tom", "anderes thema", "themenwechsel",
     "stop", "abbruch", "ende", "neu starten", "von vorne"
@@ -49,13 +47,11 @@ def detect_intent_from_message(message: str) -> Optional[str]:
     """
     message_lower = message.lower().strip()
     
-    # Prüfe Reset-Keywords zuerst
     for keyword in RESET_KEYWORDS:
         if keyword in message_lower:
             log.info(f"Reset-Intent erkannt: '{keyword}' in '{message[:50]}'")
             return "reset"
     
-    # Zähle Matches für jeden Intent
     intent_scores = {}
     
     for intent, keywords in INTENT_KEYWORDS.items():
@@ -71,15 +67,11 @@ def detect_intent_from_message(message: str) -> Optional[str]:
             intent_scores[intent] = score
             log.debug(f"Intent '{intent}' Score: {score} (Keywords: {matched_keywords})")
     
-    # Wenn keine Matches, kein Intent erkannt
     if not intent_scores:
         return None
     
-    # Wähle Intent mit höchstem Score
     best_intent = max(intent_scores.items(), key=lambda x: x[1])
     
-    # Nur wenn Score >= 1 (mindestens 1 Keyword), Intent zurückgeben
-    # Reduziert von 2 auf 1 für bessere Erkennung
     if best_intent[1] >= 1:
         log.info(f"Intent erkannt: '{best_intent[0]}' (Score: {best_intent[1]})")
         return best_intent[0]
@@ -95,19 +87,13 @@ def should_switch_agent(current_agent: str, detected_intent: Optional[str]) -> b
     Returns:
         True wenn gewechselt werden soll, False sonst
     """
-    # Kein Intent erkannt → Bleib beim aktuellen Agent (Tom bleibt Tom)
     if detected_intent is None:
         return False
     
-    # Reset-Keyword → Zurück zu Tom
     if detected_intent == "reset":
         return True
-    
-    # Wenn Tom aktiv ist und spezieller Intent erkannt → Wechsle
+ 
     if current_agent == "chatbot":
         return True
     
-    # Wenn bereits ein spezialisierter Agent aktiv ist:
-    # - Wechsle NUR wenn ein ANDERER Intent erkannt wird
-    # - Bleib beim Agent wenn GLEICHER Intent oder KEIN Intent
     return current_agent != detected_intent

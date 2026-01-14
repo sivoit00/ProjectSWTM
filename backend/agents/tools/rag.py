@@ -7,7 +7,6 @@ import services.pgvector_instance
 load_dotenv()
 log = logging.getLogger(__name__)
 
-# Basisverzeichnis des Backends (.. / .. von agents/tools)
 BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 
 

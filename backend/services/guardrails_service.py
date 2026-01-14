@@ -30,15 +30,13 @@ class GuardrailsService:
             temperature=0
         )
         
-        # Sensible Datenmuster
         self.sensitive_patterns = [
-            (r'\b\d{16}\b', 'KREDITKARTE'),  # Kreditkartennummer
+            (r'\b\d{16}\b', 'KREDITKARTE'), 
             (r'\b[A-Z]{2}\d{2}\s?\d{4}\s?\d{4}\s?\d{4}\s?\d{4}\s?\d{2}\b', 'IBAN'),
-            (r'\b\d{3}-\d{2}-\d{4}\b', 'SSN'),  # US Social Security
+            (r'\b\d{3}-\d{2}-\d{4}\b', 'SSN'), 
             
         ]
         
-        # Verbotene Themen
         self.forbidden_topics = [
             'gewalt', 'waffen', 'drogen', 'illegal', 'hack',
             'betrug', 'manipulation', 'diskriminierung'
@@ -246,7 +244,6 @@ Antworte NUR mit JSON:
             result = json.loads(content)
             return result
         except Exception as e:
-            # Im Fehlerfall: Safe by default (false positive besser als false negative)
             return {"safe": True, "reason": ""}
     
     def _log_violation(
@@ -314,7 +311,6 @@ Antworte NUR mit JSON:
         """
         # Einfache Heuristik: Prüfe, ob spezifische Datenpunkte in der Antwort sind,
         # die nicht in expected_data vorhanden sind
-        # Hier: Vereinfachte Implementierung
         return {"valid": True}
 
 

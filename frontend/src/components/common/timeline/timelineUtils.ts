@@ -59,7 +59,7 @@ export const getAgentColor = (agentName: string | undefined): string => {
   const normalized = agentName.toLowerCase();
   
   if (normalized.includes("ki clone") || normalized.includes("chatbot")) return "#3B82F6";
-  if (normalized.includes("repair") || normalized.includes("werkstatt")) return "#EAB308"; 
+  if (normalized.includes("repair") || normalized.includes("werkstatt")) return "#06B6D4"; 
   if (normalized.includes("lawyer") || normalized.includes("anwalt")) return "#8B5CF6"; 
   if (normalized.includes("insurance") || normalized.includes("versicherung")) return "#F59E0B";
   if (normalized.includes("guardrails")) return "#EF4444"; 
