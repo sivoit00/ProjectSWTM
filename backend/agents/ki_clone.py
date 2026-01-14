@@ -10,7 +10,7 @@ from agents.lawyer_agent import handle_lawyer_request
 from agents.insurance_agent import run_insurance_agent
 from agents.repair_chat_agent import run_repair_agent_with_memory 
 
-from agents.tools.router import _get_routing_decision, _should_switch_agent
+from agents.tools.router import _should_switch_agent
 from agents.tools.orchestrator_utils import _check_explicit_triggers, _safe_json_loads, _normalize_text, _get_full_routing_info, process_handover_signal
 
 log = logging.getLogger(__name__)
@@ -87,7 +87,7 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
         pending_switch_state.pop(session_id, None)
         return {"response": "Gespräch zurückgesetzt. Wie kann ich helfen?", "agent": "reset", "agent_changed": True}
 
-    # 2. Bestehende Switch-Bestätigung (Pending State)
+    # 2. Bestehende Switch-Bestätigung 
     pending = pending_switch_state.get(session_id)
     if pending:
         decision = _llm_classify_switch_reply(user_message)
@@ -109,7 +109,7 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
         else:
             return {"response": "Bitte bestätige kurz: Soll ich den Experten wechseln?", "agent": "orchestrator"}
 
-    # 3. ROUTER FRAGEN (Template nutzen)
+    # 3. ROUTER FRAGEN 
     routing_data = _get_full_routing_info(llm, PROMPT_ROUTE, user_message)
     target_agent = _sanitize_agent(routing_data.get("agent"))
     confidence = routing_data.get("confidence", 0.0)
@@ -122,18 +122,28 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
     confirmations = {"ja", "gerne", "einverstanden", "nein", "ok", "okay", "machen wir", "top", "gut"}
     is_short_confirm = user_message.lower().strip().rstrip(".!?") in confirmations and len(user_message.split()) <= 2
 
-    # 5. ENTSCHEIDUNG: Welcher Agent führt aus?
+# 5. ENTSCHEIDUNG: Welcher Agent führt aus?
+    active_agent = agent_session_state.get(session_id)
+    agent_changed = False
+
     if active_agent and is_short_confirm:
         target_agent = active_agent
-    elif target_agent != "general" and target_agent != active_agent:
-  
-        if confidence >= CONFIDENCE_THRESHOLD:
+    
+    elif active_agent:
+        should_switch, new_target, switch_confidence = _should_switch_agent(
+            llm, active_agent, user_message, _sanitize_agent
+        )
+        
+        if should_switch and switch_confidence >= CONFIDENCE_THRESHOLD:
+            target_agent = new_target
             agent_session_state[session_id] = target_agent
             agent_changed = True
         else:
-            target_agent = active_agent or "general"
-    elif not active_agent:
-
+            target_agent = active_agent
+            agent_changed = False
+            log.info(f"Sticky Agent: Bleibe bei {active_agent}, da Switch-Logik abgelehnt hat.")
+            
+    else:
         if confidence >= CONFIDENCE_THRESHOLD:
             agent_session_state[session_id] = target_agent
             agent_changed = True
@@ -177,7 +187,7 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
                     "agent_changed": False  
                 }
 
-        # 8. ANTWORT WRAPPEN & CONCIERGE TEXT HINZUFÜGEN
+        # 8. ANTWORT WRAPPEN 
         agent_text = res.get("response") if isinstance(res, dict) else str(res)
 
         welcome_key = f"{session_id}_welcomed"
