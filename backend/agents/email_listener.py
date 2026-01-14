@@ -9,6 +9,7 @@ from langchain_core.messages import SystemMessage
 from agents.memory import global_store
 from database import SessionLocal
 from models.notifications import Notification
+from models.customer import Customer
 
 log = logging.getLogger(__name__)
 
@@ -19,6 +20,21 @@ IMAP_PASS = os.environ.get("SMTP_PASS")
 _last_imap_auth_failure_ts: float = 0.0
 _imap_auth_backoff_seconds: float = 60.0
 _logged_missing_imap_creds: bool = False
+
+def get_user_id_by_customer_ref(db, ref_id: str):
+    if len(ref_id) > 30 and ref_id in global_store:
+        return ref_id
+
+    if ref_id.isdigit():
+        try:
+            c_id = int(ref_id)
+            customer = db.query(Customer).filter(Customer.id == c_id).first()
+            if customer and customer.user_id:
+                return str(customer.user_id)
+        except Exception:
+            pass
+            
+    return None
 
 def check_inbox_for_replies():
     db = SessionLocal() 
@@ -77,53 +93,56 @@ def check_inbox_for_replies():
                     match = re.search(r"Ref(?:-ID)?:\s*(.*?)]", subject, re.IGNORECASE)
                     
                     if match:
-                        session_id = match.group(1).strip()
+                        external_ref = match.group(1).strip()
+                        internal_user_id = get_user_id_by_customer_ref(db, external_ref)
                         
-                        body = ""
-                        if msg.is_multipart():
-                            for part in msg.walk():
-                                if part.get_content_type() == "text/plain":
-                                    payload = part.get_payload(decode=True)
-                                    if payload:
-                                        body = payload.decode(errors="ignore")
-                                    break
-                        else:
-                            payload = msg.get_payload(decode=True)
-                            if payload:
-                                body = payload.decode(errors="ignore")
+                        if internal_user_id:
+                            body = ""
+                            if msg.is_multipart():
+                                for part in msg.walk():
+                                    if part.get_content_type() == "text/plain":
+                                        payload = part.get_payload(decode=True)
+                                        if payload:
+                                            body = payload.decode(errors="ignore")
+                                        break
+                            else:
+                                payload = msg.get_payload(decode=True)
+                                if payload:
+                                    body = payload.decode(errors="ignore")
 
-                        clean_body = body.strip()[:1500]
+                            clean_body = body.strip()[:1500]
 
-                        if session_id in global_store:
+                            if internal_user_id in global_store:
+                                try:
+                                    sys_msg = SystemMessage(content=f"UPDATE: Neue E-Mail Antwort.\nBetreff: {subject}\nInhalt:\n{clean_body}")
+                                    global_store[internal_user_id].add_message(sys_msg)
+                                except Exception:
+                                    pass
+
                             try:
-                                sys_msg = SystemMessage(content=f"UPDATE: Neue E-Mail Antwort.\nBetreff: {subject}\nInhalt:\n{clean_body}")
-                                global_store[session_id].add_message(sys_msg)
-                            except Exception:
-                                pass
+                                new_notif = Notification(
+                                    user_id=internal_user_id, 
+                                    title=f"Antwort von {sender}",
+                                    message=subject[:100],
+                                    type="EMAIL_REPLY",
+                                    data={
+                                        "sender": sender,
+                                        "subject": subject,
+                                        "body": clean_body,
+                                        "ref_used": external_ref
+                                    },
+                                    is_read=False
+                                )
+                                db.add(new_notif)
+                                db.commit()
+                                
+                                log.info(f"Notification gespeichert: {internal_user_id} (Ref: {external_ref})")
 
-                        try:
-                            new_notif = Notification(
-                                user_id=session_id, 
-                                title=f"Antwort von {sender}",
-                                message=subject[:100],
-                                type="EMAIL_REPLY",
-                                data={
-                                    "sender": sender,
-                                    "subject": subject,
-                                    "body": clean_body
-                                },
-                                is_read=False
-                            )
-                            db.add(new_notif)
-                            db.commit()
-                            
-                            log.info(f"Notification gespeichert: {session_id}")
+                                mail.store(e_id, '+FLAGS', '\\Seen')
 
-                            mail.store(e_id, '+FLAGS', '\\Seen')
-
-                        except Exception as e:
-                            log.error(f"Fehler DB/Store: {e}")
-                            db.rollback()
+                            except Exception as e:
+                                log.error(f"Fehler DB/Store: {e}")
+                                db.rollback()
             
         mail.close()
         mail.logout()
