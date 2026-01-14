@@ -85,9 +85,15 @@ def handle_lawyer_request(user_message: str, session_id: str = "INS_DEFAULT", us
     final_context_data = db_context if (db_context and "error" not in db_context) else user_context
 
     user_name = final_context_data.get("customer", {}).get("full_name") or user_context.get("name", "Unbekannt")
-    user_id = str(final_context_data.get("customer", {}).get("id") or identifier)
+    user_id = str(final_context_data.get("customer", {}).get("user_id") or identifier)
+    cust_db_id = final_context_data.get("customer", {}).get("id")
 
-    log.info(f"LawyerAgent gestartet für: {user_id}")
+    if cust_db_id:
+        customer_ref_id = str(cust_db_id)
+    else:
+        customer_ref_id = user_id
+
+    log.info(f"LawyerAgent gestartet für: {user_name} (Ref-ID: {customer_ref_id})")
 
     context_json = json.dumps(final_context_data, indent=2, ensure_ascii=False)
     
@@ -101,8 +107,6 @@ def handle_lawyer_request(user_message: str, session_id: str = "INS_DEFAULT", us
     else:
         actual_message = user_message
          
-    log.info(f"LawyerAgent gestartet für: {user_name} (Session: {session_id})")
-
     try:
         result = agent_with_chat_history.invoke(
             {
@@ -110,6 +114,7 @@ def handle_lawyer_request(user_message: str, session_id: str = "INS_DEFAULT", us
                 "user_context": context_json,
                 "user_name": user_name,
                 "user_id": user_id,
+                "customer_id": customer_ref_id,
             },
             config={"configurable": {"session_id": session_id}}
         )
