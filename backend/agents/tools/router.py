@@ -4,18 +4,7 @@ from agents.tools.orchestrator_utils import _safe_json_loads, _check_explicit_tr
 
 log = logging.getLogger(__name__)
 
-def _get_routing_decision(llm, prompt_template, text, sanitize_func) -> tuple[str, float]:
-    """Fragt das LLM, welcher Agent zuständig sein könnte."""
-    try:
-        response = llm.invoke(prompt_template.format(user_message=text))
-        data = _safe_json_loads(response.content)
-        agent = sanitize_func(data.get("agent", "general"))
-        confidence = _clamp_confidence(data.get("confidence", 0.5))
-        return (agent, confidence)
-    except Exception:
-        return ("general", 0.0)
-
-def _should_switch_agent(llm, current_agent, user_message, sanitize_func) -> tuple[bool, str, float]:
+def _should_switch_agent(llm, current_agent, user_message, sanitize_func, current_agent_state=None) -> tuple[bool, str, float]:
     """Entscheidet kontext-bewusst ob Agent gewechselt werden soll."""
     current_agent = sanitize_func(current_agent)
 
@@ -24,9 +13,18 @@ def _should_switch_agent(llm, current_agent, user_message, sanitize_func) -> tup
         return (True, trigger_agent, 0.95)
     
     context_prompt = f"""
-You are an intelligent agent router. Analyze if the user wants to switch to a different agent.
+You are an intelligent  router. 
+Analyze if the user wants to switch to a different agent or if we should stay with the current one.
+
 Current Active Agent: {current_agent}
 User Message: {user_message}
+
+### GUIDELINES:
+1. If the Current Agent is 'insurance' and the user provides details about a damage (like 'rechter Kotflügel'), 
+   DO NOT SWITCH to 'repair' yet. The insurance agent needs this info to finish the claim first.
+2. Only switch if the user explicitly asks for a different service OR the current topic is completely finished.
+3. Stay with the current agent if they are in the middle of a question/answer flow.
+
 Available Agents: lawyer, repair, insurance, general
 Return ONLY JSON: {{"should_switch": boolean, "target_agent": "...", "confidence": 0.0-1.0, "reason": "..."}}
 """
@@ -38,7 +36,11 @@ Return ONLY JSON: {{"should_switch": boolean, "target_agent": "...", "confidence
         target_agent = sanitize_func(result.get("target_agent", "general"))
         confidence = _clamp_confidence(result.get("confidence", 0.5))
         
-        log.info(f"Agent Switch: {should_switch}, Target: {target_agent}")
+        if current_agent == "insurance" and target_agent == "repair" and not has_trigger:
+            log.info("Switch von insurance zu repair unterdrückt, um Intake zu beenden.")
+            return (False, current_agent, 1.0)
+
+        log.info(f"Agent Switch Decision: {should_switch}, Target: {target_agent} (Reason: {result.get('reason')})")
         return (should_switch, target_agent, confidence)
     except Exception as e:
         log.error(f"Error in agent switch decision: {e}")
