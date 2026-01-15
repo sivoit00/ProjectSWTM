@@ -39,7 +39,7 @@ def _load_template(name: str) -> str:
 
 try:
     PROMPT_ROUTE = _load_template("orchestrator_route.md")
-except:
+except Exception:
     PROMPT_ROUTE = """Classify intent: lawyer, insurance, repair, general. JSON: {"agent": "...", "confidence": 0.0}"""
 
 def _sanitize_agent(agent: Any, default: str = "general") -> str:
@@ -152,6 +152,7 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
 
     # 6. AGENTEN-AUFRUF
     try:
+        res = None
         if agent_changed:
             current_msg = (
                 f"(Anweisung: Der Concierge hat bereits begrüßt. Überspringe deine "
@@ -168,6 +169,9 @@ def route_message(user_message: str, user_context: Dict[str, Any] = None) -> Dic
             res = run_insurance_agent(current_msg, session_id, user_context)
         elif target_agent == "repair":
             res = run_repair_agent_with_memory(current_msg, session_id, user_context)
+        else:
+            # 'general' oder unerwarteter Agent -> General Assistant
+            res = handle_general_request(current_msg, user_name)
 
         # 7. HANDOVER LOGIK 
         if isinstance(res, dict) and res.get("handover"):

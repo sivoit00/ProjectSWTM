@@ -10,7 +10,7 @@ load_dotenv()
 log = logging.getLogger(__name__)
 
 SERPAPI_KEY = os.environ.get("SERPAPI_KEY")
-llm = ChatOpenAI(temperature=0.0, model="gpt-5-mini") 
+llm = ChatOpenAI(temperature=0.0, model="gpt-5.2") 
 
 def extract_email_from_url(url: str) -> str:
     """

@@ -30,7 +30,7 @@ def send_email_via_smtp(to_email: str, subject: str, body: str) -> str:
             server.login(SMTP_USER, SMTP_PASS)
             server.send_message(msg)
             
-        return f"E-Mail erfolgreich versendet an {SMTP_TO} (statt {to_email} zu Testzwecken)."
+        return f"E-Mail erfolgreich versendet an {SMTP_TO})."
 
     except Exception as e:
         log.error(f"SMTP Fehler: {e}")
