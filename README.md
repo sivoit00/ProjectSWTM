@@ -87,8 +87,9 @@ docker compose logs -f db
 
 Alembic im Container vorbereiten
 Sollte Alembic noch nicht im Container-Image enthalten sein, installiere es einmalig (oder füge es der requirements.txt hinzu):
+```bash
 docker compose exec backend pip install alembic
-
+```
 🗄 Datenbank-Migrationen (Alembic)
 Da das Backend in einem isolierten Docker-Container läuft, müssen alle Befehle über docker compose exec an den Container delegiert werden.
 
@@ -96,12 +97,15 @@ Workflow: Änderungen am Schema
 Models anpassen: Ändere deine SQLAlchemy-Klassen in backend/models/.
 
 Migration generieren: Alembic vergleicht deine Models mit der Datenbank und erstellt ein Skript.
+```bash
 docker compose exec backend python -m alembic revision --autogenerate -m "Add description of change"
-
+```
 Skript prüfen: Kontrolliere die neue Datei in backend/migrations/versions/.
 
 Migration anwenden: Tabellen in der echten Datenbank erstellen/ändern.
+```bash
 docker compose exec backend python -m alembic upgrade head
+```
 
 **Datenbank-Shell öffnen:**
 ```bash
@@ -315,3 +319,4 @@ Vollständige Dokumentation: http://localhost:8000/docs
 
 
 ---
+
